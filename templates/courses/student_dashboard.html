@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-4">My Learning</h1>
+
+<div class="row">
+    {% for item in course_progress %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ item.course.title }}</h5>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: {{ item.percent }}%;" aria-valuenow="{{ item.percent }}" aria-valuemin="0" aria-valuemax="100">{{ item.percent }}%</div>
+                </div>
+                <p class="small text-muted">{{ item.completed_lessons }} / {{ item.total_lessons }} lessons completed</p>
+            </div>
+            <div class="card-footer bg-white border-top-0">
+                {% with first_lesson=item.course.lessons.first %}
+                    {% if first_lesson %}
+                        <a href="{% url 'lesson_detail' item.course.id first_lesson.id %}" class="btn btn-primary w-100">
+                            {% if item.percent > 0 %}Continue Learning{% else %}Start Course{% endif %}
+                        </a>
+                    {% else %}
+                        <button class="btn btn-secondary w-100" disabled>No lessons yet</button>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            You haven't enrolled in any courses yet. <a href="{% url 'course_list' %}">Browse Courses</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

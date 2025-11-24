@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Student Progress: {{ course.title }}</h1>
+    <a href="{% url 'instructor_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if student_progress %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Progress</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in student_progress %}
+                    <tr>
+                        <td>{{ item.student.username }} ({{ item.student.email }})</td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ item.percent }}%;" aria-valuenow="{{ item.percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </td>
+                        <td>{{ item.percent }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-center">No students enrolled yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
