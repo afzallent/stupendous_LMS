@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -30,9 +31,11 @@ import {
   X
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { djangoApi } from "@/lib/django-api-client"
+import { toast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
+  const router = useRouter()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)

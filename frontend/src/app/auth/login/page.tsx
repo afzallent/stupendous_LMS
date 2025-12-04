@@ -67,24 +67,9 @@ function AuthPageContent() {
       console.log('📍 Redirect path set to:', decodeURIComponent(redirect))
     }
     
-    const loadProviders = async () => {
-      try {
-        // Load SSO providers from our API instead of NextAuth
-        const response = await fetch('/api/admin/sso-providers')
-        if (response.ok) {
-          const data = await response.json()
-          const enabledProviders = data.providers?.filter((p: any) => p.enabled && p.clientId && p.clientSecret) || []
-          const providersMap = Object.fromEntries(
-            enabledProviders.map((p: any) => [p.name, { id: p.name, name: p.displayName }])
-          )
-          setProviders(providersMap)
-        }
-      } catch (error) {
-        console.error('Failed to load providers:', error)
-      }
-    }
-    
-    loadProviders()
+    // SSO providers are not implemented in Django backend yet
+    // Keeping the UI but providers will be empty for now
+    setProviders({})
   }, [searchParams])
 
   const handleSocialSignIn = async (providerId: string) => {
@@ -206,28 +191,17 @@ function AuthPageContent() {
     try {
       setLoading(true)
       
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: signupForm.name,
-          email: signupForm.email,
-          password: signupForm.password,
-          confirmPassword: signupForm.confirmPassword,
-          agreeToTerms: signupForm.agreeToTerms
-        })
-      })
+      // Use the auth context signup method which uses djangoApi
+      const success = await signup(signupForm.name, signupForm.email, signupForm.password)
       
-      const data = await response.json()
-      
-      if (response.ok) {
+      if (success) {
         toast({
           title: "Account Created",
-          description: "Welcome to CourseCompass! Please sign in."
+          description: "Welcome to CourseCompass! Redirecting to your dashboard..."
         })
         
-        setActiveTab('login')
-        setLoginForm(prev => ({ ...prev, email: signupForm.email }))
+        // Redirect to student dashboard (new signups default to STUDENT)
+        router.push('/learn')
         setSignupForm({
           name: "",
           email: "",

@@ -53,17 +53,9 @@ export default function StudentDashboard() {
   const handleLogout = async () => {
     console.log('Student logout clicked')
     try {
-      // Clear local storage immediately
-      localStorage.removeItem('user')
-      localStorage.removeItem('token')
-      
-      // Call logout API (optional, for server-side cleanup)
-      fetch('/api/auth/logout', {
-        method: 'POST',
-      }).catch(err => console.log('Logout API error:', err))
-      
-      // Redirect to home page immediately
-      window.location.href = '/'
+      // Use the auth context logout method which uses djangoApi
+      await logout()
+      // The logout method will handle redirect
     } catch (error) {
       console.error('Logout error:', error)
       // Even if there's an error, still redirect

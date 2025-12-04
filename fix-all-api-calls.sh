@@ -1,0 +1,28 @@
+#!/bin/bash
+# Comprehensive API Fix Script
+# This script documents all the API call fixes needed
+
+echo "=== API Call Fixes Required ==="
+echo ""
+echo "HIGH PRIORITY FILES:"
+echo "1. frontend/src/app/profile/page.tsx - 4 calls"
+echo "2. frontend/src/app/learn/[courseId]/[lessonId]/page.tsx - 1 call"
+echo "3. frontend/src/app/checkout/success/page.tsx - 1 call"
+echo "4. frontend/src/app/instructor/question-bank/page.tsx - 2 calls"
+echo "5. frontend/src/app/learn/[courseId]/page.tsx - 1 call"
+echo ""
+echo "MEDIUM PRIORITY (Stub/Not Implemented):"
+echo "6. frontend/src/app/checkout/stripe/page.tsx"
+echo "7. frontend/src/app/checkout/upi/page.tsx"
+echo "8. frontend/src/app/instructor/quiz/create/page.tsx"
+echo "9. frontend/src/app/learn/[courseId]/quiz/[quizId]/page.tsx"
+echo ""
+echo "LOW PRIORITY (Admin - Not Implemented):"
+echo "10. frontend/src/app/admin/page.tsx"
+echo "11. frontend/src/app/admin/payment-settings/page.tsx"
+echo "12. frontend/src/app/admin/sso-settings/page.tsx"
+echo ""
+echo "TEST FILES:"
+echo "13. frontend/src/lib/enrollment-test-utils.ts"
+echo ""
+echo "Run individual fixes with Kiro IDE"

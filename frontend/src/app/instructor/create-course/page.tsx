@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,8 @@ import {
   Video,
   CheckCircle
 } from "lucide-react"
+import { djangoApi } from "@/lib/django-api-client"
+import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { XLVILoader } from "@/components/ui/xlvi-loader"
@@ -266,25 +268,22 @@ function CreateCoursePageContent() {
     try {
       const formData = new FormData()
       formData.append('thumbnail', file)
-      formData.append('courseId', courseId)
-      formData.append('replaceExisting', 'true')
 
-      const response = await fetch('/api/upload/thumbnail', {
-        method: 'POST',
-        body: formData,
+      // Upload to Django backend
+      const result = await djangoApi.upload(`/api/courses/${courseId}/upload-thumbnail/`, formData)
+
+      setCourseData(prev => ({ ...prev, thumbnail: file }))
+      toast({
+        title: "Success",
+        description: "Thumbnail uploaded successfully!"
       })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setCourseData(prev => ({ ...prev, thumbnail: file }))
-        alert('Thumbnail uploaded successfully!')
-      } else {
-        alert('Failed to upload thumbnail: ' + result.error)
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Thumbnail upload error:', error)
-      alert('Failed to upload thumbnail. Please try again.')
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload thumbnail. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setUploadingThumbnail(false)
       // Clear the file input
@@ -320,30 +319,30 @@ function CreateCoursePageContent() {
     try {
       const formData = new FormData()
       formData.append('video', file)
-      formData.append('lessonId', lesson.id)
-      formData.append('courseId', courseId || '')
-      formData.append('replaceExisting', 'true')
 
-      const response = await fetch('/api/upload/video', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        // Update lesson with video file
-        const updatedChapters = [...chapters]
-        updatedChapters[chapterIndex].lessons[lessonIndex].videoFile = file
-        setChapters(updatedChapters)
-        
-        alert('Video uploaded successfully!')
-      } else {
-        alert('Failed to upload video: ' + result.error)
+      // Upload to Django backend - lesson must exist first
+      if (!lesson.id) {
+        throw new Error('Lesson must be saved before uploading video')
       }
-    } catch (error) {
+
+      const result = await djangoApi.upload(`/api/lessons/${lesson.id}/upload-video/`, formData)
+
+      // Update lesson with video file
+      const updatedChapters = [...chapters]
+      updatedChapters[chapterIndex].lessons[lessonIndex].videoFile = file
+      setChapters(updatedChapters)
+      
+      toast({
+        title: "Success",
+        description: "Video uploaded successfully!"
+      })
+    } catch (error: any) {
       console.error('Video upload error:', error)
-      alert('Failed to upload video. Please try again.')
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload video. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setUploadingVideos(prev => ({ ...prev, [uploadKey]: false }))
       setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }))
@@ -388,22 +387,14 @@ function CreateCoursePageContent() {
         }))
       }
 
-      const response = await fetch('/api/courses/draft', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(draftData),
+      // Create course in Django (no separate draft status in current Django model)
+      const result = await djangoApi.post('/api/courses/', draftData)
+
+      setCourseId(result.id)
+      toast({
+        title: "Success",
+        description: "Course saved successfully!"
       })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setCourseId(result.data.courseId)
-        alert("Course saved as draft!")
-      } else {
-        alert("Failed to save draft: " + result.error)
-      }
     } catch (error) {
       console.error("Error saving draft:", error)
       alert("Failed to save draft. Please try again.")
@@ -458,41 +449,15 @@ function CreateCoursePageContent() {
         }))
       }
 
-      const response = await fetch('/api/courses/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(publishData),
+      // Create course in Django
+      const result = await djangoApi.post('/api/courses/', publishData)
+
+      toast({
+        title: "Success",
+        description: "Course published successfully! It will now appear in the course listings."
       })
-
-      const result = await response.json()
-
-      if (result.success) {
-        // Course created, now publish it
-        const publishResponse = await fetch('/api/courses/publish', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            courseId: result.data.courseId,
-            instructorId: user.id
-          }),
-        })
-
-        const publishResult = await publishResponse.json()
-
-        if (publishResult.success) {
-          alert("Course published successfully! It will now appear in the course listings.")
-          router.push("/instructor")
-        } else {
-          alert("Course created but failed to publish: " + publishResult.error)
-        }
-      } else {
-        alert("Failed to create course: " + result.error)
-        console.error("Create error details:", result.details)
-      }
+      
+      router.push("/instructor")
     } catch (error) {
       console.error("Error publishing course:", error)
       alert("Failed to publish course. Please try again.")

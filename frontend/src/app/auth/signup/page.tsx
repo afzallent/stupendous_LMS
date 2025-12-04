@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,8 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { BookOpen, Eye, EyeOff, Mail, Lock, User } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/lib/auth"
 
 export default function SignupPage() {
+  const router = useRouter()
+  const { signup } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [signupForm, setSignupForm] = useState({
@@ -23,41 +27,23 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate passwords match
+    if (signupForm.password !== signupForm.confirmPassword) {
+      alert('Passwords do not match')
+      return
+    }
+    
     setIsLoading(true)
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(signupForm),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Store user data and redirect based on role
-        localStorage.setItem('user', JSON.stringify(data.data.user))
-        localStorage.setItem('token', data.data.token)
-        
-        // Redirect based on user role (new signups default to STUDENT)
-        const userRole = data.data.user.role
-        switch (userRole) {
-          case 'STUDENT':
-            window.location.href = '/learn'
-            break
-          case 'INSTRUCTOR':
-          case 'TRAINER':
-            window.location.href = '/instructor'
-            break
-          case 'ADMIN':
-            window.location.href = '/admin'
-            break
-          default:
-            window.location.href = '/learn' // Default to student dashboard for new users
-        }
+      // Use the auth context signup method which uses djangoApi
+      const success = await signup(signupForm.name, signupForm.email, signupForm.password)
+      
+      if (success) {
+        // Redirect to student dashboard (new signups default to STUDENT)
+        router.push('/learn')
       } else {
-        alert(data.error || 'Signup failed')
+        alert('Signup failed. Please check your information and try again.')
       }
     } catch (error) {
       console.error('Signup error:', error)
