@@ -537,24 +537,35 @@ export default function InstructorDashboard() {
 
                       <div className="pt-2 border-t">
                         <p className="text-xs text-muted-foreground mb-3">Last updated: {course.lastUpdated}</p>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-col space-y-2">
+                          <div className="flex space-x-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => router.push(`/instructor/create-course?edit=${course.id}`)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => router.push(`/instructor/analytics/${course.id}`)}
+                            >
+                              <BarChart3 className="h-3 w-3 mr-1" />
+                              Analytics
+                            </Button>
+                          </div>
                           <Button 
                             size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => router.push(`/instructor/create-course?edit=${course.id}`)}
+                            variant="default" 
+                            className="w-full"
+                            onClick={() => router.push(`/instructor/courses/${course.id}/students`)}
                           >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => router.push(`/instructor/analytics/${course.id}`)}
-                          >
-                            <BarChart3 className="h-3 w-3 mr-1" />
-                            Analytics
+                            <Users className="h-3 w-3 mr-1" />
+                            View Students
                           </Button>
                         </div>
                       </div>

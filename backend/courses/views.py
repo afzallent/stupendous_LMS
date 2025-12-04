@@ -199,20 +199,54 @@ class CourseViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return CourseDetailSerializer
         return CourseSerializer
+    
+    def retrieve(self, request, *args, **kwargs):
+        """Get course detail with status check"""
+        instance = self.get_object()
+        
+        # Check if user has permission to view this course
+        if instance.status != 'published':
+            # Only the instructor can view unpublished courses
+            if not request.user.is_authenticated or instance.instructor != request.user:
+                return Response(
+                    {'detail': 'This course is not available.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     def get_queryset(self):
-        """Filter courses by query parameters"""
+        """Filter courses by query parameters and user permissions"""
         queryset = Course.objects.all().order_by('-created_at')
         
-        # Filter by instructor
-        instructor_id = self.request.query_params.get('instructorId')
-        if instructor_id:
-            queryset = queryset.filter(instructor_id=instructor_id)
+        # Students and anonymous users should only see published courses
+        # Instructors can see their own courses regardless of status
+        if not self.request.user.is_authenticated or self.request.user.is_student:
+            queryset = queryset.filter(status='published')
+        elif self.request.user.is_instructor:
+            # Instructors see published courses + their own courses (any status)
+            instructor_id = self.request.query_params.get('instructorId')
+            if instructor_id and int(instructor_id) == self.request.user.id:
+                # Viewing own courses - show all statuses
+                queryset = queryset.filter(instructor_id=instructor_id)
+            else:
+                # Viewing other courses - only published
+                queryset = queryset.filter(status='published')
+                if instructor_id:
+                    queryset = queryset.filter(instructor_id=instructor_id)
         
-        # Filter by category (if added later)
+        # Filter by category
         category = self.request.query_params.get('category')
         if category:
             queryset = queryset.filter(category=category)
+        
+        # Search functionality
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(description__icontains=search)
+            )
         
         return queryset
 
@@ -234,13 +268,14 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def my_courses(self, request):
-        """Get courses created by current instructor"""
+        """Get courses created by current instructor (all statuses)"""
         if not request.user.is_instructor:
             return Response(
                 {'detail': 'Only instructors can view their courses.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        courses = Course.objects.filter(instructor=request.user)
+        # Instructors see all their courses regardless of status
+        courses = Course.objects.filter(instructor=request.user).order_by('-created_at')
         page = self.paginate_queryset(courses)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -377,19 +412,34 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         """Filter enrollments by current user"""
         return Enrollment.objects.filter(student=self.request.user)
 
-    def perform_create(self, serializer):
-        """Create enrollment for current user"""
+    def create(self, request, *args, **kwargs):
+        """Create enrollment for current user with duplicate check"""
+        from django.db import IntegrityError
+        
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
         course_id = serializer.validated_data.get('course_id')
         course = get_object_or_404(Course, id=course_id)
         
-        # Check for duplicate enrollment
-        if Enrollment.objects.filter(student=self.request.user, course=course).exists():
+        # Check for duplicate enrollment before attempting to save
+        if Enrollment.objects.filter(student=request.user, course=course).exists():
             return Response(
                 {'detail': 'You are already enrolled in this course.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        serializer.save(student=self.request.user)
+        try:
+            # Save with current user as student
+            serializer.save(student=request.user)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except IntegrityError:
+            # Safety net in case of race condition
+            return Response(
+                {'detail': 'You are already enrolled in this course.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def perform_destroy(self, instance):
         """Ensure user can only unenroll from their own enrollments"""

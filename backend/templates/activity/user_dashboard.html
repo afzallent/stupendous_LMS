@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}My Activity Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>My Activity Dashboard</h1>
+    
+    <!-- Stats Overview -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Last 7 Days</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Total Activities:</span>
+                            <strong>{{ stats_7_days.total_activities }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Lessons Completed:</span>
+                            <strong>{{ stats_7_days.lessons_completed }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Time Spent:</span>
+                            <strong>{{ stats_7_days.lesson_time_spent|floatformat:0 }} seconds</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Sessions:</span>
+                            <strong>{{ stats_7_days.total_sessions }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Last 30 Days</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Total Activities:</span>
+                            <strong>{{ stats_30_days.total_activities }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Lessons Completed:</span>
+                            <strong>{{ stats_30_days.lessons_completed }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Time Spent:</span>
+                            <strong>{{ stats_30_days.lesson_time_spent|floatformat:0 }} seconds</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Sessions:</span>
+                            <strong>{{ stats_30_days.total_sessions }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Daily Summaries -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Daily Activity Summary (Last 30 Days)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Logins</th>
+                            <th>Courses Viewed</th>
+                            <th>Lessons Viewed</th>
+                            <th>Lessons Completed</th>
+                            <th>Time Spent</th>
+                            <th>Engagement Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for summary in daily_summaries %}
+                        <tr>
+                            <td>{{ summary.date }}</td>
+                            <td>{{ summary.login_count }}</td>
+                            <td>{{ summary.courses_viewed }}</td>
+                            <td>{{ summary.lessons_viewed }}</td>
+                            <td>{{ summary.lessons_completed }}</td>
+                            <td>{{ summary.total_time_spent|floatformat:0 }}s</td>
+                            <td>
+                                <span class="badge {% if summary.engagement_score >= 70 %}bg-success{% elif summary.engagement_score >= 40 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ summary.engagement_score }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No activity data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activities -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Recent Activities</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Description</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in recent_activities %}
+                        <tr>
+                            <td><span class="badge bg-primary">{{ activity.get_action_type_display }}</span></td>
+                            <td>{{ activity.description|default:"-" }}</td>
+                            <td>{{ activity.timestamp|timesince }} ago</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No recent activities</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lesson Time Tracking -->
+    <div class="card mt-4 mb-4">
+        <div class="card-header">
+            <h5>Recent Lesson Activity</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Lesson</th>
+                            <th>Course</th>
+                            <th>Time Spent</th>
+                            <th>Status</th>
+                            <th>Last Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tracking in lesson_tracking %}
+                        <tr>
+                            <td>{{ tracking.lesson.title }}</td>
+                            <td>{{ tracking.lesson.course.title }}</td>
+                            <td>{{ tracking.time_spent|floatformat:0 }}s</td>
+                            <td>
+                                {% if tracking.completed %}
+                                <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                <span class="badge bg-warning">In Progress</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ tracking.started_at|timesince }} ago</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No lesson activity yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

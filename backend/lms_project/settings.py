@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "files",
     "quizzes",
     "certificates",
+    "activity",
 ]
 
 AUTH_USER_MODEL = 'core.User'
@@ -62,6 +63,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "activity.middleware.ActivityTrackingMiddleware",
 ]
 
 ROOT_URLCONF = "lms_project.urls"
