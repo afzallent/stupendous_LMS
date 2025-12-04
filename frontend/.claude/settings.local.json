@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(npx tsx:*)",
+      "Bash(sqlite3:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Implement comprehensive Quiz/Assessment System and fix authentication issues\n\nMajor Features Added:\n- Complete Quiz/Assessment System with:\n  - Quiz creation interface for instructors\n  - Multiple question types (Multiple Choice, True/False, Text, Multiple Answer)\n  - Quiz taking experience for students with timer and progress tracking\n  - Automatic scoring and result tracking\n  - Question bank management system\n  - Quiz results analytics page for instructors\n\nAuthentication Fixes:\n- Fixed login redirect loop issue by storing JWT token in localStorage\n- Updated auth context to properly manage token storage and retrieval\n- Fixed admin page TypeError with undefined array handling\n- Added null safety checks for all API responses\n\nUI Components:\n- Added missing use-toast hook component for notifications\n- Implemented toast notification system\n\nTesting & Documentation:\n- Added comprehensive testing scripts for quiz system\n- Created detailed testing guide and credentials documentation\n- Added test scripts for enrollment and user verification\n\nKnown Issues Addressed:\n- Stripe API placeholder keys (expected, documented workaround)\n- Admin API JWT verification (identified, partially fixed)\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(npm run test:student:headed:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run test:student:win:*)",
+      "Bash(npx jest:*)",
+      "Bash(node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

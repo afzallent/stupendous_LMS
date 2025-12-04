@@ -1,0 +1,2098 @@
+openapi: 3.0.3
+info:
+  title: CourseCompass V2 Learning Management System API
+  description: |
+    Comprehensive API for CourseCompass V2, a modern Learning Management System (LMS) built with Next.js 15.
+    
+    This API supports:
+    - Multi-role authentication (Students, Trainers, Admins)
+    - Course management and content delivery
+    - Payment processing (Stripe & UPI)
+    - Real-time learning progress tracking
+    - Quiz/Assessment system
+    - File uploads and media management
+    - Certificate generation
+    - Administrative controls
+    
+    **Base URL**: http://localhost:3000/api (development)
+  version: 2.0.0
+  contact:
+    name: CourseCompass Team
+    url: https://coursecompass.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://coursecompass.com/api
+    description: Production server
+
+paths:
+  # Health Check
+  /health:
+    get:
+      tags: [System]
+      summary: Health check endpoint
+      description: Simple health check to verify API status
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Good!"
+
+  # Authentication Endpoints
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticate user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "student@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      summary: User registration
+      description: Register new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "securepass123"
+                confirmPassword:
+                  type: string
+                  example: "securepass123"
+                role:
+                  type: string
+                  enum: [STUDENT, TRAINER]
+                  default: STUDENT
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Validation or registration error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      description: Logout current user and invalidate session
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user profile
+      description: Retrieve authenticated user's profile information
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+
+  # Course Management Endpoints
+  /courses:
+    get:
+      tags: [Courses]
+      summary: List published courses
+      description: Get paginated list of published courses with filters
+      parameters:
+        - name: search
+          in: query
+          description: Search term for course title, description, or instructor
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: level
+          in: query
+          description: Filter by difficulty level
+          schema:
+            type: string
+            enum: [all, beginner, intermediate, advanced]
+        - name: price
+          in: query
+          description: Filter by price range
+          schema:
+            type: string
+            enum: [all, free, 0-50, 50-100, 100+]
+        - name: sort
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [popular, rating, newest, price-low, price-high]
+            default: popular
+      responses:
+        '200':
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseListItem'
+
+  /courses/create:
+    post:
+      tags: [Courses]
+      summary: Create new course
+      description: Create a new course (Trainers and Admins only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourseRequest'
+      responses:
+        '201':
+          description: Course created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Course'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /courses/draft:
+    post:
+      tags: [Courses]
+      summary: Save course as draft
+      description: Save course in draft status
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourseRequest'
+      responses:
+        '200':
+          description: Draft saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /courses/publish:
+    post:
+      tags: [Courses]
+      summary: Publish course
+      description: Publish a draft course
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [courseId]
+              properties:
+                courseId:
+                  type: string
+      responses:
+        '200':
+          description: Course published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # Enrollment Endpoints
+  /enrollments/create:
+    post:
+      tags: [Enrollments]
+      summary: Create course enrollment
+      description: Enroll student in one or more courses
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEnrollmentRequest'
+      responses:
+        '201':
+          description: Enrollment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentResponse'
+        '400':
+          description: Invalid request or course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only students can enroll in courses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Student Endpoints
+  /student/dashboard:
+    get:
+      tags: [Students]
+      summary: Get student dashboard data
+      description: Retrieve student's enrolled courses and progress
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          description: Student user ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dashboard data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentDashboardResponse'
+
+  /student/progress:
+    get:
+      tags: [Students]
+      summary: Get learning progress
+      description: Get student's progress across all courses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: courseId
+          in: query
+          description: Filter by specific course
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Progress data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressResponse'
+
+  /student/certificates:
+    get:
+      tags: [Students]
+      summary: Get student certificates
+      description: Retrieve all certificates earned by the student
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Certificates retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Certificate'
+
+  # Instructor Endpoints
+  /instructor/courses:
+    get:
+      tags: [Instructors]
+      summary: Get instructor's courses
+      description: Retrieve all courses created by the instructor
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: instructorId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Instructor courses retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstructorCoursesResponse'
+
+  /instructor/courses/{courseId}:
+    get:
+      tags: [Instructors]
+      summary: Get specific course details
+      description: Get detailed information about a specific course
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: instructorId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Course details retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/CourseDetail'
+
+  /instructor/analytics:
+    get:
+      tags: [Instructors]
+      summary: Get instructor analytics
+      description: Retrieve analytics data for instructor's courses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: instructorId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          description: Time period for analytics
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: 30d
+      responses:
+        '200':
+          description: Analytics data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstructorAnalyticsResponse'
+
+  # Admin Endpoints
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users
+      description: Get paginated list of all users (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Search by name or email
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: Filter by user role
+          schema:
+            type: string
+            enum: [all, student, trainer, admin]
+        - name: status
+          in: query
+          description: Filter by user status
+          schema:
+            type: string
+            enum: [all, active, suspended, banned]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Users list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUsersResponse'
+        '401':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags: [Admin]
+      summary: Update user status or role
+      description: Update user's status or role (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Payment Endpoints
+  /checkout/stripe:
+    post:
+      tags: [Payments]
+      summary: Create Stripe checkout session
+      description: Create Stripe checkout session for course purchase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeCheckoutRequest'
+      responses:
+        '200':
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  url:
+                    type: string
+                    format: uri
+        '400':
+          description: Invalid request or payment error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /checkout/upi:
+    post:
+      tags: [Payments]
+      summary: Create UPI payment session
+      description: Create UPI payment session for Indian users
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UPICheckoutRequest'
+      responses:
+        '200':
+          description: UPI payment session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paymentId:
+                    type: string
+                  qrCode:
+                    type: string
+                  upiLink:
+                    type: string
+
+  # File Upload Endpoints
+  /upload/avatar:
+    post:
+      tags: [File Upload]
+      summary: Upload user avatar
+      description: Upload profile picture for user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Image file (JPG, PNG, GIF)
+                userId:
+                  type: string
+      responses:
+        '200':
+          description: Avatar uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                      fileName:
+                        type: string
+                      size:
+                        type: integer
+
+  /upload/thumbnail:
+    post:
+      tags: [File Upload]
+      summary: Upload course thumbnail
+      description: Upload thumbnail image for course
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                thumbnail:
+                  type: string
+                  format: binary
+                courseId:
+                  type: string
+      responses:
+        '200':
+          description: Thumbnail uploaded successfully
+
+  /upload/video:
+    post:
+      tags: [File Upload]
+      summary: Upload lesson video
+      description: Upload video file for course lesson (supports chunked uploads)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                video:
+                  type: string
+                  format: binary
+                  description: Video file
+                lessonId:
+                  type: string
+                courseId:
+                  type: string
+                replaceExisting:
+                  type: boolean
+                  default: true
+                chunkIndex:
+                  type: integer
+                  description: For chunked uploads
+                totalChunks:
+                  type: integer
+                  description: For chunked uploads
+                uploadId:
+                  type: string
+                  description: For chunked uploads
+      responses:
+        '200':
+          description: Video uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      lesson:
+                        $ref: '#/components/schemas/Lesson'
+                      video:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                          fileName:
+                            type: string
+                          size:
+                            type: integer
+
+    delete:
+      tags: [File Upload]
+      summary: Delete lesson video
+      description: Remove video from lesson
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lessonId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Video deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # Certificate Endpoints
+  /certificates:
+    post:
+      tags: [Certificates]
+      summary: Generate course certificate
+      description: Generate completion certificate for a course
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, courseId]
+              properties:
+                userId:
+                  type: string
+                courseId:
+                  type: string
+      responses:
+        '200':
+          description: Certificate generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Certificate'
+        '400':
+          description: Course not completed or other validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /certificates/verify:
+    get:
+      tags: [Certificates]
+      summary: Verify certificate authenticity
+      description: Verify a certificate using certificate ID
+      parameters:
+        - name: certificateId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Certificate verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  certificate:
+                    $ref: '#/components/schemas/Certificate'
+
+  # Statistics and Analytics
+  /stats:
+    get:
+      tags: [System]
+      summary: Get platform statistics
+      description: Retrieve overall platform statistics
+      responses:
+        '200':
+          description: Platform statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlatformStat'
+
+  /categories:
+    get:
+      tags: [System]
+      summary: Get course categories
+      description: Retrieve all course categories with course counts
+      responses:
+        '200':
+          description: Course categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  /featured-courses:
+    get:
+      tags: [Courses]
+      summary: Get featured courses
+      description: Retrieve featured courses for homepage
+      responses:
+        '200':
+          description: Featured courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseListItem'
+
+  # File Serving
+  /files/{path}:
+    get:
+      tags: [File Serving]
+      summary: Serve uploaded files
+      description: Serve static files (videos, images, documents)
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: File path relative to uploads directory
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # User and Authentication Schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [STUDENT, TRAINER, ADMIN]
+        avatar:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            accessToken:
+              type: string
+
+    # Course Schemas
+    Course:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+          format: float
+        thumbnail:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, ARCHIVED]
+        level:
+          type: string
+          enum: [BEGINNER, INTERMEDIATE, ADVANCED]
+        language:
+          type: string
+        categoryId:
+          type: string
+          nullable: true
+        trainerId:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CourseListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        thumbnail:
+          type: string
+        level:
+          type: string
+        category:
+          type: string
+        instructor:
+          type: string
+        instructorAvatar:
+          type: string
+        rating:
+          type: number
+          format: float
+        students:
+          type: integer
+        totalReviews:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CourseDetail:
+      allOf:
+        - $ref: '#/components/schemas/Course'
+        - type: object
+          properties:
+            chapters:
+              type: array
+              items:
+                $ref: '#/components/schemas/Chapter'
+            lessons:
+              type: array
+              items:
+                $ref: '#/components/schemas/Lesson'
+            trainer:
+              $ref: '#/components/schemas/User'
+            category:
+              $ref: '#/components/schemas/Category'
+
+    CreateCourseRequest:
+      type: object
+      required: [title, description, price, level]
+      properties:
+        title:
+          type: string
+          minLength: 3
+        subtitle:
+          type: string
+        description:
+          type: string
+          minLength: 10
+        price:
+          type: number
+          minimum: 0
+        level:
+          type: string
+          enum: [BEGINNER, INTERMEDIATE, ADVANCED]
+        language:
+          type: string
+          default: English
+        categoryId:
+          type: string
+        learningObjectives:
+          type: array
+          items:
+            type: string
+        requirements:
+          type: array
+          items:
+            type: string
+        targetAudience:
+          type: string
+
+    # Chapter and Lesson Schemas
+    Chapter:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        order:
+          type: integer
+        courseId:
+          type: string
+        lessons:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lesson'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Lesson:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        videoUrl:
+          type: string
+          nullable: true
+        duration:
+          type: integer
+          nullable: true
+        content:
+          type: string
+          nullable: true
+        order:
+          type: integer
+        chapterId:
+          type: string
+        courseId:
+          type: string
+        isPreview:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Enrollment Schemas
+    CreateEnrollmentRequest:
+      type: object
+      required: [userId, courseIds]
+      properties:
+        userId:
+          type: string
+        courseIds:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        paymentId:
+          type: string
+        paymentMethod:
+          type: string
+          enum: [stripe, upi]
+        amount:
+          type: number
+
+    EnrollmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            enrollments:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  instructor:
+                    type: string
+                  enrolledAt:
+                    type: string
+                    format: date-time
+                  progress:
+                    type: number
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                email:
+                  type: string
+            skippedCourses:
+              type: array
+              items:
+                type: string
+
+    # Student Dashboard Schemas
+    StudentDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            enrolledCourses:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  instructor:
+                    type: string
+                  progress:
+                    type: integer
+                  totalLessons:
+                    type: integer
+                  completedLessons:
+                    type: integer
+                  nextLesson:
+                    type: object
+                    nullable: true
+                    properties:
+                      id:
+                        type: string
+                      title:
+                        type: string
+            stats:
+              type: object
+              properties:
+                totalEnrolled:
+                  type: integer
+                totalCompleted:
+                  type: integer
+                totalHours:
+                  type: integer
+                currentStreak:
+                  type: integer
+            achievements:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  icon:
+                    type: string
+                  earnedAt:
+                    type: string
+
+    # Progress Schema
+    ProgressResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              lessonId:
+                type: string
+              progressPercentage:
+                type: number
+              watchTime:
+                type: integer
+              completed:
+                type: boolean
+              lastPosition:
+                type: integer
+
+    # Instructor Schemas
+    InstructorCoursesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            courses:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  status:
+                    type: string
+                  students:
+                    type: integer
+                  revenue:
+                    type: number
+                  rating:
+                    type: number
+                  completionRate:
+                    type: integer
+                  totalLessons:
+                    type: integer
+                  duration:
+                    type: string
+                  category:
+                    type: string
+                  price:
+                    type: number
+                  created:
+                    type: string
+                  lastUpdated:
+                    type: string
+                  thumbnail:
+                    type: string
+            stats:
+              type: object
+              properties:
+                totalStudents:
+                  type: integer
+                totalRevenue:
+                  type: number
+                totalCourses:
+                  type: integer
+                publishedCourses:
+                  type: integer
+                averageRating:
+                  type: number
+                completionRate:
+                  type: integer
+
+    InstructorAnalyticsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            overview:
+              type: object
+              properties:
+                totalRevenue:
+                  type: number
+                totalStudents:
+                  type: integer
+                totalCourses:
+                  type: integer
+                averageRating:
+                  type: number
+            revenueChart:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                  amount:
+                    type: number
+            enrollmentChart:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                  enrollments:
+                    type: integer
+
+    # Admin Schemas
+    AdminUsersResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            users:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type: string
+                  avatar:
+                    type: string
+                  status:
+                    type: string
+                  joinDate:
+                    type: string
+                  lastActive:
+                    type: string
+                  coursesEnrolled:
+                    type: integer
+                  coursesCreated:
+                    type: integer
+                  totalSpent:
+                    type: number
+                  totalRevenue:
+                    type: number
+                  totalReviews:
+                    type: integer
+            pagination:
+              type: object
+              properties:
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                total:
+                  type: integer
+                pages:
+                  type: integer
+
+    UpdateUserRequest:
+      type: object
+      required: [userId, action]
+      properties:
+        userId:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, banned]
+        role:
+          type: string
+          enum: [STUDENT, TRAINER, ADMIN]
+        action:
+          type: string
+          enum: [activate, suspend, ban, change_role]
+
+    # Payment Schemas
+    StripeCheckoutRequest:
+      type: object
+      required: [items, userEmail, userId]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              price:
+                type: number
+              instructor:
+                type: string
+              thumbnail:
+                type: string
+              level:
+                type: string
+              duration:
+                type: string
+              lectures:
+                type: integer
+        userEmail:
+          type: string
+          format: email
+        userId:
+          type: string
+
+    UPICheckoutRequest:
+      type: object
+      required: [items, userEmail, userId, amount]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        userEmail:
+          type: string
+          format: email
+        userId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+          default: INR
+
+    # Certificate Schema
+    Certificate:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        courseId:
+          type: string
+        certificateUrl:
+          type: string
+        certificateId:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        revoked:
+          type: boolean
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revocationReason:
+          type: string
+          nullable: true
+
+    # System Schemas
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        icon:
+          type: string
+        courses:
+          type: integer
+
+    PlatformStat:
+      type: object
+      properties:
+        icon:
+          type: string
+        label:
+          type: string
+        value:
+          type: string
+        color:
+          type: string
+
+    # Common Response Schemas
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              path:
+                type: array
+                items:
+                  type: string
+
+tags:
+  - name: System
+    description: System health and configuration
+  - name: Authentication
+    description: User authentication and session management
+  - name: Courses
+    description: Course management and browsing
+  - name: Enrollments
+    description: Course enrollment management
+  - name: Students
+    description: Student-specific endpoints
+  - name: Instructors
+    description: Instructor/Trainer-specific endpoints
+  - name: Admin
+    description: Administrative functions (Admin only)
+  - name: Payments
+    description: Payment processing (Stripe & UPI)
+  - name: File Upload
+    description: File upload and media management
+  - name: Certificates
+    description: Certificate generation and verification
+  - name: File Serving
+    description: Static file serving
+
+  # Quiz/Assessment System Endpoints
+  /instructor/quiz/create:
+    post:
+      tags: [Quiz]
+      summary: Create a new quiz for a lesson
+      description: Instructors can create quizzes with multiple question types
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - lessonId
+                - questions
+              properties:
+                title:
+                  type: string
+                  example: "Module 1 Assessment"
+                description:
+                  type: string
+                  example: "Test your understanding of JavaScript basics"
+                passingScore:
+                  type: integer
+                  default: 70
+                  example: 80
+                lessonId:
+                  type: string
+                  example: "clp123abc"
+                timeLimit:
+                  type: integer
+                  description: Time limit in minutes
+                  example: 30
+                randomizeQuestions:
+                  type: boolean
+                  default: false
+                showExplanations:
+                  type: boolean
+                  default: true
+                allowRetakes:
+                  type: boolean
+                  default: true
+                maxRetakes:
+                  type: integer
+                  example: 3
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - question
+                      - type
+                      - correctAnswer
+                      - points
+                    properties:
+                      question:
+                        type: string
+                        example: "What is the capital of France?"
+                      type:
+                        type: string
+                        enum: [MULTIPLE_CHOICE, TRUE_FALSE, FILL_IN_THE_BLANK, MULTIPLE_ANSWER]
+                        example: "MULTIPLE_CHOICE"
+                      options:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Paris", "London", "Berlin", "Madrid"]
+                      correctAnswer:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: string
+                        example: "Paris"
+                      points:
+                        type: integer
+                        example: 1
+                      explanation:
+                        type: string
+                        example: "Paris has been the capital of France since 987 AD"
+                      order:
+                        type: integer
+                        example: 0
+      responses:
+        '200':
+          description: Quiz created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  quiz:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "clq456def"
+                      title:
+                        type: string
+                      questionCount:
+                        type: integer
+                      totalPoints:
+                        type: integer
+                      courseId:
+                        type: string
+                      courseName:
+                        type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    get:
+      tags: [Quiz]
+      summary: Get existing quiz for a lesson
+      description: Retrieve quiz details for editing
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: lessonId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The ID of the lesson
+      responses:
+        '200':
+          description: Quiz details retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quiz:
+                    type: object
+                    nullable: true
+
+  /student/quiz/{quizId}:
+    get:
+      tags: [Quiz]
+      summary: Get quiz for student to take
+      description: Retrieve quiz questions without correct answers
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: quizId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the quiz
+      responses:
+        '200':
+          description: Quiz retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quiz:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      title:
+                        type: string
+                      description:
+                        type: string
+                      passingScore:
+                        type: integer
+                      questions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            question:
+                              type: string
+                            type:
+                              type: string
+                            options:
+                              type: array
+                              items:
+                                type: string
+                            points:
+                              type: integer
+                      metadata:
+                        type: object
+                      course:
+                        type: object
+                      lesson:
+                        type: object
+                  previousAttempts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        score:
+                          type: number
+                        maxScore:
+                          type: number
+                        passed:
+                          type: boolean
+                        completedAt:
+                          type: string
+                          format: date-time
+                  attemptCount:
+                    type: integer
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /student/quiz/submit:
+    post:
+      tags: [Quiz]
+      summary: Submit quiz answers
+      description: Submit student answers and receive automatic scoring
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - quizId
+                - answers
+              properties:
+                quizId:
+                  type: string
+                  example: "clq456def"
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - questionId
+                      - answer
+                    properties:
+                      questionId:
+                        type: string
+                        example: "clr789ghi"
+                      answer:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: string
+                        example: "Paris"
+      responses:
+        '200':
+          description: Quiz submitted and scored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  attempt:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      score:
+                        type: number
+                        example: 8
+                      maxScore:
+                        type: number
+                        example: 10
+                      passed:
+                        type: boolean
+                        example: true
+                      percentageScore:
+                        type: string
+                        example: "80.0"
+                      completedAt:
+                        type: string
+                        format: date-time
+                  detailedResults:
+                    type: array
+                    nullable: true
+                    description: Only provided if showExplanations is enabled
+                    items:
+                      type: object
+                      properties:
+                        questionId:
+                          type: string
+                        question:
+                          type: string
+                        userAnswer:
+                          oneOf:
+                            - type: string
+                            - type: array
+                              items:
+                                type: string
+                        correctAnswer:
+                          oneOf:
+                            - type: string
+                            - type: array
+                              items:
+                                type: string
+                        isCorrect:
+                          type: boolean
+                        points:
+                          type: integer
+                        maxPoints:
+                          type: integer
+                        explanation:
+                          type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Forbidden - Retakes not allowed or maximum attempts exceeded
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /instructor/quiz/bank:
+    get:
+      tags: [Quiz]
+      summary: Get question bank for instructor
+      description: Retrieve all questions created by the instructor across courses
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: courseId
+          in: query
+          schema:
+            type: string
+          description: Filter by course
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [MULTIPLE_CHOICE, TRUE_FALSE, FILL_IN_THE_BLANK, MULTIPLE_ANSWER]
+          description: Filter by question type
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search in question text
+      responses:
+        '200':
+          description: Questions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        question:
+                          type: string
+                        type:
+                          type: string
+                        points:
+                          type: integer
+                        courseName:
+                          type: string
+                        lessonName:
+                          type: string
+                        quizTitle:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
+
+  /instructor/quiz/{quizId}/results:
+    get:
+      tags: [Quiz]
+      summary: Get quiz results and analytics
+      description: View all student attempts and performance analytics
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: quizId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quiz results retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quiz:
+                    type: object
+                  attempts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        studentName:
+                          type: string
+                        studentEmail:
+                          type: string
+                        score:
+                          type: number
+                        maxScore:
+                          type: number
+                        passed:
+                          type: boolean
+                        completedAt:
+                          type: string
+                          format: date-time
+                  analytics:
+                    type: object
+                    properties:
+                      totalAttempts:
+                        type: integer
+                      averageScore:
+                        type: number
+                      passRate:
+                        type: number
+                      medianScore:
+                        type: number
+                      questionPerformance:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            questionId:
+                              type: string
+                            correctRate:
+                              type: number
+                            averagePoints:
+                              type: number
+
+# Additional planned endpoints for future implementation:
+# /instructor/quiz/{quizId}:
+#   - PUT: Update existing quiz
+#   - DELETE: Delete quiz
+# /instructor/quiz/import:
+#   - POST: Import questions from CSV/JSON
+# /instructor/quiz/export:
+#   - GET: Export quiz as PDF or other format
+# /question-bank:
+#   - GET: List questions in bank (Instructors)
+#   - POST: Add question to bank (Instructors)

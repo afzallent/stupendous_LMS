@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CourseCompass V2 - Role-Based Test Report</title>
+    <style>
+        :root {
+            --student-color: #3b82f6;
+            --instructor-color: #10b981;
+            --admin-color: #8b5cf6;
+            --pass-color: #10b981;
+            --fail-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .student-card {
+            border-left: 5px solid var(--student-color);
+        }
+        .instructor-card {
+            border-left: 5px solid var(--instructor-color);
+        }
+        .admin-card {
+            border-left: 5px solid var(--admin-color);
+        }
+        .summary-card {
+            border-left: 5px solid #667eea;
+        }
+        .card h2 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 i {
+            font-size: 1.5rem;
+        }
+        .metric {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .student-color {
+            color: var(--student-color);
+        }
+        .instructor-color {
+            color: var(--instructor-color);
+        }
+        .admin-color {
+            color: var(--admin-color);
+        }
+        .pass-color {
+            color: var(--pass-color);
+        }
+        .fail-color {
+            color: var(--fail-color);
+        }
+        .role-section {
+            margin-bottom: 40px;
+        }
+        .role-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .role-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        .student-bg {
+            background-color: var(--student-color);
+        }
+        .instructor-bg {
+            background-color: var(--instructor-color);
+        }
+        .admin-bg {
+            background-color: var(--admin-color);
+        }
+        .test-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .test-table th {
+            background-color: #f1f5f9;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .test-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .test-table tr:last-child td {
+            border-bottom: none;
+        }
+        .test-table tr:hover {
+            background-color: #f8fafc;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .status-pass {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .status-fail {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .time {
+            font-family: monospace;
+            color: #64748b;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-top: 30px;
+        }
+        @media (max-width: 768px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+            .test-table {
+                font-size: 0.9rem;
+            }
+            .test-table th, .test-table td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CourseCompass V2</h1>
+            <div class="subtitle">Role-Based Test Execution Report</div>
+            <div class="subtitle">Generated: 24/8/2025, 2:06:45 pm</div>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card summary-card">
+                <h2>📊 Overall Summary</h2>
+                <div class="metric pass-color">21<span style="font-size: 1rem;">/21 Tests</span></div>
+                <div>Success Rate: <strong>100%</strong></div>
+            </div>
+            
+            <div class="card student-card">
+                <h2>📚 Student Role</h2>
+                <div class="metric student-color">7<span style="font-size: 1rem;">/7 Tests</span></div>
+                <div>Success Rate: <strong>100%</strong></div>
+            </div>
+            
+            <div class="card instructor-card">
+                <h2>👨‍🏫 Instructor Role</h2>
+                <div class="metric instructor-color">7<span style="font-size: 1rem;">/7 Tests</span></div>
+                <div>Success Rate: <strong>100%</strong></div>
+            </div>
+            
+            <div class="card admin-card">
+                <h2>👑 Admin Role</h2>
+                <div class="metric admin-color">7<span style="font-size: 1rem;">/7 Tests</span></div>
+                <div>Success Rate: <strong>100%</strong></div>
+            </div>
+        </div>
+
+        <div class="role-section">
+            <div class="role-header">
+                <div class="role-icon student-bg">📚</div>
+                <h2>Student Role Tests</h2>
+            </div>
+            <table class="test-table">
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Description</th>
+                        <th>Expected Result</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>Login as Student</td>
+                        <td>Verify student can login and is redirected to learn dashboard</td>
+                        <td>Redirect to /learn</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.2s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Access Student Dashboard</td>
+                        <td>Verify student dashboard loads with enrolled courses</td>
+                        <td>Dashboard with course cards</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.1s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Browse Courses</td>
+                        <td>Verify student can browse available courses</td>
+                        <td>Course listing page</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.8s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Enroll in Course</td>
+                        <td>Verify student can enroll in a course</td>
+                        <td>Enrollment confirmation</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">3.2s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Access Course Content</td>
+                        <td>Verify student can access enrolled course content</td>
+                        <td>Course learning interface</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.5s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Track Progress</td>
+                        <td>Verify student progress is tracked correctly</td>
+                        <td>Progress updates saved</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.9s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>View Certificates</td>
+                        <td>Verify student can view earned certificates</td>
+                        <td>Certificate display</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.7s</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <div class="role-section">
+            <div class="role-header">
+                <div class="role-icon instructor-bg">👨‍🏫</div>
+                <h2>Instructor Role Tests</h2>
+            </div>
+            <table class="test-table">
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Description</th>
+                        <th>Expected Result</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>Login as Instructor</td>
+                        <td>Verify instructor can login and is redirected to instructor dashboard</td>
+                        <td>Redirect to /instructor</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.1s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Access Instructor Dashboard</td>
+                        <td>Verify instructor dashboard loads with course statistics</td>
+                        <td>Dashboard with analytics</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.3s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Create New Course</td>
+                        <td>Verify instructor can create a new course</td>
+                        <td>Course creation form and success</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">3.5s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Edit Course Content</td>
+                        <td>Verify instructor can edit course details and content</td>
+                        <td>Course updates saved</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.8s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Manage Course Lessons</td>
+                        <td>Verify instructor can add/edit lessons and resources</td>
+                        <td>Lesson management interface</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">3.1s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>View Student Progress</td>
+                        <td>Verify instructor can view enrolled student progress</td>
+                        <td>Student progress reports</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.2s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Publish Course</td>
+                        <td>Verify instructor can publish course for students</td>
+                        <td>Course status updated</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.9s</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <div class="role-section">
+            <div class="role-header">
+                <div class="role-icon admin-bg">👑</div>
+                <h2>Admin Role Tests</h2>
+            </div>
+            <table class="test-table">
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Description</th>
+                        <th>Expected Result</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>Login as Admin</td>
+                        <td>Verify admin can login and is redirected to admin dashboard</td>
+                        <td>Redirect to /admin</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.0s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Access Admin Dashboard</td>
+                        <td>Verify admin dashboard loads with system statistics</td>
+                        <td>Dashboard with metrics</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.0s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Manage Users</td>
+                        <td>Verify admin can view, edit, and manage users</td>
+                        <td>User management interface</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.5s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Manage Courses</td>
+                        <td>Verify admin can moderate and manage all courses</td>
+                        <td>Course moderation tools</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.7s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>View System Reports</td>
+                        <td>Verify admin can access system analytics and reports</td>
+                        <td>Analytics dashboard</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.2s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Configure Settings</td>
+                        <td>Verify admin can configure system settings</td>
+                        <td>Settings management</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">1.8s</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Handle Support Tickets</td>
+                        <td>Verify admin can manage support tickets</td>
+                        <td>Ticket management system</td>
+                        <td><span class="status status-pass">PASS</span></td>
+                        <td class="time">2.1s</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>CourseCompass V2 Role-Based Test Report • Generated automatically by test suite</p>
+            <p>This report provides a comprehensive overview of functionality testing across all user roles</p>
+        </div>
+    </div>
+</body>
+</html>

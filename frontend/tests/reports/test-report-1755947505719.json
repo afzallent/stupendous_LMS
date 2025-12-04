@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-08-23T11:11:45.718Z",
+  "environment": "http://localhost:3000",
+  "duration": 28525,
+  "summary": {
+    "total": 2,
+    "passed": 0,
+    "failed": 2,
+    "skipped": 0,
+    "suites": [
+      {
+        "name": "Authentication Tests",
+        "file": "auth.test.js",
+        "duration": 7586,
+        "critical": true,
+        "total": 0,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "error": "Command failed: npx.cmd jest tests/auth.test.js --config=tests/jest.config.js --verbose\n● Validation Error:\n\n  Module ./tests/setup.js in the setupFilesAfterEnv option was not found.\n         <rootDir> is: D:\\Projects\\React\\CompassLMS\\CourseCompass_V2\\tests\n\n  Configuration Documentation:\n  https://jestjs.io/docs/configuration\n\n"
+      },
+      {
+        "name": "Form Validation Tests",
+        "file": "formValidation.test.js",
+        "duration": 4414,
+        "critical": true,
+        "total": 0,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "error": "Command failed: npx.cmd jest tests/formValidation.test.js --config=tests/jest.config.js --verbose\n● Validation Error:\n\n  Module ./tests/setup.js in the setupFilesAfterEnv option was not found.\n         <rootDir> is: D:\\Projects\\React\\CompassLMS\\CourseCompass_V2\\tests\n\n  Configuration Documentation:\n  https://jestjs.io/docs/configuration\n\n"
+      }
+    ]
+  },
+  "suites": [
+    {
+      "name": "Authentication Tests",
+      "file": "auth.test.js",
+      "duration": 7586,
+      "critical": true,
+      "passed": 0,
+      "failed": 1,
+      "total": 0,
+      "successRate": 0
+    },
+    {
+      "name": "Form Validation Tests",
+      "file": "formValidation.test.js",
+      "duration": 4414,
+      "critical": true,
+      "passed": 0,
+      "failed": 1,
+      "total": 0,
+      "successRate": 0
+    }
+  ]
+}

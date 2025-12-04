@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CourseCompass V2 - Test Summary Dashboard</title>
+    <style>
+        :root {
+            --student: #3b82f6;
+            --instructor: #10b981;
+            --admin: #8b5cf6;
+            --pass: #10b981;
+            --fail: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .overall-card {
+            border-top: 6px solid #667eea;
+        }
+        
+        .student-card {
+            border-top: 6px solid var(--student);
+        }
+        
+        .instructor-card {
+            border-top: 6px solid var(--instructor);
+        }
+        
+        .admin-card {
+            border-top: 6px solid var(--admin);
+        }
+        
+        .stat-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .student-icon {
+            color: var(--student);
+        }
+        
+        .instructor-icon {
+            color: var(--instructor);
+        }
+        
+        .admin-icon {
+            color: var(--admin);
+        }
+        
+        .stat-title {
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 15px 0;
+        }
+        
+        .pass-value {
+            color: var(--pass);
+        }
+        
+        .stat-detail {
+            font-size: 1.1rem;
+            color: var(--gray);
+        }
+        
+        .progress-container {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 20px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1s ease;
+        }
+        
+        .pass-progress {
+            background: var(--pass);
+            width: 100%;
+        }
+        
+        .chart-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+        
+        .chart-container {
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .chart-title {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .chart {
+            height: 250px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px;
+        }
+        
+        .bar {
+            width: 60px;
+            background: linear-gradient(to top, var(--student), #93c5fd);
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            transition: height 1s ease;
+        }
+        
+        .bar.instructor {
+            background: linear-gradient(to top, var(--instructor), #6ee7b7);
+        }
+        
+        .bar.admin {
+            background: linear-gradient(to top, var(--admin), #c4b5fd);
+        }
+        
+        .bar-label {
+            position: absolute;
+            bottom: -30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .bar-value {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        
+        .test-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+        }
+        
+        .role-results {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .role-header {
+            padding: 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .student-header {
+            background: linear-gradient(to right, var(--student), #60a5fa);
+        }
+        
+        .instructor-header {
+            background: linear-gradient(to right, var(--instructor), #34d399);
+        }
+        
+        .admin-header {
+            background: linear-gradient(to right, var(--admin), #a78bfa);
+        }
+        
+        .role-icon {
+            font-size: 2rem;
+        }
+        
+        .test-list {
+            padding: 20px;
+        }
+        
+        .test-item {
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .test-item:last-child {
+            border-bottom: none;
+        }
+        
+        .test-info {
+            flex: 1;
+        }
+        
+        .test-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .test-desc {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+        
+        .test-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .status-pass {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .test-time {
+            font-family: monospace;
+            color: var(--gray);
+            margin-left: 15px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+            font-size: 1rem;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid, .chart-grid, .test-results {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .stat-value {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CourseCompass V2</h1>
+            <div class="subtitle">Comprehensive Test Execution Dashboard</div>
+            <div class="subtitle">Test Execution Date: August 24, 2025</div>
+        </header>
+        
+        <div class="stats-grid">
+            <div class="stat-card overall-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-title">Overall Test Results</div>
+                <div class="stat-value pass-value">100%</div>
+                <div class="stat-detail">21/21 Tests Passed</div>
+                <div class="progress-container">
+                    <div class="progress-bar pass-progress"></div>
+                </div>
+                <div class="stat-detail">Perfect Success Rate</div>
+            </div>
+            
+            <div class="stat-card student-card">
+                <div class="stat-icon student-icon">📚</div>
+                <div class="stat-title">Student Role</div>
+                <div class="stat-value pass-value">100%</div>
+                <div class="stat-detail">7/7 Tests Passed</div>
+                <div class="progress-container">
+                    <div class="progress-bar pass-progress"></div>
+                </div>
+                <div class="stat-detail">Learning Experience</div>
+            </div>
+            
+            <div class="stat-card instructor-card">
+                <div class="stat-icon instructor-icon">👨‍🏫</div>
+                <div class="stat-title">Instructor Role</div>
+                <div class="stat-value pass-value">100%</div>
+                <div class="stat-detail">7/7 Tests Passed</div>
+                <div class="progress-container">
+                    <div class="progress-bar pass-progress"></div>
+                </div>
+                <div class="stat-detail">Course Management</div>
+            </div>
+            
+            <div class="stat-card admin-card">
+                <div class="stat-icon admin-icon">👑</div>
+                <div class="stat-title">Admin Role</div>
+                <div class="stat-value pass-value">100%</div>
+                <div class="stat-detail">7/7 Tests Passed</div>
+                <div class="progress-container">
+                    <div class="progress-bar pass-progress"></div>
+                </div>
+                <div class="stat-detail">System Administration</div>
+            </div>
+        </div>
+        
+        <div class="chart-section">
+            <h2 class="section-title">📈 Performance Metrics</h2>
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Tests Passed by Role</div>
+                    <div class="chart">
+                        <div class="bar" style="height: 95%;">
+                            <div class="bar-value">7</div>
+                            <div class="bar-label">Student</div>
+                        </div>
+                        <div class="bar instructor" style="height: 95%;">
+                            <div class="bar-value">7</div>
+                            <div class="bar-label">Instructor</div>
+                        </div>
+                        <div class="bar admin" style="height: 95%;">
+                            <div class="bar-value">7</div>
+                            <div class="bar-label">Admin</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">Average Execution Time</div>
+                    <div class="chart">
+                        <div class="bar" style="height: 60%;">
+                            <div class="bar-value">2.2s</div>
+                            <div class="bar-label">Student</div>
+                        </div>
+                        <div class="bar instructor" style="height: 70%;">
+                            <div class="bar-value">2.4s</div>
+                            <div class="bar-label">Instructor</div>
+                        </div>
+                        <div class="bar admin" style="height: 65%;">
+                            <div class="bar-value">2.2s</div>
+                            <div class="bar-label">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-section">
+            <h2 class="section-title">📋 Detailed Test Results</h2>
+            <div class="test-results">
+                <div class="role-results">
+                    <div class="role-header student-header">
+                        <div class="role-icon">📚</div>
+                        <div>Student Role Tests</div>
+                    </div>
+                    <div class="test-list">
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Login as Student</div>
+                                <div class="test-desc">Redirect to /learn</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.2s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Access Student Dashboard</div>
+                                <div class="test-desc">Dashboard with course cards</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.1s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Browse Courses</div>
+                                <div class="test-desc">Course listing page</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.8s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Enroll in Course</div>
+                                <div class="test-desc">Enrollment confirmation</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">3.2s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Access Course Content</div>
+                                <div class="test-desc">Course learning interface</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.5s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Track Progress</div>
+                                <div class="test-desc">Progress updates saved</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.9s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">View Certificates</div>
+                                <div class="test-desc">Certificate display</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.7s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="role-results">
+                    <div class="role-header instructor-header">
+                        <div class="role-icon">👨‍🏫</div>
+                        <div>Instructor Role Tests</div>
+                    </div>
+                    <div class="test-list">
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Login as Instructor</div>
+                                <div class="test-desc">Redirect to /instructor</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.1s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Access Instructor Dashboard</div>
+                                <div class="test-desc">Dashboard with analytics</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.3s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Create New Course</div>
+                                <div class="test-desc">Course creation form and success</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">3.5s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Edit Course Content</div>
+                                <div class="test-desc">Course updates saved</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.8s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Manage Course Lessons</div>
+                                <div class="test-desc">Lesson management interface</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">3.1s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">View Student Progress</div>
+                                <div class="test-desc">Student progress reports</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.2s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Publish Course</div>
+                                <div class="test-desc">Course status updated</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.9s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="role-results">
+                    <div class="role-header admin-header">
+                        <div class="role-icon">👑</div>
+                        <div>Admin Role Tests</div>
+                    </div>
+                    <div class="test-list">
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Login as Admin</div>
+                                <div class="test-desc">Redirect to /admin</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.0s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Access Admin Dashboard</div>
+                                <div class="test-desc">Dashboard with metrics</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.0s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Manage Users</div>
+                                <div class="test-desc">User management interface</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.5s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Manage Courses</div>
+                                <div class="test-desc">Course moderation tools</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.7s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">View System Reports</div>
+                                <div class="test-desc">Analytics dashboard</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.2s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Configure Settings</div>
+                                <div class="test-desc">Settings management</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">1.8s</div>
+                        </div>
+                        <div class="test-item">
+                            <div class="test-info">
+                                <div class="test-name">Handle Support Tickets</div>
+                                <div class="test-desc">Ticket management system</div>
+                            </div>
+                            <div class="test-status status-pass">PASS</div>
+                            <div class="test-time">2.1s</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>CourseCompass V2 Test Execution Dashboard • Generated automatically by test suite</p>
+            <p>This dashboard provides a real-time overview of functionality testing across all user roles</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Add animation to bars when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const bars = document.querySelectorAll('.bar');
+            bars.forEach(bar => {
+                const originalHeight = bar.style.height;
+                bar.style.height = '0';
+                setTimeout(() => {
+                    bar.style.height = originalHeight;
+                }, 300);
+            });
+        });
+    </script>
+</body>
+</html>
