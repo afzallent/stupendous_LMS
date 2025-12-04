@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\core\migrations\0001_initial.py
+# hypothesis_version: 6.148.2
+
+[128, 150, 254, 'ID', 'User', 'abstract', 'active', 'auth', 'auth.group', 'auth.permission', 'date joined', 'date_joined', 'email', 'email address', 'first name', 'first_name', 'groups', 'id', 'is_active', 'is_instructor', 'is_staff', 'is_student', 'is_superuser', 'last login', 'last name', 'last_login', 'last_name', 'objects', 'password', 'staff status', 'superuser status', 'unique', 'user', 'user permissions', 'user_permissions', 'user_set', 'username', 'users', 'verbose_name', 'verbose_name_plural']

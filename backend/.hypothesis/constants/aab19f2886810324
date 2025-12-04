@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\core\tests.py
+# hypothesis_version: 6.148.2
+
+[100, '/api/auth/login/', '/api/auth/register/', 'HS256', '[a-zA-Z0-9_]{3,30}', 'access', 'email', 'exp', 'iat', 'is_instructor', 'is_student', 'password', 'password_confirm', 'refresh', 'test@example.com', 'testpass123', 'testuser', 'user', 'user_id', 'username']

@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\lms_project\settings.py
+# hypothesis_version: 6.148.2
+
+['/', '/api/', '/login/', '1.0.0', 'ALGORITHM', 'APP_DIRS', 'BACKEND', 'DEBUG', 'DEFAULT_SCHEMA_CLASS', 'DESCRIPTION', 'DIRS', 'ENGINE', 'EXCEPTION_HANDLER', 'HS256', 'INFO', 'NAME', 'OPTIONS', 'PAGE_SIZE', 'SCHEMA_PATH_PREFIX', 'SERVE_INCLUDE_SCHEMA', 'SIGNING_KEY', 'Stupendous LMS API', 'TITLE', 'UPDATE_LAST_LOGIN', 'UTC', 'VERSION', 'class', 'console', 'context_processors', 'core', 'core.User', 'corsheaders', 'courses', 'db.sqlite3', 'default', 'django', 'django.contrib.admin', 'django.contrib.auth', 'drf_spectacular', 'en-us', 'file', 'filename', 'format', 'formatter', 'formatters', 'handlers', 'level', 'lms.log', 'lms_project', 'lms_project.urls', 'loggers', 'logging.FileHandler', 'logs', 'propagate', 'rest_framework', 'root', 'simple', 'static/', 'style', 'templates', 'verbose', 'version', '{']

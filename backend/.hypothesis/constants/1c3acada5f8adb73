@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\core\serializers.py
+# hypothesis_version: 6.148.2
+
+['Confirm password', 'email', 'first_name', 'id', 'is_instructor', 'is_student', 'last_name', 'password', 'password_confirm', 'roles', 'user', 'username']

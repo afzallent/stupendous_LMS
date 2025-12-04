@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\courses\forms.py
+# hypothesis_version: 6.148.2
+
+['content', 'description', 'order', 'title', 'video_url']

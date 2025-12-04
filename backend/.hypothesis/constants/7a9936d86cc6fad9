@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\courses\serializers.py
+# hypothesis_version: 6.148.2
+
+[100, 'completed', 'completed_at', 'content', 'course', 'course_id', 'created_at', 'description', 'enrolled_at', 'enrolled_count', 'id', 'instructor', 'is_enrolled', 'lesson', 'lesson_count', 'lesson_id', 'lessons', 'order', 'progress_percentage', 'request', 'student', 'title', 'video_url']

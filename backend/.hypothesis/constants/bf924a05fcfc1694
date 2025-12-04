@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\core\urls.py
+# hypothesis_version: 6.148.2
+
+['api/', 'auth', 'home', 'login', 'login/', 'logout', 'logout/', 'register', 'register/', 'token_refresh', 'user']

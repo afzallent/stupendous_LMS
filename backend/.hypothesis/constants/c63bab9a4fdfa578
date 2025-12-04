@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\lms_project\urls.py
+# hypothesis_version: 6.148.2
+
+['admin/', 'api/docs/', 'api/redoc/', 'api/schema/', 'core.urls', 'courses.urls', 'courses/', 'redoc', 'schema', 'swagger-ui']

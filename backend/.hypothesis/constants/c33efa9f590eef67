@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\courses\migrations\0001_initial.py
+# hypothesis_version: 6.148.2
+
+[200, 'Course', 'Enrollment', 'ID', 'Lesson', 'Progress', 'completed', 'completed_at', 'content', 'course', 'courses.course', 'courses.lesson', 'courses_created', 'created_at', 'description', 'enrolled_at', 'enrollments', 'id', 'instructor', 'lesson', 'lessons', 'order', 'ordering', 'student', 'title', 'unique_together', 'verbose_name_plural', 'video_url']

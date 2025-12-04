@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\courses\urls.py
+# hypothesis_version: 6.148.2
+
+['<int:course_id>/', 'add_lesson', 'api/courses', 'api/enrollments', 'api/lessons', 'api/progress', 'course', 'course_detail', 'course_lessons', 'course_list', 'create_course', 'edit_course', 'enrollment', 'instructor/', 'instructor/create/', 'instructor_dashboard', 'lesson', 'lesson_detail', 'monitor_progress', 'my-learning/', 'progress', 'student_dashboard']

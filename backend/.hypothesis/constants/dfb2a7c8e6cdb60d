@@ -1,0 +1,4 @@
+# file: D:\Projects\Python\stupendousLMS\backend\courses\views.py
+# hypothesis_version: 6.148.2
+
+[100, '-created_at', 'Create Course', 'Edit Course', 'POST', 'completed_lessons', 'course', 'course_detail', 'course_id', 'course_lessons', 'course_progress', 'courses', 'detail', 'form', 'get', 'home', 'id', 'instructor_dashboard', 'is_enrolled', 'lesson', 'lesson_detail', 'lesson_id', 'lessons', 'next_lesson', 'order', 'patch', 'percent', 'percentage', 'prev_lesson', 'progress', 'retrieve', 'student', 'student_dashboard', 'student_id', 'student_progress', 'title', 'toggle_complete', 'total_lessons']

@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -20,5 +21,33 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-*.sqlite3
 *.log
+
+# Django
+*.sqlite3
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+venv/
+env/
+.env
