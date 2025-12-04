@@ -12,11 +12,11 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 
 from core.models import User
-from .models import Course, Lesson, Enrollment, Progress
+from .models import Course, Lesson, Enrollment, Progress, Category
 from .forms import CourseForm, LessonForm
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
-    EnrollmentSerializer, ProgressSerializer
+    EnrollmentSerializer, ProgressSerializer, CategorySerializer
 )
 from .permissions import IsInstructorOrReadOnly, IsOwnerOrReadOnly, IsEnrolledStudent
 
@@ -251,10 +251,52 @@ class CourseViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def featured(self, request):
         """Get featured courses (most enrolled)"""
-        courses = Course.objects.annotate(
+        courses = Course.objects.filter(status='published').annotate(
             enrollment_count=Count('enrollments')
         ).order_by('-enrollment_count')[:6]
         serializer = self.get_serializer(courses, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def publish(self, request, pk=None):
+        """Publish a course"""
+        course = self.get_object()
+        
+        if course.instructor != request.user:
+            return Response(
+                {'detail': 'Only the course instructor can publish.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if course.status == 'published':
+            return Response(
+                {'detail': 'Course is already published.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        course.publish()
+        serializer = self.get_serializer(course)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def unpublish(self, request, pk=None):
+        """Unpublish a course (back to draft)"""
+        course = self.get_object()
+        
+        if course.instructor != request.user:
+            return Response(
+                {'detail': 'Only the course instructor can unpublish.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if course.status != 'published':
+            return Response(
+                {'detail': 'Course is not published.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        course.unpublish()
+        serializer = self.get_serializer(course)
         return Response(serializer.data)
 
 
@@ -674,3 +716,17 @@ class InstructorStudentsView(APIView):
             'total': len(students_dict),
             'students': students_list
         })
+
+
+# Category ViewSet
+class CategoryViewSet(viewsets.ModelViewSet):
+    """ViewSet for course categories"""
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    
+    def get_permissions(self):
+        """Only instructors can create/update/delete categories"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), permissions.IsAdminUser()]
+        return [permissions.AllowAny()]

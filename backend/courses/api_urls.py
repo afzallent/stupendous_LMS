@@ -11,6 +11,7 @@ router.register(r'courses', views.CourseViewSet, basename='course')
 router.register(r'lessons', views.LessonViewSet, basename='lesson')
 router.register(r'enrollments', views.EnrollmentViewSet, basename='enrollment')
 router.register(r'progress', views.ProgressViewSet, basename='progress')
+router.register(r'categories', views.CategoryViewSet, basename='category')
 
 urlpatterns = [
     # Router endpoints

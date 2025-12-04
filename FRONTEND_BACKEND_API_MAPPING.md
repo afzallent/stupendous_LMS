@@ -41,9 +41,10 @@ This document maps all frontend API calls to their required Django backend endpo
 | `DELETE /api/courses/:id/` | `/courses/api/courses/:id/` | ✅ | `courses.views.CourseViewSet.destroy` |
 | `GET /api/featured-courses` | `/api/courses/featured/` | ✅ | `courses.views.CourseViewSet.featured` |
 | `GET /api/courses?search=...` | `/api/courses/?search=...` | ✅ | `courses.views.CourseViewSet` with SearchFilter |
-| `POST /api/courses/draft` | `/api/courses/draft/` | ❌ | Needs draft functionality |
+| `POST /api/courses/draft` | `/api/courses/` | ✅ | Use existing create (status='draft' by default) |
 | `POST /api/courses/create` | `/api/courses/` | ✅ | Use existing create |
-| `POST /api/courses/publish` | `/api/courses/:id/publish/` | ❌ | Needs publish action |
+| `POST /api/courses/:id/publish/` | `/api/courses/:id/publish/` | ✅ | `courses.views.CourseViewSet.publish` |
+| `POST /api/courses/:id/unpublish/` | `/api/courses/:id/unpublish/` | ✅ | `courses.views.CourseViewSet.unpublish` |
 
 ---
 
@@ -100,14 +101,14 @@ This document maps all frontend API calls to their required Django backend endpo
 ### Frontend Calls
 | Frontend Call | Expected Endpoint | Status | Notes |
 |--------------|-------------------|--------|-------|
-| `GET /api/student/quiz/:id` | `/api/quizzes/:id/` | ❌ | Needs quiz app |
-| `POST /api/student/quiz/submit` | `/api/quizzes/:id/submit/` | ❌ | Needs quiz app |
-| `POST /api/instructor/quiz/create` | `/api/quizzes/` | ❌ | Needs quiz app |
-| `GET /api/instructor/quiz/:id/results` | `/api/quizzes/:id/results/` | ❌ | Needs quiz app |
-| `GET /api/instructor/quiz/bank` | `/api/quiz-bank/` | ❌ | Needs question bank |
-| `POST /api/instructor/quiz/bank` | `/api/quiz-bank/` | ❌ | Needs question bank |
-| `DELETE /api/instructor/quiz/bank?questionId=...` | `/api/quiz-bank/:id/` | ❌ | Needs question bank |
-| `GET /api/instructor/quizzes?courseId=...` | `/api/quizzes/?course=...` | ❌ | Needs quiz app |
+| `GET /api/student/quiz/:id` | `/api/quizzes/:id/` | ✅ | `quizzes.views.QuizViewSet.retrieve` |
+| `POST /api/student/quiz/submit` | `/api/quizzes/:id/submit/` | ✅ | `quizzes.views.QuizViewSet.submit` |
+| `POST /api/instructor/quiz/create` | `/api/quizzes/` | ✅ | `quizzes.views.QuizViewSet.create` |
+| `GET /api/instructor/quiz/:id/results` | `/api/quizzes/:id/results/` | ✅ | `quizzes.views.QuizViewSet.results` |
+| `GET /api/instructor/quiz/bank` | `/api/quiz-bank/` | ✅ | `quizzes.views.QuestionBankViewSet.list` |
+| `POST /api/instructor/quiz/bank` | `/api/quiz-bank/` | ✅ | `quizzes.views.QuestionBankViewSet.create` |
+| `DELETE /api/instructor/quiz/bank?questionId=...` | `/api/quiz-bank/:id/` | ✅ | `quizzes.views.QuestionBankViewSet.destroy` |
+| `GET /api/instructor/quizzes?courseId=...` | `/api/quizzes/?course=...` | ✅ | `quizzes.views.QuizViewSet.list` |
 
 ---
 
@@ -116,8 +117,9 @@ This document maps all frontend API calls to their required Django backend endpo
 ### Frontend Calls
 | Frontend Call | Expected Endpoint | Status | Notes |
 |--------------|-------------------|--------|-------|
-| `POST /api/certificates` | `/api/certificates/` | ❌ | Needs certificates app |
-| `GET /api/certificates/verify?certificateId=...` | `/api/certificates/:id/verify/` | ❌ | Needs certificates app |
+| `POST /api/certificates` | `/api/certificates/` | ✅ | `certificates.views.CertificateViewSet.create` |
+| `GET /api/certificates/verify?certificateId=...` | `/api/certificates/verify/` | ✅ | `certificates.views.CertificateViewSet.verify` |
+| `GET /api/student/certificates?userId=...` | `/api/certificates/?userId=...` | ✅ | `certificates.views.CertificateViewSet.list` |
 
 ---
 
@@ -140,7 +142,7 @@ This document maps all frontend API calls to their required Django backend endpo
 | Frontend Call | Expected Endpoint | Status | Notes |
 |--------------|-------------------|--------|-------|
 | `PUT /api/profile/update` | `/api/user/me/` | ⚠️ | Use existing update_profile |
-| `PUT /api/profile/change-password` | `/api/user/change-password/` | ❌ | Needs password change |
+| `PUT /api/profile/change-password` | `/api/user/change-password/` | ✅ | `core.views.UserProfileViewSet.change_password` |
 | `PUT /api/profile/notifications` | `/api/user/notifications/` | ❌ | Needs notification settings |
 
 ---
@@ -150,7 +152,7 @@ This document maps all frontend API calls to their required Django backend endpo
 ### Frontend Calls
 | Frontend Call | Expected Endpoint | Status | Notes |
 |--------------|-------------------|--------|-------|
-| `GET /api/categories` | `/api/categories/` | ❌ | Needs category model |
+| `GET /api/categories` | `/api/categories/` | ✅ | `courses.views.CategoryViewSet.list` |
 | `GET /api/stats` | `/api/stats/` | ❌ | Needs stats endpoint |
 | `GET /api/admin/sso-providers` | `/api/admin/sso-providers/` | ❌ | Needs SSO config |
 | `POST /api/checkout/stripe` | `/api/checkout/stripe/` | ❌ | Needs payment app |
@@ -170,11 +172,11 @@ This document maps all frontend API calls to their required Django backend endpo
 6. ✅ Add file upload endpoints
 
 ### Phase 2: High Priority (Week 3-4)
-7. ❌ Create Quiz app with models and endpoints
-8. ❌ Create Certificate app with generation
-9. ❌ Add course categories
-10. ❌ Add draft/publish workflow
-11. ❌ Add password change endpoint
+7. ✅ Create Quiz app with models and endpoints
+8. ✅ Create Certificate app with generation
+9. ✅ Add course categories
+10. ✅ Add draft/publish workflow
+11. ✅ Add password change endpoint
 
 ### Phase 3: Medium Priority (Week 5-6)
 12. ❌ Add activity tracking

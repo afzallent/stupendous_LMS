@@ -1,6 +1,19 @@
 from rest_framework import serializers
-from .models import Course, Lesson, Enrollment, Progress
+from .models import Course, Lesson, Enrollment, Progress, Category
 from core.serializers import UserSerializer
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    """Serializer for course categories"""
+    course_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'slug', 'description', 'course_count', 'created_at']
+        read_only_fields = ['id', 'created_at']
+    
+    def get_course_count(self, obj):
+        return obj.courses.filter(status='published').count()
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -22,15 +35,18 @@ class CourseSerializer(serializers.ModelSerializer):
     Provides course information including instructor details, lesson count, and enrollment count.
     """
     instructor = UserSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     lesson_count = serializers.SerializerMethodField()
     enrolled_count = serializers.SerializerMethodField()
     lessons = LessonSerializer(many=True, read_only=True)
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'instructor', 'created_at', 
+        fields = ['id', 'title', 'description', 'instructor', 'category', 'category_id',
+                  'status', 'created_at', 'updated_at', 'published_at',
                   'lesson_count', 'enrolled_count', 'lessons']
-        read_only_fields = ['id', 'created_at', 'instructor']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
 
     def get_lesson_count(self, obj):
         """Get count of lessons in course"""
@@ -48,15 +64,17 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     Includes enrollment status and progress percentage for the current user.
     """
     instructor = UserSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
     lessons = LessonSerializer(many=True, read_only=True)
     is_enrolled = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'instructor', 'created_at', 
+        fields = ['id', 'title', 'description', 'instructor', 'category', 'status',
+                  'created_at', 'updated_at', 'published_at',
                   'lessons', 'is_enrolled', 'progress_percentage']
-        read_only_fields = ['id', 'created_at', 'instructor']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
 
     def get_is_enrolled(self, obj):
         """Check if current user is enrolled"""

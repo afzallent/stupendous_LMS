@@ -2,14 +2,54 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+
+class Category(models.Model):
+    """Course category model"""
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = "Categories"
+    
+    def __str__(self):
+        return self.name
+
+
 class Course(models.Model):
+    """Course model with categories and status"""
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('archived', 'Archived'),
+    ]
+    
     title = models.CharField(max_length=200)
     description = models.TextField()
     instructor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='courses_created')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='courses')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(null=True, blank=True)
     
     def __str__(self):
         return self.title
+    
+    def publish(self):
+        """Publish the course"""
+        if self.status != 'published':
+            self.status = 'published'
+            self.published_at = timezone.now()
+            self.save()
+    
+    def unpublish(self):
+        """Unpublish the course (back to draft)"""
+        if self.status == 'published':
+            self.status = 'draft'
+            self.save()
 
 class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')

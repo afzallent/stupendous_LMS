@@ -27,6 +27,8 @@ urlpatterns = [
     # API endpoints (all under /api/ prefix)
     path("api/", include("core.api_urls")),
     path("api/", include("courses.api_urls")),
+    path("api/", include("quizzes.api_urls")),
+    path("api/", include("certificates.api_urls")),
     path("api/", include("files.urls")),
     
     # Legacy template views (for backward compatibility)

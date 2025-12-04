@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "core",
     "courses",
     "files",
+    "quizzes",
+    "certificates",
 ]
 
 AUTH_USER_MODEL = 'core.User'
