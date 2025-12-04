@@ -56,19 +56,52 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [coursesRes, categoriesRes, statsRes] = await Promise.all([
-          fetch('/api/featured-courses'),
-          fetch('/api/categories'),
-          fetch('/api/stats')
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        
+        const [coursesRes, categoriesRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/courses/?featured=true&limit=6`),
+          fetch(`${API_BASE_URL}/api/categories/`)
         ])
 
         const coursesData = await coursesRes.json()
         const categoriesData = await categoriesRes.json()
-        const statsData = await statsRes.json()
 
-        setFeaturedCourses(coursesData)
-        setCategories(categoriesData)
-        setStats(statsData)
+        // Map Django course data to frontend format
+        const mappedCourses = coursesData.results?.map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          instructor: course.instructor?.username || 'Unknown',
+          instructorAvatar: course.instructor?.avatar,
+          rating: 4.5, // Default rating (Django doesn't have this yet)
+          students: course.enrolled_count || 0,
+          price: 49.99, // Default price (Django doesn't have this yet)
+          thumbnail: course.thumbnail,
+          level: 'Beginner', // Default level
+          duration: '10h 30m', // Default duration
+          category: course.category?.name || 'General',
+          featured: true
+        })) || []
+
+        // Map Django category data to frontend format
+        const mappedCategories = categoriesData.results?.map((cat: any, index: number) => ({
+          id: cat.id,
+          name: cat.name,
+          icon: ['💻', '📊', '🎨', '💼', '📈', '📷'][index % 6],
+          courses: cat.course_count || 0
+        })) || []
+
+        // Mock stats for now
+        const mockStats = [
+          { icon: 'Users', label: 'Active Students', value: '50K+', color: 'text-blue-500' },
+          { icon: 'BookOpen', label: 'Total Courses', value: '1,000+', color: 'text-purple-500' },
+          { icon: 'Award', label: 'Certificates', value: '25K+', color: 'text-green-500' },
+          { icon: 'TrendingUp', label: 'Success Rate', value: '95%', color: 'text-yellow-500' }
+        ]
+
+        setFeaturedCourses(mappedCourses)
+        setCategories(mappedCategories)
+        setStats(mockStats)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {

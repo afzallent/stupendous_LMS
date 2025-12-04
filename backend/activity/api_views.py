@@ -112,7 +112,8 @@ def student_detail_activity(request, course_id, student_id):
     
     # Get activity timeline
     activities = ActivityLog.objects.filter(
-        user=student,
+        user=student
+    ).filter(
         Q(content_type__model='lesson', object_id__in=course.lessons.values_list('id', flat=True)) |
         Q(content_type__model='course', object_id=course.id)
     ).order_by('-timestamp')[:50]

@@ -75,17 +75,47 @@ export default function CoursesPage() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const params = new URLSearchParams({
-          search: searchQuery,
-          category: selectedCategory,
-          level: selectedLevel,
-          price: selectedPrice,
-          sort: sortBy
-        })
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         
-        const response = await fetch(`/api/courses?${params}`)
+        const params: Record<string, string> = {}
+        
+        if (searchQuery) params.search = searchQuery
+        if (selectedCategory !== 'all') params.category = selectedCategory
+        // Note: Django API doesn't have level/price filters yet, but we keep the UI
+        
+        // Map sort options to Django ordering
+        const orderingMap: Record<string, string> = {
+          'popular': '-enrolled_count',
+          'rating': '-created_at', // Placeholder until rating is added
+          'newest': '-created_at',
+          'price-low': 'title', // Placeholder until price is added
+          'price-high': '-title' // Placeholder until price is added
+        }
+        if (sortBy) params.ordering = orderingMap[sortBy] || '-created_at'
+        
+        const queryString = new URLSearchParams(params).toString()
+        const response = await fetch(`${API_BASE_URL}/api/courses/?${queryString}`)
         const data = await response.json()
-        setCourses(data)
+        
+        // Map Django course data to frontend format
+        const mappedCourses = data.results?.map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          instructor: course.instructor?.username || 'Unknown',
+          instructorAvatar: course.instructor?.avatar,
+          rating: 4.5, // Default rating
+          students: course.enrolled_count || 0,
+          price: 49.99, // Default price
+          thumbnail: course.thumbnail,
+          level: 'Beginner', // Default level
+          category: course.category?.name || 'General',
+          enrolled: false, // Will be updated based on user enrollment
+          duration: '10h 30m',
+          lectures: course.lesson_count || 0
+        })) || []
+        
+        setCourses(mappedCourses)
       } catch (error) {
         console.error('Error fetching courses:', error)
       } finally {

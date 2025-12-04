@@ -97,17 +97,33 @@ export default function StudentDashboard() {
         setUser(userData)
         console.log('👤 User loaded for dashboard:', { id: userData.id, email: userData.email, name: userData.name, role: userData.role })
 
-        // Fetch dashboard data from API
-        const apiUrl = `/api/student/dashboard?userId=${userData.id}`
-        console.log('📊 Calling dashboard API with URL:', apiUrl)
+        // Fetch dashboard data from Django API
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const accessToken = localStorage.getItem('access_token')
         
-        const response = await fetch(apiUrl)
+        if (!accessToken) {
+          console.error('❌ No access token found, redirecting to login')
+          const currentPath = window.location.pathname
+          window.location.href = `/auth/login?redirect=${encodeURIComponent(currentPath)}`
+          return
+        }
+        
+        const apiUrl = `${API_BASE_URL}/api/student/dashboard/`
+        console.log('📊 Calling Django dashboard API:', apiUrl)
+        
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
         console.log('📊 Dashboard API response status:', response.status)
         
         if (response.status === 401) {
           console.error('❌ Authentication failed, redirecting to login')
           localStorage.removeItem('user')
-          localStorage.removeItem('token')
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
           const currentPath = window.location.pathname
           window.location.href = `/auth/login?redirect=${encodeURIComponent(currentPath)}`
           return
@@ -115,15 +131,39 @@ export default function StudentDashboard() {
         
         if (response.ok) {
           const data = await response.json()
-          console.log('📚 Dashboard data received:', {
-            enrolledCoursesCount: data.data.enrolledCourses.length,
-            enrolledCourses: data.data.enrolledCourses,
-            stats: data.data.stats,
-            achievements: data.data.achievements.length
-          })
-          setEnrolledCourses(data.data.enrolledCourses)
-          setAchievements(data.data.achievements)
-          setStats(data.data.stats)
+          console.log('📚 Dashboard data received from Django:', data)
+          
+          // Map Django response to frontend format
+          const mappedCourses = data.enrolled_courses?.map((course: any) => ({
+            id: course.id,
+            title: course.title,
+            instructor: course.instructor || 'Unknown',
+            progress: course.progress_percentage || 0,
+            totalLessons: course.total_lessons || 0,
+            completedLessons: course.completed_lessons || 0,
+            thumbnail: course.thumbnail,
+            nextLesson: course.next_lesson ? {
+              id: course.next_lesson.id,
+              title: course.next_lesson.title
+            } : undefined
+          })) || []
+          
+          const mappedStats = {
+            totalEnrolled: data.total_courses || 0,
+            totalCompleted: data.completed_courses || 0,
+            totalHours: data.total_lessons_completed || 0,
+            currentStreak: 0 // Django doesn't track this yet
+          }
+          
+          // Mock achievements for now
+          const mockAchievements = [
+            { id: '1', title: 'First Course', description: 'Enrolled in your first course', icon: '🎓', earnedAt: new Date().toISOString() },
+            { id: '2', title: 'Quick Learner', description: 'Completed 5 lessons in one day', icon: '⚡', earnedAt: new Date().toISOString() }
+          ]
+          
+          setEnrolledCourses(mappedCourses)
+          setStats(mappedStats)
+          setAchievements(mockAchievements)
         } else {
           const errorText = await response.text()
           console.error('❌ Failed to fetch dashboard data:', { status: response.status, error: errorText })
