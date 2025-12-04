@@ -52,31 +52,13 @@ export default function StripeCheckoutPage() {
     setError(null)
 
     try {
-      // Create Stripe checkout session
-      const response = await fetch('/api/checkout/stripe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          items: cartState.items,
-          userEmail: user.email,
-          userId: user.id
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session')
-      }
-
-      // Redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        throw new Error('No checkout URL received')
-      }
+      // Payment processing not implemented in Django yet
+      setError('Payment processing is not yet implemented. This is a demo LMS focused on course management and learning. Payment features coming soon!')
+      
+      // For demo purposes, redirect back to cart
+      setTimeout(() => {
+        router.push('/cart')
+      }, 3000)
 
     } catch (error) {
       console.error('Payment error:', error)

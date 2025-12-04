@@ -82,32 +82,19 @@ export default function UpiCheckoutPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/checkout/upi', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          items: cartState.items,
-          userEmail: user.email,
-          userId: user.id
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create UPI payment')
-      }
-
-      setPaymentData(data.paymentData)
-      setUpiUrl(data.upiUrl)
-      setQrCodeUrl(data.qrCodeUrl)
-
+      // Payment processing not implemented in Django yet
+      setError('Payment processing is not yet implemented. This is a demo LMS focused on course management and learning. Payment features coming soon!')
+      
       toast({
-        title: "UPI Payment Initiated",
-        description: "Scan QR code or use UPI ID to complete payment.",
+        title: "Coming Soon",
+        description: "Payment processing is not yet available.",
+        variant: "default"
       })
+      
+      // For demo purposes, redirect back to cart
+      setTimeout(() => {
+        router.push('/cart')
+      }, 3000)
 
     } catch (error) {
       console.error('UPI payment error:', error)

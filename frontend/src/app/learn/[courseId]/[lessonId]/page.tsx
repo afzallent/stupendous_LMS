@@ -31,6 +31,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { djangoApi } from "@/lib/django-api-client"
+import { toast } from "@/hooks/use-toast"
 
 export default function LearnPage({ params }: { params: Promise<{ courseId: string; lessonId: string }> }) {
   const router = useRouter()
@@ -232,28 +234,14 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
     const user = JSON.parse(storedUser)
     
     try {
-      // Update progress in database
-      const response = await fetch('/api/student/progress', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          lessonId: lessonId,
-          progressPercentage: 100,
-          completed: true,
-          watchTime: Math.floor(duration), // In a real app, this would be the actual watch time
-          lastPosition: Math.floor(duration)
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to update progress')
-      }
-      
-      const data = await response.json()
+      // Mark lesson as complete in Django
+      const data = await djangoApi.post(`/api/lessons/${lessonId}/mark-complete/`)
       console.log('Progress updated:', data)
+      
+      toast({
+        title: "Lesson Complete!",
+        description: "Great job! Your progress has been saved."
+      })
       
       // If certificate was generated (course completed), show notification
       if (data.data.certificate) {

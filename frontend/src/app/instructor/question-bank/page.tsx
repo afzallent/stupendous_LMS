@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/use-toast'
+import { djangoApi } from '@/lib/django-api-client'
 import {
   Dialog,
   DialogContent,
@@ -149,13 +150,16 @@ export default function QuestionBankPage() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('/api/instructor/courses')
-      if (response.ok) {
-        const data = await response.json()
-        setCourses(data.courses || [])
-      }
+      // Fetch instructor's courses from Django
+      const data = await djangoApi.get('/api/courses/', { instructor: 'me' })
+      setCourses(data.results || [])
     } catch (error) {
       console.error('Failed to fetch courses:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load courses",
+        variant: "destructive"
+      })
     }
   }
 
@@ -182,20 +186,11 @@ export default function QuestionBankPage() {
     }
 
     try {
-      const response = await fetch('/api/instructor/quiz/bank', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceQuestionId: selectedQuestion.id,
-          targetQuizId
-        })
-      })
-
-      if (!response.ok) throw new Error('Failed to copy question')
-
+      // Quiz feature not implemented in Django yet
       toast({
-        title: 'Success',
-        description: 'Question copied successfully'
+        title: 'Coming Soon',
+        description: 'Quiz and question bank features are not yet implemented. Stay tuned!',
+        variant: "default"
       })
 
       setCopyDialogOpen(false)

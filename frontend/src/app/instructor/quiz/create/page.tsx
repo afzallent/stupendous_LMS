@@ -223,26 +223,17 @@ export default function CreateQuizPage() {
     setIsSaving(true)
 
     try {
-      const response = await fetch('/api/instructor/quiz/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...quizData,
-          lessonId
-        })
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create quiz')
-      }
-
+      // Quiz feature not implemented in Django yet
       toast({
-        title: 'Success',
-        description: 'Quiz created successfully'
+        title: 'Coming Soon',
+        description: 'Quiz creation feature is not yet implemented. Focus on creating great course content for now!',
+        variant: 'default'
       })
 
-      router.push(`/instructor/courses/${courseId}`)
+      // Redirect back to course
+      setTimeout(() => {
+        router.push(`/instructor/courses/${courseId}`)
+      }, 2000)
     } catch (error) {
       toast({
         title: 'Error',

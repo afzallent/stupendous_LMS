@@ -174,30 +174,13 @@ export default function QuizTakingPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/student/quiz/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quizId: quiz.id,
-          answers: Object.entries(answers).map(([questionId, answer]) => ({
-            questionId,
-            answer
-          }))
-        })
-      })
-
-      if (!response.ok) throw new Error('Failed to submit quiz')
-
-      const result = await response.json()
-      setQuizResult(result.attempt)
-      setShowResults(true)
-      setAttemptCount(prev => prev + 1)
-
-      // Check if can still retake
-      if (quiz.metadata?.allowRetakes === false ||
-          (quiz.metadata?.maxRetakes && attemptCount + 1 >= quiz.metadata.maxRetakes)) {
-        setCanRetake(false)
-      }
+      // Quiz feature not implemented in Django yet
+      alert('Quiz submission is not yet implemented. This feature is coming soon!')
+      
+      // For demo, redirect back to course
+      router.push(`/learn/${courseId}`)
+    } catch (error) {
+      console.error('Quiz submission error:', error)
 
       toast({
         title: result.attempt.passed ? 'Congratulations!' : 'Quiz Completed',

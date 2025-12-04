@@ -100,35 +100,33 @@ export default function ProfilePage() {
 
     setIsLoading(true)
     try {
-      const response = await fetch('/api/profile/update', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          name: profileData.name,
-          bio: profileData.bio,
-          phone: profileData.phone,
-          location: profileData.location,
-          website: profileData.website
-        }),
+      // Update profile in Django
+      const nameParts = profileData.name.split(' ')
+      const result = await djangoApi.patch('/api/auth/me/', {
+        first_name: nameParts[0] || '',
+        last_name: nameParts.slice(1).join(' ') || '',
+        bio: profileData.bio,
+        phone: profileData.phone,
+        location: profileData.location,
+        website: profileData.website
       })
 
-      const result = await response.json()
-
-      if (result.success) {
-        // Update localStorage with new data
-        const updatedUser = { ...user, ...profileData }
-        localStorage.setItem('user', JSON.stringify(updatedUser))
-        setUser(updatedUser)
-        alert("Profile updated successfully!")
-      } else {
-        alert("Failed to update profile: " + result.error)
-      }
-    } catch (error) {
+      // Update localStorage with new data
+      const updatedUser = { ...user, ...profileData }
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      setUser(updatedUser)
+      
+      toast({
+        title: "Success",
+        description: "Profile updated successfully!"
+      })
+    } catch (error: any) {
       console.error("Error updating profile:", error)
-      alert("Failed to update profile. Please try again.")
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update profile. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false)
     }
@@ -149,34 +147,30 @@ export default function ProfilePage() {
 
     setIsLoading(true)
     try {
-      const response = await fetch('/api/profile/change-password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          currentPassword: securityData.currentPassword,
-          newPassword: securityData.newPassword
-        }),
+      // Change password in Django
+      await djangoApi.post('/api/auth/change-password/', {
+        old_password: securityData.currentPassword,
+        new_password: securityData.newPassword
       })
 
-      const result = await response.json()
-
-      if (result.success) {
-        setSecurityData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-          twoFactorEnabled: securityData.twoFactorEnabled
-        })
-        alert("Password changed successfully!")
-      } else {
-        alert("Failed to change password: " + result.error)
-      }
-    } catch (error) {
+      setSecurityData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+        twoFactorEnabled: securityData.twoFactorEnabled
+      })
+      
+      toast({
+        title: "Success",
+        description: "Password changed successfully!"
+      })
+    } catch (error: any) {
       console.error("Error changing password:", error)
-      alert("Failed to change password. Please try again.")
+      toast({
+        title: "Password Change Failed",
+        description: error.message || "Failed to change password. Please check your current password.",
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false)
     }
@@ -187,27 +181,22 @@ export default function ProfilePage() {
 
     setIsLoading(true)
     try {
-      const response = await fetch('/api/profile/notifications', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          settings: notificationSettings
-        }),
+      // Update notification settings in Django
+      await djangoApi.patch('/api/auth/me/', {
+        notification_preferences: notificationSettings
       })
 
-      const result = await response.json()
-
-      if (result.success) {
-        alert("Notification settings updated successfully!")
-      } else {
-        alert("Failed to update notification settings: " + result.error)
-      }
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: "Notification settings updated successfully!"
+      })
+    } catch (error: any) {
       console.error("Error updating notifications:", error)
-      alert("Failed to update notification settings. Please try again.")
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update notification settings. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false)
     }
@@ -235,29 +224,26 @@ export default function ProfilePage() {
     try {
       const formData = new FormData()
       formData.append('avatar', file)
-      formData.append('userId', user.id)
-      formData.append('replaceExisting', 'true')
 
-      const response = await fetch('/api/upload/avatar', {
-        method: 'POST',
-        body: formData,
+      // Upload avatar to Django
+      const result = await djangoApi.upload('/api/auth/upload-avatar/', formData)
+
+      // Update user data with new avatar URL
+      const updatedUser = { ...user, avatar: result.avatar_url }
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      setUser(updatedUser)
+      
+      toast({
+        title: "Success",
+        description: "Avatar updated successfully!"
       })
-
-      const result = await response.json()
-
-      if (result.success) {
-        // Update user data with new avatar URL
-        const updatedUser = { ...user, avatar: result.data.avatar.url }
-        localStorage.setItem('user', JSON.stringify(updatedUser))
-        setUser(updatedUser)
-        
-        alert('Avatar updated successfully!')
-      } else {
-        alert('Failed to upload avatar: ' + result.error)
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Avatar upload error:', error)
-      alert('Failed to upload avatar. Please try again.')
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload avatar. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setUploadingAvatar(false)
       setAvatarProgress(0)

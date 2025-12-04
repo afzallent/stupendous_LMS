@@ -27,6 +27,8 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { djangoApi } from "@/lib/django-api-client"
+import { toast } from "@/hooks/use-toast"
 
 interface User {
   id: string
@@ -292,27 +294,19 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
 
     setIsGeneratingCertificate(true)
     try {
-      const response = await fetch('/api/certificates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          courseId: enrollment.courseId
-        })
+      // Certificate feature not implemented in Django yet
+      toast({
+        title: "Coming Soon",
+        description: "Certificate generation feature is not yet implemented. Stay tuned!",
+        variant: "default"
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate certificate')
-      }
-
-      const data = await response.json()
-      // Redirect to certificate page
-      router.push(`/certificates/${data.data.certificateId}`)
     } catch (error) {
       console.error('Certificate generation error:', error)
-      alert('Failed to generate certificate. Please try again.')
+      toast({
+        title: "Error",
+        description: "Failed to generate certificate. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setIsGeneratingCertificate(false)
     }

@@ -21,6 +21,8 @@ import {
   CreditCard,
   IndianRupee
 } from "lucide-react"
+import { djangoApi } from "@/lib/django-api-client"
+import { toast } from "@/hooks/use-toast"
 
 interface OrderDetails {
   id: string
@@ -103,28 +105,19 @@ function CheckoutSuccessContent() {
           cartItems: cartData.items.map(item => ({ id: item.id, title: item.title }))
         })
 
-        // Create enrollments
-        const enrollmentResponse = await fetch('/api/enrollments/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: currentUser.id,
-            courseIds: cartData.items.map((item: any) => item.id),
-            paymentId: sessionId || paymentId || `${method}_${Date.now()}`,
-            paymentMethod: method,
-            amount: method === 'upi' 
-              ? cartData.items.reduce((sum: number, item: any) => sum + (item.price * 83), 0) // Convert to INR
-              : cartData.items.reduce((sum: number, item: any) => sum + item.price, 0)
-          })
-        })
-
-        console.log('Enrollment API response status:', enrollmentResponse.status)
+        // Create enrollments in Django - enroll in each course
+        const enrollmentPromises = cartData.items.map((item: any) => 
+          djangoApi.post(`/api/courses/${item.id}/enroll/`)
+        )
         
-        if (enrollmentResponse.ok) {
-          const enrollmentData = await enrollmentResponse.json()
-          console.log('Enrollment successful:', enrollmentData)
+        try {
+          await Promise.all(enrollmentPromises)
+          console.log('All enrollments successful')
+          
+          toast({
+            title: "Enrollment Complete!",
+            description: `Successfully enrolled in ${cartData.items.length} course(s)`
+          })
           const actualOrder: OrderDetails = {
             id: `ORD-${Date.now()}`,
             paymentMethod: method,
