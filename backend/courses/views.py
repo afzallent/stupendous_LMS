@@ -1,13 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Avg
+from django.utils import timezone
+from datetime import timedelta
 
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.views import APIView
 
+from core.models import User
 from .models import Course, Lesson, Enrollment, Progress
 from .forms import CourseForm, LessonForm
 from .serializers import (
@@ -186,12 +190,31 @@ class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsInstructorOrReadOnly]
     pagination_class = PageNumberPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title', 'description', 'instructor__username']
+    ordering_fields = ['created_at', 'title']
 
     def get_serializer_class(self):
         """Use detailed serializer for retrieve action"""
         if self.action == 'retrieve':
             return CourseDetailSerializer
         return CourseSerializer
+
+    def get_queryset(self):
+        """Filter courses by query parameters"""
+        queryset = Course.objects.all().order_by('-created_at')
+        
+        # Filter by instructor
+        instructor_id = self.request.query_params.get('instructorId')
+        if instructor_id:
+            queryset = queryset.filter(instructor_id=instructor_id)
+        
+        # Filter by category (if added later)
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category=category)
+        
+        return queryset
 
     def perform_create(self, serializer):
         """Set instructor to current user on create"""
@@ -222,6 +245,15 @@ class CourseViewSet(viewsets.ModelViewSet):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(courses, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def featured(self, request):
+        """Get featured courses (most enrolled)"""
+        courses = Course.objects.annotate(
+            enrollment_count=Count('enrollments')
+        ).order_by('-enrollment_count')[:6]
         serializer = self.get_serializer(courses, many=True)
         return Response(serializer.data)
 
@@ -330,6 +362,33 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(enrollments, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'])
+    def check(self, request):
+        """Check if user is enrolled in a course"""
+        course_id = request.query_params.get('courseId')
+        user_id = request.query_params.get('userId')
+        
+        if not course_id:
+            return Response(
+                {'detail': 'courseId is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # If userId provided, check that user (for instructors)
+        # Otherwise check current user
+        if user_id and request.user.is_instructor:
+            is_enrolled = Enrollment.objects.filter(
+                student_id=user_id,
+                course_id=course_id
+            ).exists()
+        else:
+            is_enrolled = Enrollment.objects.filter(
+                student=request.user,
+                course_id=course_id
+            ).exists()
+        
+        return Response({'is_enrolled': is_enrolled})
+
 
 class ProgressViewSet(viewsets.ModelViewSet):
     """ViewSet for progress tracking"""
@@ -415,3 +474,203 @@ class ProgressViewSet(viewsets.ModelViewSet):
             })
         
         return Response(student_progress_data)
+
+
+# Student Dashboard API
+class StudentDashboardView(APIView):
+    """Student dashboard with enrolled courses and progress"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get student dashboard data"""
+        user_id = request.query_params.get('userId')
+        
+        # Use provided userId or current user
+        if user_id and request.user.is_instructor:
+            student = get_object_or_404(User, id=user_id)
+        else:
+            student = request.user
+        
+        # Get all enrollments
+        enrollments = Enrollment.objects.filter(student=student).select_related('course')
+        
+        dashboard_data = {
+            'enrolled_courses': [],
+            'total_courses': enrollments.count(),
+            'completed_courses': 0,
+            'in_progress_courses': 0,
+            'total_lessons_completed': 0
+        }
+        
+        for enrollment in enrollments:
+            course = enrollment.course
+            total_lessons = course.lessons.count()
+            completed_lessons = Progress.objects.filter(
+                student=student,
+                lesson__course=course,
+                completed=True
+            ).count()
+            
+            percentage = int((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0
+            
+            if percentage == 100:
+                dashboard_data['completed_courses'] += 1
+            elif percentage > 0:
+                dashboard_data['in_progress_courses'] += 1
+            
+            dashboard_data['total_lessons_completed'] += completed_lessons
+            
+            dashboard_data['enrolled_courses'].append({
+                'id': course.id,
+                'title': course.title,
+                'description': course.description,
+                'instructor': course.instructor.username,
+                'enrolled_at': enrollment.enrolled_at,
+                'total_lessons': total_lessons,
+                'completed_lessons': completed_lessons,
+                'progress_percentage': percentage
+            })
+        
+        return Response(dashboard_data)
+
+
+# Instructor Analytics API
+class InstructorAnalyticsView(APIView):
+    """Instructor analytics and statistics"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get instructor analytics"""
+        if not request.user.is_instructor:
+            return Response(
+                {'detail': 'Only instructors can view analytics.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        instructor_id = request.query_params.get('instructorId')
+        if instructor_id and int(instructor_id) != request.user.id:
+            return Response(
+                {'detail': 'You can only view your own analytics.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get instructor's courses
+        courses = Course.objects.filter(instructor=request.user)
+        
+        # Calculate statistics
+        total_courses = courses.count()
+        total_students = Enrollment.objects.filter(course__instructor=request.user).values('student').distinct().count()
+        total_enrollments = Enrollment.objects.filter(course__instructor=request.user).count()
+        total_lessons = Lesson.objects.filter(course__instructor=request.user).count()
+        
+        # Course-wise enrollment data
+        course_data = []
+        for course in courses:
+            enrollments = course.enrollments.count()
+            lessons = course.lessons.count()
+            
+            # Calculate average progress
+            enrolled_students = Enrollment.objects.filter(course=course)
+            total_progress = 0
+            for enrollment in enrolled_students:
+                completed = Progress.objects.filter(
+                    student=enrollment.student,
+                    lesson__course=course,
+                    completed=True
+                ).count()
+                progress = (completed / lessons * 100) if lessons > 0 else 0
+                total_progress += progress
+            
+            avg_progress = (total_progress / enrollments) if enrollments > 0 else 0
+            
+            course_data.append({
+                'id': course.id,
+                'title': course.title,
+                'enrollments': enrollments,
+                'lessons': lessons,
+                'average_progress': round(avg_progress, 1)
+            })
+        
+        analytics = {
+            'total_courses': total_courses,
+            'total_students': total_students,
+            'total_enrollments': total_enrollments,
+            'total_lessons': total_lessons,
+            'courses': course_data
+        }
+        
+        return Response(analytics)
+
+
+class InstructorActivityView(APIView):
+    """Recent activity for instructor"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get recent activity"""
+        if not request.user.is_instructor:
+            return Response(
+                {'detail': 'Only instructors can view activity.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        limit = int(request.query_params.get('limit', 10))
+        
+        # Get recent enrollments in instructor's courses
+        recent_enrollments = Enrollment.objects.filter(
+            course__instructor=request.user
+        ).select_related('student', 'course').order_by('-enrolled_at')[:limit]
+        
+        activities = []
+        for enrollment in recent_enrollments:
+            activities.append({
+                'type': 'enrollment',
+                'student': enrollment.student.username,
+                'course': enrollment.course.title,
+                'timestamp': enrollment.enrolled_at,
+                'message': f"{enrollment.student.username} enrolled in {enrollment.course.title}"
+            })
+        
+        return Response(activities)
+
+
+class InstructorStudentsView(APIView):
+    """List of students enrolled in instructor's courses"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get students list"""
+        if not request.user.is_instructor:
+            return Response(
+                {'detail': 'Only instructors can view students.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        limit = int(request.query_params.get('limit', 50))
+        
+        # Get unique students enrolled in instructor's courses
+        enrollments = Enrollment.objects.filter(
+            course__instructor=request.user
+        ).select_related('student', 'course').order_by('-enrolled_at')
+        
+        # Group by student
+        students_dict = {}
+        for enrollment in enrollments:
+            student_id = enrollment.student.id
+            if student_id not in students_dict:
+                students_dict[student_id] = {
+                    'id': student_id,
+                    'username': enrollment.student.username,
+                    'email': enrollment.student.email,
+                    'enrolled_courses': [],
+                    'total_courses': 0
+                }
+            students_dict[student_id]['enrolled_courses'].append(enrollment.course.title)
+            students_dict[student_id]['total_courses'] += 1
+        
+        students_list = list(students_dict.values())[:limit]
+        
+        return Response({
+            'total': len(students_dict),
+            'students': students_list
+        })

@@ -17,10 +17,19 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    
+    # API endpoints (all under /api/ prefix)
+    path("api/", include("core.api_urls")),
+    path("api/", include("courses.api_urls")),
+    path("api/", include("files.urls")),
+    
+    # Legacy template views (for backward compatibility)
     path("", include("core.urls")),
     path("courses/", include("courses.urls")),
     
@@ -29,3 +38,7 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
