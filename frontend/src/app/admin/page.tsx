@@ -63,11 +63,11 @@ function AdminDashboard() {
 
   const adminLinks = [
     {
-      title: "Django Admin Panel",
-      description: "Full admin interface for managing all system data",
-      icon: Settings,
-      href: "http://localhost:8000/admin/",
-      external: true
+      title: "Manage Users",
+      description: "Create, edit, and delete users (students, instructors, admins)",
+      icon: Users,
+      href: "/admin/users",
+      external: false
     },
     {
       title: "View All Courses",
@@ -77,11 +77,11 @@ function AdminDashboard() {
       external: false
     },
     {
-      title: "Instructor Dashboard",
-      description: "Access instructor features and course management",
-      icon: BarChart3,
-      href: "/instructor",
-      external: false
+      title: "Django Admin Panel",
+      description: "Full admin interface for managing all system data",
+      icon: Settings,
+      href: "http://localhost:8000/admin/",
+      external: true
     },
     {
       title: "API Documentation",

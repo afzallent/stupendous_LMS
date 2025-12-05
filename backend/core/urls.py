@@ -7,6 +7,7 @@ from django.contrib.auth import views as auth_views
 router = DefaultRouter()
 router.register(r'auth', views.AuthViewSet, basename='auth')
 router.register(r'user', views.UserProfileViewSet, basename='user')
+router.register(r'users', views.UserManagementViewSet, basename='users')
 
 urlpatterns = [
     path('', views.HomeView.as_view(), name='home'),
