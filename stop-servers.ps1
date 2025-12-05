@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 # Stop both Django backend and Next.js frontend servers
 
-Write-Host "🛑 Stopping LMS Servers..." -ForegroundColor Cyan
+Write-Host "Stopping LMS Servers..." -ForegroundColor Cyan
 Write-Host ""
 
 # Try to read job IDs from file
@@ -37,7 +37,7 @@ if (Test-Path $jobsFile) {
         # Remove the jobs file
         Remove-Item $jobsFile -Force
     } catch {
-        Write-Host "⚠️  Could not read job IDs from file" -ForegroundColor Yellow
+        Write-Host "Could not read job IDs from file" -ForegroundColor Yellow
     }
 }
 
@@ -71,8 +71,8 @@ if ($djangoProcess) {
 
 Write-Host ""
 if ($stoppedCount -gt 0) {
-    Write-Host "✅ Servers stopped successfully!" -ForegroundColor Green
+    Write-Host "Servers stopped successfully!" -ForegroundColor Green
 } else {
-    Write-Host "ℹ️  No running servers found" -ForegroundColor Gray
+    Write-Host "No running servers found" -ForegroundColor Gray
 }
 Write-Host ""

@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 # Restart both Django backend and Next.js frontend servers
 
-Write-Host "🔄 Restarting LMS Servers..." -ForegroundColor Cyan
+Write-Host "Restarting LMS Servers..." -ForegroundColor Cyan
 Write-Host ""
 
 # Stop servers first

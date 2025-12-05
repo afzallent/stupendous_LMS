@@ -26,13 +26,6 @@ import {
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -42,16 +35,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { 
-  Users, 
   Plus, 
   Edit2, 
   Trash2,
   ArrowLeft,
-  Search
+  Search,
+  Key
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
 
 interface User {
@@ -67,7 +58,6 @@ interface User {
 
 function AdminUsersPage() {
   const { user } = useAuth()
-  const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -76,6 +66,9 @@ function AdminUsersPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false)
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
+  const [newPassword, setNewPassword] = useState("")
   
   const [formData, setFormData] = useState({
     username: "",
@@ -265,6 +258,60 @@ function AdminUsersPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete user",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser || !newPassword) {
+      toast({
+        title: "Validation Error",
+        description: "Password is required",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 8 characters",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const accessToken = localStorage.getItem('access_token')
+
+      const response = await fetch(`${API_BASE_URL}/api/users/${resetPasswordUser.id}/reset_password/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: newPassword })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to reset password')
+      }
+
+      setResetPasswordUser(null)
+      setNewPassword("")
+      setShowResetPasswordDialog(false)
+      toast({
+        title: "Success",
+        description: `Password reset successfully for ${resetPasswordUser.username}`
+      })
+    } catch (error: any) {
+      console.error('Error resetting password:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
         variant: "destructive"
       })
     }
@@ -472,8 +519,21 @@ function AdminUsersPage() {
                               setEditingUser(u)
                               setShowEditDialog(true)
                             }}
+                            title="Edit user"
                           >
                             <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setResetPasswordUser(u)
+                              setNewPassword("")
+                              setShowResetPasswordDialog(true)
+                            }}
+                            title="Reset password"
+                          >
+                            <Key className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
@@ -483,6 +543,7 @@ function AdminUsersPage() {
                               setShowDeleteDialog(true)
                             }}
                             disabled={u.id === user?.id}
+                            title="Delete user"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -562,6 +623,36 @@ function AdminUsersPage() {
               <Button onClick={handleUpdateUser} className="w-full">Update User</Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {resetPasswordUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new_password">New Password</Label>
+              <Input
+                id="new_password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min 8 characters)"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Password must be at least 8 characters long
+              </p>
+            </div>
+            <Button onClick={handleResetPassword} className="w-full">
+              Reset Password
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

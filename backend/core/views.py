@@ -315,3 +315,34 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+    
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        """Reset user password (admin only)"""
+        if not request.user.is_staff:
+            return Response(
+                {'detail': 'Only admins can reset passwords.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        user = self.get_object()
+        new_password = request.data.get('password')
+        
+        if not new_password:
+            return Response(
+                {'detail': 'Password is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(new_password) < 8:
+            return Response(
+                {'detail': 'Password must be at least 8 characters long.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user.set_password(new_password)
+        user.save()
+        
+        return Response({
+            'detail': f'Password reset successfully for {user.username}.'
+        }, status=status.HTTP_200_OK)
