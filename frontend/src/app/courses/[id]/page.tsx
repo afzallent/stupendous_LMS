@@ -28,7 +28,8 @@ import {
   MessageCircle,
   Sparkles,
   ShoppingCart,
-  Plus
+  Plus,
+  Gift
 } from "lucide-react"
 import { useCart } from "@/contexts/cart-context"
 import { toast } from "@/hooks/use-toast"
@@ -369,14 +370,24 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                           </div>
                         </>
                       ) : (
-                        <Button 
-                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white" 
-                          size="lg"
-                          onClick={handleAddToCart}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add to Cart
-                        </Button>
+                        <>
+                          <Button 
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white" 
+                            size="lg"
+                            onClick={handleAddToCart}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add to Cart
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="w-full border-green-200 text-green-600 hover:bg-green-50"
+                            onClick={() => router.push(`/checkout/coupon?courseId=${course.id}`)}
+                          >
+                            <Gift className="h-4 w-4 mr-2" />
+                            Enroll with Coupon
+                          </Button>
+                        </>
                       )}
                       <Button variant="outline" className="w-full border-blue-200 text-blue-600 hover:bg-blue-50">
                         <MessageCircle className="h-4 w-4 mr-2" />
