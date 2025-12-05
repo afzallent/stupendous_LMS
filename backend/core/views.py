@@ -126,7 +126,7 @@ class UserProfileViewSet(viewsets.ViewSet):
             status=status.HTTP_200_OK
         )
     
-    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
+    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser], permission_classes=[IsAuthenticated])
     def upload_avatar(self, request):
         """Upload user avatar image"""
         if 'avatar' not in request.FILES:
@@ -159,4 +159,24 @@ class UserProfileViewSet(viewsets.ViewSet):
         return Response({
             'detail': 'Avatar uploaded successfully.',
             'avatar_url': request.user.avatar.url if request.user.avatar else None
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['delete'], permission_classes=[IsAuthenticated])
+    def delete_avatar(self, request):
+        """Delete user avatar image"""
+        if request.user.avatar:
+            # Delete the file from storage
+            if request.user.avatar.storage.exists(request.user.avatar.name):
+                request.user.avatar.storage.delete(request.user.avatar.name)
+            
+            # Clear the avatar field
+            request.user.avatar = None
+            request.user.save()
+            
+            return Response({
+                'detail': 'Avatar deleted successfully.'
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'detail': 'No avatar to delete.'
         }, status=status.HTTP_200_OK)

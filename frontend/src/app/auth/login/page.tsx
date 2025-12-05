@@ -90,7 +90,7 @@ function AuthPageContent() {
     }
   }
 
-  const { login, user } = useAuth()
+  const { login, signup, user } = useAuth()
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -212,7 +212,7 @@ function AuthPageContent() {
       } else {
         toast({
           title: "Signup Failed",
-          description: data.error || "Failed to create account",
+          description: "Failed to create account",
           variant: "destructive"
         })
       }

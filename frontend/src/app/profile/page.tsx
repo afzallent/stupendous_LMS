@@ -28,14 +28,14 @@ import {
   MapPin,
   Globe,
   Phone,
-  X
+  X,
+  Award
 } from "lucide-react"
 import Link from "next/link"
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
-  const router = useRouter()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -102,7 +102,7 @@ export default function ProfilePage() {
     try {
       // Update profile in Django
       const nameParts = profileData.name.split(' ')
-      const result = await djangoApi.patch('/api/auth/me/', {
+      const result = await djangoApi.patch('/api/user/me/', {
         first_name: nameParts[0] || '',
         last_name: nameParts.slice(1).join(' ') || '',
         bio: profileData.bio,
@@ -136,12 +136,20 @@ export default function ProfilePage() {
     if (!user?.id) return
 
     if (securityData.newPassword !== securityData.confirmPassword) {
-      alert("New passwords don't match")
+      toast({
+        title: "Validation Error",
+        description: "New passwords don't match",
+        variant: "destructive"
+      })
       return
     }
 
     if (securityData.newPassword.length < 6) {
-      alert("New password must be at least 6 characters")
+      toast({
+        title: "Validation Error",
+        description: "New password must be at least 6 characters",
+        variant: "destructive"
+      })
       return
     }
 
@@ -182,7 +190,7 @@ export default function ProfilePage() {
     setIsLoading(true)
     try {
       // Update notification settings in Django
-      await djangoApi.patch('/api/auth/me/', {
+      await djangoApi.patch('/api/user/me/', {
         notification_preferences: notificationSettings
       })
 
@@ -209,12 +217,20 @@ export default function ProfilePage() {
     // Validate file type and size
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
-      alert('Please select a valid image file (JPEG, PNG, or WebP)')
+      toast({
+        title: "Invalid File",
+        description: "Please select a valid image file (JPEG, PNG, or WebP)",
+        variant: "destructive"
+      })
       return
     }
 
     if (file.size > 2 * 1024 * 1024) { // 2MB limit
-      alert('File size must be less than 2MB')
+      toast({
+        title: "File Too Large",
+        description: "File size must be less than 2MB",
+        variant: "destructive"
+      })
       return
     }
 
@@ -226,7 +242,7 @@ export default function ProfilePage() {
       formData.append('avatar', file)
 
       // Upload avatar to Django
-      const result = await djangoApi.upload('/api/auth/upload-avatar/', formData)
+      const result = await djangoApi.upload('/api/auth/upload_avatar/', formData)
 
       // Update user data with new avatar URL
       const updatedUser = { ...user, avatar: result.avatar_url }
@@ -261,25 +277,24 @@ export default function ProfilePage() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/upload/avatar?userId=${user.id}`, {
-        method: 'DELETE',
+      const result = await djangoApi.delete('/api/auth/delete_avatar/')
+
+      // Update user data to remove avatar
+      const updatedUser = { ...user, avatar: null }
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      setUser(updatedUser)
+      
+      toast({
+        title: "Success",
+        description: "Profile picture removed successfully!"
       })
-
-      const result = await response.json()
-
-      if (result.success) {
-        // Update user data to remove avatar
-        const updatedUser = { ...user, avatar: null }
-        localStorage.setItem('user', JSON.stringify(updatedUser))
-        setUser(updatedUser)
-        
-        alert('Profile picture removed successfully!')
-      } else {
-        alert('Failed to remove profile picture: ' + result.error)
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Avatar delete error:', error)
-      alert('Failed to remove profile picture. Please try again.')
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove profile picture. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false)
     }

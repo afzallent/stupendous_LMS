@@ -47,14 +47,19 @@ export default function CertificatesPage() {
         
         const user = JSON.parse(storedUser)
         
-        const response = await fetch(`/api/student/certificates?userId=${user.id}`)
+        // Fetch certificates from Django backend
+        const response = await fetch(`http://localhost:8000/api/certificates/`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          }
+        })
         
         if (!response.ok) {
           throw new Error("Failed to fetch certificates")
         }
         
         const data = await response.json()
-        setCertificates(data.data)
+        setCertificates(data.results || data.data || [])
       } catch (err) {
         setError("Failed to load certificates. Please try again.")
         console.error("Certificates fetch error:", err)
