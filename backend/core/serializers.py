@@ -115,6 +115,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Custom JWT token serializer that includes user data.
     
     Returns access token, refresh token, and user profile information on successful login.
+    Accepts both username and email for authentication.
     """
     
     @classmethod
@@ -128,8 +129,33 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        data = super().validate(attrs)
-        # Add user data to response
-        user = self.user
-        data['user'] = UserSerializer(user).data
+        # Support both username and email login
+        username = attrs.get('username')
+        password = attrs.get('password')
+        
+        # Try to find user by username first, then by email
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            try:
+                user = User.objects.get(email=username)
+            except User.DoesNotExist:
+                raise serializers.ValidationError('Invalid credentials')
+        
+        # Verify password
+        if not user.check_password(password):
+            raise serializers.ValidationError('Invalid credentials')
+        
+        # Check if user is active
+        if not user.is_active:
+            raise serializers.ValidationError('User account is disabled')
+        
+        # Generate tokens
+        refresh = self.get_token(user)
+        data = {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': UserSerializer(user).data
+        }
+        
         return data
