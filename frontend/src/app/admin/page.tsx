@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { withAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,75 +11,84 @@ import {
   BarChart3, 
   Settings,
   LogOut,
-  ArrowRight
+  ExternalLink
 } from "lucide-react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { djangoApi } from "@/lib/django-api-client"
+import { toast } from "@/hooks/use-toast"
 
 function AdminDashboard() {
   const { user, logout } = useAuth()
   const router = useRouter()
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalCourses: 0,
+    totalEnrollments: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch courses count
+      const coursesResponse = await djangoApi.get('/courses/')
+      const coursesCount = coursesResponse.count || coursesResponse.length || 0
+      
+      setStats({
+        totalUsers: 2, // Admin + Instructor
+        totalCourses: coursesCount,
+        totalEnrollments: 0
+      })
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard statistics",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLogout = async () => {
     await logout()
     router.push('/auth/login')
   }
 
-  const adminStats = [
+  const adminLinks = [
     {
-      title: "Total Users",
-      value: "1,234",
-      description: "Active users on platform",
-      icon: Users,
-      color: "bg-blue-500"
-    },
-    {
-      title: "Total Courses",
-      value: "5",
-      description: "Published courses",
-      icon: BookOpen,
-      color: "bg-purple-500"
-    },
-    {
-      title: "Total Enrollments",
-      value: "892",
-      description: "Active enrollments",
-      icon: BarChart3,
-      color: "bg-green-500"
-    },
-    {
-      title: "System Health",
-      value: "99.9%",
-      description: "Uptime this month",
+      title: "Django Admin Panel",
+      description: "Full admin interface for managing all system data",
       icon: Settings,
-      color: "bg-orange-500"
-    }
-  ]
-
-  const adminActions = [
-    {
-      title: "Manage Users",
-      description: "View and manage all users on the platform",
-      href: "/admin/users",
-      icon: Users
+      href: "http://localhost:8000/admin/",
+      external: true
     },
     {
-      title: "Manage Courses",
-      description: "Create, edit, and manage courses",
-      href: "/admin/courses",
-      icon: BookOpen
+      title: "View All Courses",
+      description: "Browse and manage all published courses",
+      icon: BookOpen,
+      href: "/courses",
+      external: false
     },
     {
-      title: "View Analytics",
-      description: "View detailed analytics and reports",
-      href: "/admin/analytics",
-      icon: BarChart3
+      title: "Instructor Dashboard",
+      description: "Access instructor features and course management",
+      icon: BarChart3,
+      href: "/instructor",
+      external: false
     },
     {
-      title: "System Settings",
-      description: "Configure system settings and preferences",
-      href: "/admin/settings",
-      icon: Settings
+      title: "API Documentation",
+      description: "View API endpoints and integration guides",
+      icon: ExternalLink,
+      href: "http://localhost:8000/api/schema/swagger/",
+      external: true
     }
   ]
 
@@ -105,51 +115,93 @@ function AdminDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {adminStats.map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <Card key={index} className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                      {stat.title}
-                    </CardTitle>
-                    <div className={`${stat.color} p-2 rounded-lg`}>
-                      <Icon className="h-4 w-4 text-white" />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {stat.value}
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    {stat.description}
-                  </p>
-                </CardContent>
-              </Card>
-            )
-          })}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Total Users
+                </CardTitle>
+                <div className="bg-blue-500 p-2 rounded-lg">
+                  <Users className="h-4 w-4 text-white" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                {loading ? "..." : stats.totalUsers}
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                Active users on platform
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Total Courses
+                </CardTitle>
+                <div className="bg-purple-500 p-2 rounded-lg">
+                  <BookOpen className="h-4 w-4 text-white" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                {loading ? "..." : stats.totalCourses}
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                Published courses
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  System Status
+                </CardTitle>
+                <div className="bg-green-500 p-2 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-white" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                Operational
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                All systems running
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Admin Actions */}
+        {/* Admin Links */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Quick Actions</h2>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Admin Tools</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {adminActions.map((action, index) => {
-              const Icon = action.icon
+            {adminLinks.map((link, index) => {
+              const Icon = link.icon
               return (
-                <Link key={index} href={action.href}>
+                <a 
+                  key={index} 
+                  href={link.href}
+                  target={link.external ? "_blank" : undefined}
+                  rel={link.external ? "noopener noreferrer" : undefined}
+                >
                   <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-lg transition-shadow cursor-pointer h-full">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>
                           <CardTitle className="text-lg text-slate-900 dark:text-white">
-                            {action.title}
+                            {link.title}
                           </CardTitle>
                           <CardDescription className="mt-2">
-                            {action.description}
+                            {link.description}
                           </CardDescription>
                         </div>
                         <Icon className="h-6 w-6 text-slate-400 dark:text-slate-500" />
@@ -157,45 +209,40 @@ function AdminDashboard() {
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center text-blue-600 dark:text-blue-400 text-sm font-medium">
-                        Go to {action.title}
-                        <ArrowRight className="h-4 w-4 ml-2" />
+                        {link.external ? "Open in new tab" : "Go to page"}
+                        <ExternalLink className="h-4 w-4 ml-2" />
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </a>
               )
             })}
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* System Information */}
         <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest actions on the platform</CardDescription>
+            <CardTitle>System Information</CardTitle>
+            <CardDescription>Platform details and configuration</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white">New user registration</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">John Doe registered</p>
-                </div>
-                <span className="text-xs text-slate-500">2 hours ago</span>
+                <span className="text-slate-600 dark:text-slate-400">Platform</span>
+                <span className="font-medium text-slate-900 dark:text-white">Stupendous LMS</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white">Course published</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Advanced JavaScript & React</p>
-                </div>
-                <span className="text-xs text-slate-500">5 hours ago</span>
+                <span className="text-slate-600 dark:text-slate-400">Backend</span>
+                <span className="font-medium text-slate-900 dark:text-white">Django 5.2.8</span>
+              </div>
+              <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
+                <span className="text-slate-600 dark:text-slate-400">Frontend</span>
+                <span className="font-medium text-slate-900 dark:text-white">Next.js 14</span>
               </div>
               <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white">System update</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Database optimization completed</p>
-                </div>
-                <span className="text-xs text-slate-500">1 day ago</span>
+                <span className="text-slate-600 dark:text-slate-400">Database</span>
+                <span className="font-medium text-slate-900 dark:text-white">PostgreSQL</span>
               </div>
             </div>
           </CardContent>
