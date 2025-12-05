@@ -1,5 +1,45 @@
 from django.contrib import admin
-from .models import Course, Lesson, Enrollment, Progress, Category
+from django.utils.html import format_html
+from .models import Course, Lesson, Enrollment, Progress, Category, Coupon
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ['code', 'discount_percentage', 'get_status_badge', 'times_used', 'max_uses', 'valid_from', 'valid_until']
+    list_filter = ['is_active', 'created_at', 'valid_from', 'valid_until']
+    search_fields = ['code', 'description']
+    readonly_fields = ['times_used', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Coupon Information', {
+            'fields': ('code', 'description', 'is_active')
+        }),
+        ('Discount', {
+            'fields': ('discount_percentage',)
+        }),
+        ('Usage Limits', {
+            'fields': ('max_uses', 'times_used')
+        }),
+        ('Validity', {
+            'fields': ('valid_from', 'valid_until')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_status_badge(self, obj):
+        """Display coupon status as a colored badge."""
+        if obj.is_valid():
+            return format_html(
+                '<span style="background-color: #28a745; color: white; padding: 3px 8px; border-radius: 3px;">Valid</span>'
+            )
+        else:
+            return format_html(
+                '<span style="background-color: #dc3545; color: white; padding: 3px 8px; border-radius: 3px;">Invalid</span>'
+            )
+    get_status_badge.short_description = 'Status'
 
 
 @admin.register(Category)

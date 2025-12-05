@@ -578,6 +578,65 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             ).exists()
         
         return Response({'is_enrolled': is_enrolled})
+    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def enroll_with_coupon(self, request):
+        """Enroll in a course using a coupon code"""
+        from .models import Coupon
+        
+        course_id = request.data.get('course_id')
+        coupon_code = request.data.get('coupon_code')
+        
+        if not course_id:
+            return Response(
+                {'detail': 'course_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not coupon_code:
+            return Response(
+                {'detail': 'coupon_code is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get course
+        course = get_object_or_404(Course, id=course_id)
+        
+        # Check if already enrolled
+        if Enrollment.objects.filter(student=request.user, course=course).exists():
+            return Response(
+                {'detail': 'You are already enrolled in this course.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get and validate coupon
+        try:
+            coupon = Coupon.objects.get(code=coupon_code.upper())
+        except Coupon.DoesNotExist:
+            return Response(
+                {'detail': 'Invalid coupon code.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if coupon is valid
+        if not coupon.is_valid():
+            return Response(
+                {'detail': 'This coupon is no longer valid.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create enrollment
+        enrollment = Enrollment.objects.create(student=request.user, course=course)
+        
+        # Mark coupon as used
+        coupon.use_coupon()
+        
+        serializer = self.get_serializer(enrollment)
+        return Response({
+            'detail': f'Successfully enrolled with {coupon_code} coupon ({coupon.discount_percentage}% discount).',
+            'enrollment': serializer.data,
+            'discount_percentage': coupon.discount_percentage
+        }, status=status.HTTP_201_CREATED)
 
 
 class ProgressViewSet(viewsets.ModelViewSet):

@@ -1,6 +1,61 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+
+class Coupon(models.Model):
+    """Coupon code model for discounts and free access"""
+    code = models.CharField(max_length=50, unique=True, help_text="Coupon code (e.g., PRERELEASE)")
+    description = models.TextField(blank=True, help_text="Description of the coupon")
+    discount_percentage = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Discount percentage (0-100)"
+    )
+    is_active = models.BooleanField(default=True, help_text="Whether the coupon is active")
+    max_uses = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum number of times this coupon can be used (null = unlimited)"
+    )
+    times_used = models.IntegerField(default=0, help_text="Number of times this coupon has been used")
+    valid_from = models.DateTimeField(default=timezone.now, help_text="When the coupon becomes valid")
+    valid_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the coupon expires (null = no expiration)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.code} ({self.discount_percentage}% off)"
+    
+    def is_valid(self):
+        """Check if coupon is valid for use"""
+        if not self.is_active:
+            return False
+        
+        now = timezone.now()
+        if now < self.valid_from:
+            return False
+        
+        if self.valid_until and now > self.valid_until:
+            return False
+        
+        if self.max_uses and self.times_used >= self.max_uses:
+            return False
+        
+        return True
+    
+    def use_coupon(self):
+        """Increment the times_used counter"""
+        self.times_used += 1
+        self.save()
 
 
 class Category(models.Model):

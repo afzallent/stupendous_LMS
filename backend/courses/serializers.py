@@ -1,6 +1,20 @@
 from rest_framework import serializers
-from .models import Course, Lesson, Enrollment, Progress, Category
+from .models import Course, Lesson, Enrollment, Progress, Category, Coupon
 from core.serializers import UserSerializer
+
+
+class CouponSerializer(serializers.ModelSerializer):
+    """Serializer for coupon codes"""
+    is_valid = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Coupon
+        fields = ['id', 'code', 'description', 'discount_percentage', 'is_active', 
+                  'max_uses', 'times_used', 'valid_from', 'valid_until', 'is_valid']
+        read_only_fields = ['id', 'times_used']
+    
+    def get_is_valid(self, obj):
+        return obj.is_valid()
 
 
 class CategorySerializer(serializers.ModelSerializer):
