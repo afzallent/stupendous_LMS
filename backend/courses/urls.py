@@ -7,6 +7,7 @@ router.register(r'api/courses', views.CourseViewSet, basename='course')
 router.register(r'api/lessons', views.LessonViewSet, basename='lesson')
 router.register(r'api/enrollments', views.EnrollmentViewSet, basename='enrollment')
 router.register(r'api/progress', views.ProgressViewSet, basename='progress')
+router.register(r'api/coupons', views.CouponViewSet, basename='coupon')
 
 urlpatterns = [
     # API endpoints

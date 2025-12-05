@@ -937,3 +937,51 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [permissions.IsAuthenticated(), permissions.IsAdminUser()]
         return [permissions.AllowAny()]
+
+
+class CouponViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for coupon validation (read-only for students)"""
+    from .models import Coupon
+    from .serializers import CouponSerializer
+    
+    queryset = Coupon.objects.filter(is_active=True)
+    serializer_class = CouponSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter coupons by code if provided"""
+        queryset = Coupon.objects.filter(is_active=True)
+        code = self.request.query_params.get('code')
+        if code:
+            queryset = queryset.filter(code=code.upper())
+        return queryset
+    
+    @action(detail=False, methods=['post'])
+    def validate(self, request):
+        """Validate a coupon code without using it"""
+        from .models import Coupon
+        
+        code = request.data.get('code')
+        if not code:
+            return Response(
+                {'detail': 'Coupon code is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            coupon = Coupon.objects.get(code=code.upper())
+        except Coupon.DoesNotExist:
+            return Response(
+                {'detail': 'Invalid coupon code.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if not coupon.is_valid():
+            return Response(
+                {'detail': 'This coupon is no longer valid.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .serializers import CouponSerializer
+        serializer = CouponSerializer(coupon)
+        return Response(serializer.data)

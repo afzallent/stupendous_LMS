@@ -34,6 +34,10 @@ export default function CartPage() {
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'upi'>('stripe')
   const [mounted, setMounted] = useState(false)
+  const [couponCode, setCouponCode] = useState("")
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState("")
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -79,6 +83,97 @@ export default function CartPage() {
     const originalTotal = cartState.items.reduce((sum, item) => sum + item.originalPrice, 0)
     const discount = calculateDiscount()
     return originalTotal > 0 ? Math.round((discount / originalTotal) * 100) : 0
+  }
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Please enter a coupon code")
+      return
+    }
+
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to apply coupon codes",
+        variant: "destructive"
+      })
+      router.push('/auth/login?redirect=/cart')
+      return
+    }
+
+    setCouponLoading(true)
+    setCouponError("")
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const accessToken = localStorage.getItem('access_token')
+
+      // For now, we'll validate the coupon by trying to use it
+      // In a real implementation, you'd have a separate validation endpoint
+      const response = await fetch(`${API_BASE_URL}/api/courses/coupons/?code=${couponCode.toUpperCase()}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Invalid coupon code')
+      }
+
+      const data = await response.json()
+      
+      if (data.length === 0) {
+        setCouponError("Invalid coupon code")
+        return
+      }
+
+      const coupon = data[0]
+      
+      if (!coupon.is_valid) {
+        setCouponError("This coupon is no longer valid")
+        return
+      }
+
+      setAppliedCoupon(coupon)
+      toast({
+        title: "Coupon Applied!",
+        description: `${coupon.discount_percentage}% discount applied to your order`
+      })
+    } catch (error: any) {
+      setCouponError(error.message || "Failed to apply coupon")
+      toast({
+        title: "Error",
+        description: "Failed to apply coupon code",
+        variant: "destructive"
+      })
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponCode("")
+    setCouponError("")
+    toast({
+      title: "Coupon Removed",
+      description: "Coupon code has been removed from your order"
+    })
+  }
+
+  const calculateFinalTotal = () => {
+    let total = cartState.total
+    if (appliedCoupon) {
+      const couponDiscount = (total * appliedCoupon.discount_percentage) / 100
+      total = total - couponDiscount
+    }
+    return total
+  }
+
+  const getCouponDiscount = () => {
+    if (!appliedCoupon) return 0
+    return (cartState.total * appliedCoupon.discount_percentage) / 100
   }
 
   if (!mounted) {
@@ -258,9 +353,67 @@ export default function CartPage() {
                       <span>-${calculateDiscount().toFixed(2)}</span>
                     </div>
                     <Separator />
+                    
+                    {/* Coupon Code Section */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Have a coupon code?</Label>
+                      {appliedCoupon ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-green-700">{appliedCoupon.code}</p>
+                              <p className="text-xs text-green-600">{appliedCoupon.discount_percentage}% discount applied</p>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={handleRemoveCoupon}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex gap-2">
+                            <Input 
+                              placeholder="Enter code (e.g., PRERELEASE)"
+                              className="flex-1"
+                              value={couponCode}
+                              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                              disabled={couponLoading}
+                            />
+                            <Button 
+                              variant="outline"
+                              onClick={handleApplyCoupon}
+                              disabled={couponLoading || !couponCode.trim()}
+                            >
+                              {couponLoading ? "..." : "Apply"}
+                            </Button>
+                          </div>
+                          {couponError && (
+                            <p className="text-xs text-red-600">{couponError}</p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            Use code <span className="font-semibold text-green-600">PRERELEASE</span> for 100% discount
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    
+                    <Separator />
+                    
+                    {appliedCoupon && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Coupon Discount ({appliedCoupon.discount_percentage}%):</span>
+                        <span>-${getCouponDiscount().toFixed(2)}</span>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between text-xl font-bold">
                       <span>Total:</span>
-                      <span className="text-blue-600">${cartState.total.toFixed(2)}</span>
+                      <span className="text-blue-600">${calculateFinalTotal().toFixed(2)}</span>
                     </div>
 
                     {!isAuthenticated && (
@@ -301,7 +454,7 @@ export default function CartPage() {
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                       size="lg"
                     >
-                      {isCheckingOut ? 'Processing...' : `Checkout $${cartState.total.toFixed(2)}`}
+                      {isCheckingOut ? 'Processing...' : `Checkout $${calculateFinalTotal().toFixed(2)}`}
                     </Button>
 
                     <div className="pt-4 space-y-2 text-sm text-gray-600">
