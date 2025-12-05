@@ -854,76 +854,128 @@ function CreateCoursePageContent() {
                                     <Video className="h-4 w-4 text-primary" />
                                     <span>Lesson Video</span>
                                   </label>
-                                  {lesson.videoFile && (
+                                  {(lesson.videoFile || lesson.videoUrl) && (
                                     <Badge variant="secondary" className="text-xs">
-                                      Video uploaded
+                                      {lesson.videoFile ? 'Self-hosted' : 'External URL'}
                                     </Badge>
                                   )}
                                 </div>
-                                
-                                {uploadingVideos[`${chapterIndex}-${lessonIndex}`] ? (
-                                  <div className="border-2 border-dashed border-primary/25 rounded-lg p-4 text-center">
-                                    <Video className="h-6 w-6 mx-auto mb-2 text-primary animate-pulse" />
-                                    <p className="text-sm text-primary font-medium mb-2">Uploading video...</p>
-                                    <div className="w-full bg-muted rounded-full h-2">
-                                      <div 
-                                        className="bg-primary h-2 rounded-full transition-all duration-300" 
-                                        style={{width: `${uploadProgress[`${chapterIndex}-${lessonIndex}`] || 0}%`}}
-                                      ></div>
+
+                                {/* Video Source Tabs */}
+                                <Tabs defaultValue="url" className="w-full">
+                                  <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="url">Video URL</TabsTrigger>
+                                    <TabsTrigger value="upload">Upload Video</TabsTrigger>
+                                  </TabsList>
+
+                                  <TabsContent value="url" className="space-y-3">
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`video-url-${chapterIndex}-${lessonIndex}`}>
+                                        Video URL (YouTube, Vimeo, Wistia, Loom)
+                                      </Label>
+                                      <Input
+                                        id={`video-url-${chapterIndex}-${lessonIndex}`}
+                                        placeholder="https://www.youtube.com/watch?v=... or embed URL"
+                                        value={lesson.videoUrl}
+                                        onChange={(e) => {
+                                          const updatedChapters = [...chapters]
+                                          updatedChapters[chapterIndex].lessons[lessonIndex].videoUrl = e.target.value
+                                          // Clear video file if URL is provided
+                                          updatedChapters[chapterIndex].lessons[lessonIndex].videoFile = null
+                                          setChapters(updatedChapters)
+                                        }}
+                                      />
+                                      <p className="text-xs text-muted-foreground">
+                                        Supported platforms: YouTube, Vimeo, Wistia, Loom
+                                      </p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {uploadProgress[`${chapterIndex}-${lessonIndex}`] || 0}% complete
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
-                                    <Video className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                                    <p className="text-sm text-muted-foreground mb-2">
-                                      Upload lesson video (max 500MB)
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mb-3">
-                                      Supported: MP4, WebM, QuickTime
-                                    </p>
-                                    <input
-                                      type="file"
-                                      accept="video/mp4,video/webm,video/quicktime"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0]
-                                        if (file) {
-                                          handleVideoUpload(chapterIndex, lessonIndex, file)
-                                        }
-                                      }}
-                                      className="hidden"
-                                      id={`video-upload-${chapterIndex}-${lessonIndex}`}
-                                      disabled={!courseId || uploadingVideos[`${chapterIndex}-${lessonIndex}`]}
-                                    />
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => {
-                                        if (!courseId) {
-                                          alert('Please save course as draft first')
-                                          return
-                                        }
-                                        document.getElementById(`video-upload-${chapterIndex}-${lessonIndex}`)?.click()
-                                      }}
-                                      disabled={!courseId || uploadingVideos[`${chapterIndex}-${lessonIndex}`]}
-                                    >
-                                      {!courseId ? 'Save course first' : 'Choose Video'}
-                                    </Button>
-                                  </div>
-                                )}
-                                
-                                {lesson.videoFile && (
-                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                                    <p className="text-sm text-green-700 font-medium">
-                                      ✓ {lesson.videoFile.name}
-                                    </p>
-                                    <p className="text-xs text-green-600">
-                                      Size: {(lesson.videoFile.size / (1024 * 1024)).toFixed(2)} MB
-                                    </p>
-                                  </div>
-                                )}
+
+                                    {lesson.videoUrl && (
+                                      <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                                        <p className="text-sm text-blue-700 font-medium mb-1">
+                                          ✓ Video URL added
+                                        </p>
+                                        <p className="text-xs text-blue-600 break-all">
+                                          {lesson.videoUrl}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </TabsContent>
+
+                                  <TabsContent value="upload" className="space-y-3">
+                                    {uploadingVideos[`${chapterIndex}-${lessonIndex}`] ? (
+                                      <div className="border-2 border-dashed border-primary/25 rounded-lg p-4 text-center">
+                                        <Video className="h-6 w-6 mx-auto mb-2 text-primary animate-pulse" />
+                                        <p className="text-sm text-primary font-medium mb-2">Uploading video...</p>
+                                        <div className="w-full bg-muted rounded-full h-2">
+                                          <div 
+                                            className="bg-primary h-2 rounded-full transition-all duration-300" 
+                                            style={{width: `${uploadProgress[`${chapterIndex}-${lessonIndex}`] || 0}%`}}
+                                          ></div>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {uploadProgress[`${chapterIndex}-${lessonIndex}`] || 0}% complete
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
+                                        <Video className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground mb-2">
+                                          Upload lesson video (max 500MB)
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mb-3">
+                                          Supported: MP4, WebM, QuickTime
+                                        </p>
+                                        <input
+                                          type="file"
+                                          accept="video/mp4,video/webm,video/quicktime"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file) {
+                                              // Clear video URL if file is uploaded
+                                              const updatedChapters = [...chapters]
+                                              updatedChapters[chapterIndex].lessons[lessonIndex].videoUrl = ''
+                                              setChapters(updatedChapters)
+                                              handleVideoUpload(chapterIndex, lessonIndex, file)
+                                            }
+                                          }}
+                                          className="hidden"
+                                          id={`video-upload-${chapterIndex}-${lessonIndex}`}
+                                          disabled={!courseId || uploadingVideos[`${chapterIndex}-${lessonIndex}`]}
+                                        />
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          onClick={() => {
+                                            if (!courseId) {
+                                              toast({
+                                                title: "Save course first",
+                                                description: "Please save the course as draft before uploading videos",
+                                                variant: "destructive"
+                                              })
+                                              return
+                                            }
+                                            document.getElementById(`video-upload-${chapterIndex}-${lessonIndex}`)?.click()
+                                          }}
+                                          disabled={!courseId || uploadingVideos[`${chapterIndex}-${lessonIndex}`]}
+                                        >
+                                          {!courseId ? 'Save course first' : 'Choose Video'}
+                                        </Button>
+                                      </div>
+                                    )}
+                                    
+                                    {lesson.videoFile && (
+                                      <div className="p-3 bg-green-50 border border-green-200 rounded">
+                                        <p className="text-sm text-green-700 font-medium">
+                                          ✓ {lesson.videoFile.name}
+                                        </p>
+                                        <p className="text-xs text-green-600">
+                                          Size: {(lesson.videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                                        </p>
+                                      </div>
+                                    )}
+                                  </TabsContent>
+                                </Tabs>
                                 
                                 <Input
                                   placeholder="Duration (minutes)"
