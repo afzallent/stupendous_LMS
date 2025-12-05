@@ -95,13 +95,37 @@ function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await djangoApi.get('/users/')
-      setUsers(response.results || response)
-    } catch (error) {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const accessToken = localStorage.getItem('access_token')
+      
+      if (!accessToken) {
+        toast({
+          title: "Error",
+          description: "Not authenticated",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/users/`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('Users data:', data)
+      setUsers(Array.isArray(data) ? data : data.results || [])
+    } catch (error: any) {
       console.error('Error fetching users:', error)
       toast({
         title: "Error",
-        description: "Failed to load users",
+        description: error.message || "Failed to load users",
         variant: "destructive"
       })
     } finally {
@@ -120,8 +144,25 @@ function AdminUsersPage() {
         return
       }
 
-      const response = await djangoApi.post('/users/create_user/', formData)
-      setUsers([...users, response])
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const accessToken = localStorage.getItem('access_token')
+
+      const response = await fetch(`${API_BASE_URL}/api/users/create_user/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to create user')
+      }
+
+      const newUser = await response.json()
+      setUsers([...users, newUser])
       setFormData({
         username: "",
         email: "",
@@ -151,15 +192,31 @@ function AdminUsersPage() {
     if (!editingUser) return
 
     try {
-      const response = await djangoApi.patch(`/users/${editingUser.id}/`, {
-        first_name: editingUser.first_name,
-        last_name: editingUser.last_name,
-        is_student: editingUser.is_student,
-        is_instructor: editingUser.is_instructor,
-        is_staff: editingUser.is_staff,
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const accessToken = localStorage.getItem('access_token')
+
+      const response = await fetch(`${API_BASE_URL}/api/users/${editingUser.id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          first_name: editingUser.first_name,
+          last_name: editingUser.last_name,
+          is_student: editingUser.is_student,
+          is_instructor: editingUser.is_instructor,
+          is_staff: editingUser.is_staff,
+        })
       })
-      
-      setUsers(users.map(u => u.id === editingUser.id ? response : u))
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to update user')
+      }
+
+      const updatedUser = await response.json()
+      setUsers(users.map(u => u.id === editingUser.id ? updatedUser : u))
       setEditingUser(null)
       setShowEditDialog(false)
       toast({
@@ -180,7 +237,22 @@ function AdminUsersPage() {
     if (!deletingUser) return
 
     try {
-      await djangoApi.delete(`/users/${deletingUser.id}/`)
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const accessToken = localStorage.getItem('access_token')
+
+      const response = await fetch(`${API_BASE_URL}/api/users/${deletingUser.id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to delete user')
+      }
+
       setUsers(users.filter(u => u.id !== deletingUser.id))
       setDeletingUser(null)
       setShowDeleteDialog(false)
