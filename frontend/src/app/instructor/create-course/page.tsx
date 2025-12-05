@@ -31,7 +31,6 @@ import {
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { XLVILoader } from "@/components/ui/xlvi-loader"
 
 function CreateCoursePageContent() {

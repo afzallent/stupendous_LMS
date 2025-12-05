@@ -82,60 +82,87 @@ export default function InstructorDashboard() {
           'Content-Type': 'application/json'
         }
 
-        // Fetch instructor analytics from Django
-        const analyticsResponse = await fetch(`${API_BASE_URL}/api/instructor/analytics/`, { headers })
-        if (analyticsResponse.ok) {
-          const analyticsData = await analyticsResponse.json()
-          console.log('📊 Instructor analytics from Django:', analyticsData)
-          
-          // Map Django response to frontend format
-          const mappedCourses = analyticsData.courses?.map((course: any) => ({
-            id: course.id,
-            title: course.title,
-            enrollments: course.enrollments || 0,
-            lessons: course.lessons || 0,
-            averageProgress: course.average_progress || 0,
-            status: 'published'
-          })) || []
-          
-          const mappedStats = {
-            totalCourses: analyticsData.total_courses || 0,
-            totalStudents: analyticsData.total_students || 0,
-            totalEnrollments: analyticsData.total_enrollments || 0,
-            totalLessons: analyticsData.total_lessons || 0,
-            totalRevenue: 0, // Django doesn't track revenue yet
-            avgRating: 4.5 // Default rating
+        // Fetch instructor analytics from Django (endpoint not implemented yet)
+        try {
+          const analyticsResponse = await fetch(`${API_BASE_URL}/api/instructor/analytics/`, { headers })
+          if (analyticsResponse.ok) {
+            const analyticsData = await analyticsResponse.json()
+            console.log('📊 Instructor analytics from Django:', analyticsData)
+            
+            // Map Django response to frontend format
+            const mappedCourses = analyticsData.courses?.map((course: any) => ({
+              id: course.id,
+              title: course.title,
+              enrollments: course.enrollments || 0,
+              lessons: course.lessons || 0,
+              averageProgress: course.average_progress || 0,
+              status: 'published'
+            })) || []
+            
+            const mappedStats = {
+              totalCourses: analyticsData.total_courses || 0,
+              totalStudents: analyticsData.total_students || 0,
+              totalEnrollments: analyticsData.total_enrollments || 0,
+              totalLessons: analyticsData.total_lessons || 0,
+              totalRevenue: 0, // Django doesn't track revenue yet
+              avgRating: 4.5 // Default rating
+            }
+            
+            setCourses(mappedCourses)
+            setStats(mappedStats)
+          } else if (analyticsResponse.status === 401) {
+            console.error('Authentication failed')
+            router.push('/auth/login')
+            return
+          } else {
+            console.log('Analytics endpoint not available, using defaults')
+            // Set default values
+            setStats({
+              totalCourses: 0,
+              totalStudents: 0,
+              totalEnrollments: 0,
+              totalLessons: 0,
+              totalRevenue: 0,
+              avgRating: 0
+            })
           }
-          
-          setCourses(mappedCourses)
-          setStats(mappedStats)
-        } else if (analyticsResponse.status === 401) {
-          console.error('Authentication failed')
-          router.push('/auth/login')
-          return
-        } else {
-          console.error('Failed to fetch instructor analytics')
+        } catch (error) {
+          console.log('Analytics endpoint not available:', error)
+          // Set default values
+          setStats({
+            totalCourses: 0,
+            totalStudents: 0,
+            totalEnrollments: 0,
+            totalLessons: 0,
+            totalRevenue: 0,
+            avgRating: 0
+          })
         }
 
-        // Fetch recent activity from Django
-        const activityResponse = await fetch(`${API_BASE_URL}/api/instructor/activity/?limit=10`, { headers })
-        if (activityResponse.ok) {
-          const activityData = await activityResponse.json()
-          console.log('📈 Activity data from Django:', activityData)
-          
-          // Map Django activity to frontend format
-          const mappedActivity = activityData.results?.map((activity: any) => ({
-            id: activity.id,
-            type: activity.action_type,
-            description: activity.description || `${activity.action_type} activity`,
-            timestamp: activity.timestamp,
-            user: activity.user_name || 'Unknown',
-            course: activity.course_title || 'N/A'
-          })) || []
-          
-          setRecentActivity(mappedActivity)
-        } else {
-          console.error('Failed to fetch activity data')
+        // Fetch recent activity from Django (endpoint not implemented yet)
+        try {
+          const activityResponse = await fetch(`${API_BASE_URL}/api/instructor/activity/?limit=10`, { headers })
+          if (activityResponse.ok) {
+            const activityData = await activityResponse.json()
+            console.log('📈 Activity data from Django:', activityData)
+            
+            // Map Django activity to frontend format
+            const mappedActivity = activityData.results?.map((activity: any) => ({
+              id: activity.id,
+              type: activity.action_type,
+              description: activity.description || `${activity.action_type} activity`,
+              timestamp: activity.timestamp,
+              user: activity.user_name || 'Unknown',
+              course: activity.course_title || 'N/A'
+            })) || []
+            
+            setRecentActivity(mappedActivity)
+          } else {
+            console.log('Activity endpoint not available')
+            setRecentActivity([])
+          }
+        } catch (error) {
+          console.log('Activity endpoint not available:', error)
           setRecentActivity([])
         }
 
