@@ -1,0 +1,2 @@
+# Additional requirements for file uploads
+Pillow>=10.0.0  # For image handling (avatars, thumbnails)

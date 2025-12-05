@@ -11,10 +11,67 @@ class UserSerializer(serializers.ModelSerializer):
     
     Provides user profile information including username, email, and role flags.
     """
+    avatar_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_student', 'is_instructor']
-        read_only_fields = ['id']
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 
+            'is_student', 'is_instructor', 'avatar_url'
+        ]
+        read_only_fields = ['id', 'avatar_url']
+    
+    def get_avatar_url(self, obj):
+        """Get avatar URL if exists"""
+        if hasattr(obj, 'avatar') and obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating user profile.
+    
+    Allows updating first_name, last_name, and other profile fields.
+    """
+    bio = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    location = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    website = serializers.URLField(required=False, allow_blank=True)
+    notification_preferences = serializers.JSONField(required=False)
+    
+    class Meta:
+        model = User
+        fields = [
+            'first_name', 'last_name', 'bio', 'phone', 
+            'location', 'website', 'notification_preferences'
+        ]
+    
+    def update(self, instance, validated_data):
+        """Update user profile fields"""
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """
+    Serializer for changing user password.
+    
+    Validates old password and ensures new password meets requirements.
+    """
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True, min_length=8)
+    
+    def validate_new_password(self, value):
+        """Validate new password strength"""
+        if len(value) < 8:
+            raise serializers.ValidationError('Password must be at least 8 characters long.')
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):

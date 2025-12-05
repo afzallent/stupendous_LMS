@@ -10,9 +10,16 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from django.contrib.auth import get_user_model
-from .serializers import UserSerializer, RegisterSerializer, CustomTokenObtainPairSerializer
+from .serializers import (
+    UserSerializer, 
+    RegisterSerializer, 
+    CustomTokenObtainPairSerializer,
+    UserProfileUpdateSerializer,
+    ChangePasswordSerializer
+)
 
 User = get_user_model()
 
@@ -75,52 +82,81 @@ class UserProfileViewSet(viewsets.ViewSet):
     """ViewSet for user profile endpoints"""
     permission_classes = [IsAuthenticated]
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get', 'patch', 'put'])
     def me(self, request):
-        """Get current user profile"""
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['put'])
-    def update_profile(self, request):
-        """Update current user profile"""
-        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        """Get or update current user profile"""
+        if request.method == 'GET':
+            serializer = UserSerializer(request.user, context={'request': request})
+            return Response(serializer.data)
+        
+        # PATCH or PUT - update profile
+        serializer = UserProfileUpdateSerializer(
+            request.user, 
+            data=request.data, 
+            partial=True
+        )
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Return updated user data
+            user_serializer = UserSerializer(request.user, context={'request': request})
+            return Response(user_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    @action(detail=False, methods=['put', 'post'])
+    @action(detail=False, methods=['post'])
     def change_password(self, request):
         """Change user password"""
-        old_password = request.data.get('old_password')
-        new_password = request.data.get('new_password')
+        serializer = ChangePasswordSerializer(data=request.data)
         
-        if not old_password or not new_password:
-            return Response(
-                {'detail': 'old_password and new_password are required.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         # Verify old password
-        if not request.user.check_password(old_password):
+        if not request.user.check_password(serializer.validated_data['old_password']):
             return Response(
-                {'detail': 'Old password is incorrect.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Validate new password
-        if len(new_password) < 8:
-            return Response(
-                {'detail': 'New password must be at least 8 characters long.'},
+                {'old_password': ['Current password is incorrect.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Set new password
-        request.user.set_password(new_password)
+        request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         
         return Response(
             {'detail': 'Password changed successfully.'},
             status=status.HTTP_200_OK
         )
+    
+    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
+    def upload_avatar(self, request):
+        """Upload user avatar image"""
+        if 'avatar' not in request.FILES:
+            return Response(
+                {'avatar': ['No file was submitted.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        avatar_file = request.FILES['avatar']
+        
+        # Validate file size (max 5MB)
+        if avatar_file.size > 5 * 1024 * 1024:
+            return Response(
+                {'avatar': ['File size must be less than 5MB.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if avatar_file.content_type not in allowed_types:
+            return Response(
+                {'avatar': ['File must be an image (JPEG, PNG, GIF, or WebP).']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Save avatar
+        request.user.avatar = avatar_file
+        request.user.save()
+        
+        return Response({
+            'detail': 'Avatar uploaded successfully.',
+            'avatar_url': request.user.avatar.url if request.user.avatar else None
+        }, status=status.HTTP_200_OK)

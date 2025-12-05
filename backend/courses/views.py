@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from core.models import User
 from .models import Course, Lesson, Enrollment, Progress, Category
@@ -333,6 +334,54 @@ class CourseViewSet(viewsets.ModelViewSet):
         course.unpublish()
         serializer = self.get_serializer(course)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], 
+            parser_classes=[MultiPartParser, FormParser])
+    def upload_thumbnail(self, request, pk=None):
+        """Upload course thumbnail image"""
+        from rest_framework.parsers import MultiPartParser, FormParser
+        
+        course = self.get_object()
+        
+        # Check if user is the course instructor
+        if course.instructor != request.user:
+            return Response(
+                {'detail': 'Only the course instructor can upload thumbnails.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if 'thumbnail' not in request.FILES:
+            return Response(
+                {'thumbnail': ['No file was submitted.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        thumbnail_file = request.FILES['thumbnail']
+        
+        # Validate file size (max 5MB)
+        if thumbnail_file.size > 5 * 1024 * 1024:
+            return Response(
+                {'thumbnail': ['File size must be less than 5MB.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if thumbnail_file.content_type not in allowed_types:
+            return Response(
+                {'thumbnail': ['File must be an image (JPEG, PNG, GIF, or WebP).']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Save thumbnail
+        course.thumbnail = thumbnail_file
+        course.save()
+        
+        serializer = self.get_serializer(course)
+        return Response({
+            'detail': 'Thumbnail uploaded successfully.',
+            'course': serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 class LessonViewSet(viewsets.ModelViewSet):
@@ -400,6 +449,55 @@ class LessonViewSet(viewsets.ModelViewSet):
                 )
         
         return Response({'detail': 'Lessons reordered successfully.'})
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated],
+            parser_classes=[MultiPartParser, FormParser])
+    def upload_video(self, request, pk=None):
+        """Upload lesson video file"""
+        from rest_framework.parsers import MultiPartParser, FormParser
+        
+        lesson = self.get_object()
+        
+        # Check if user is the course instructor
+        if lesson.course.instructor != request.user:
+            return Response(
+                {'detail': 'Only the course instructor can upload videos.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if 'video' not in request.FILES:
+            return Response(
+                {'video': ['No file was submitted.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        video_file = request.FILES['video']
+        
+        # Validate file size (max 500MB)
+        max_size = 500 * 1024 * 1024  # 500MB
+        if video_file.size > max_size:
+            return Response(
+                {'video': ['File size must be less than 500MB.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file type
+        allowed_types = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
+        if video_file.content_type not in allowed_types:
+            return Response(
+                {'video': ['File must be a video (MP4, WebM, OGG, or MOV).']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Save video
+        lesson.video_file = video_file
+        lesson.save()
+        
+        serializer = self.get_serializer(lesson)
+        return Response({
+            'detail': 'Video uploaded successfully.',
+            'lesson': serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 class EnrollmentViewSet(viewsets.ModelViewSet):

@@ -30,6 +30,7 @@ class Course(models.Model):
     description = models.TextField()
     instructor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='courses_created')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='courses')
+    thumbnail = models.ImageField(upload_to='course_thumbnails/', null=True, blank=True, help_text="Course thumbnail image")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -54,7 +55,8 @@ class Course(models.Model):
 class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
     title = models.CharField(max_length=200)
-    video_url = models.URLField(help_text="Enter the URL of the video (e.g. YouTube embed URL)")
+    video_url = models.URLField(blank=True, null=True, help_text="Enter the URL of the video (e.g. YouTube embed URL)")
+    video_file = models.FileField(upload_to='lesson_videos/', null=True, blank=True, help_text="Upload video file")
     order = models.PositiveIntegerField()
     content = models.TextField(blank=True, help_text="Additional notes or content")
 
