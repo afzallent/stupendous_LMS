@@ -17,9 +17,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 
-            'is_student', 'is_instructor', 'avatar_url'
+            'is_student', 'is_instructor', 'is_staff', 'avatar_url'
         ]
-        read_only_fields = ['id', 'avatar_url']
+        read_only_fields = ['id', 'avatar_url', 'is_staff']
     
     def get_avatar_url(self, obj):
         """Get avatar URL if exists"""
