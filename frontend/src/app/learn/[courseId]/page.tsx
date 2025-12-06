@@ -45,10 +45,48 @@ interface Enrollment {
   completedLessons: number
 }
 
+interface Lesson {
+  id: string
+  title: string
+  order: number
+  duration: string
+  completed: boolean
+  completed_at: string | null
+  video_url: string | null
+  video_file: string | null
+  content: string
+}
+
+interface CourseData {
+  id: string
+  title: string
+  description: string
+  instructor: {
+    id: string
+    name: string
+    email: string
+  }
+  thumbnail: string | null
+  price: number
+  total_lessons: number
+  enrolled_at: string
+  progress_percentage: number
+  completed_lessons: number
+  next_lesson: {
+    id: string
+    title: string
+  } | null
+  lessons: Lesson[]
+  status: string
+  created_at: string
+  updated_at: string
+}
+
 export default function CourseOverviewPage({ params }: { params: Promise<{ courseId: string }> }) {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
+  const [courseData, setCourseData] = useState<CourseData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null)
@@ -58,7 +96,7 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
   const { courseId } = use(params)
 
   useEffect(() => {
-    const checkAuthAndEnrollment = async () => {
+    const fetchCourseData = async () => {
       try {
         // Get user from localStorage
         const storedUser = localStorage.getItem('user')
@@ -73,14 +111,22 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
         const userData = JSON.parse(storedUser)
         setUser(userData)
         
-        // Check enrollment status
-        const enrollmentResponse = await fetch(`/api/student/enrollment?courseId=${courseId}&userId=${userData.id}`)
+        // Fetch course data with progress
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const accessToken = localStorage.getItem('access_token')
         
-        if (!enrollmentResponse.ok) {
-          const errorData = await enrollmentResponse.text()
-          console.error('Enrollment check failed:', errorData)
+        const courseResponse = await fetch(`${API_BASE_URL}/api/courses/${courseId}/with-progress/`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!courseResponse.ok) {
+          const errorData = await courseResponse.json().catch(() => ({}))
+          console.error('Course fetch failed:', errorData)
           
-          if (enrollmentResponse.status === 401) {
+          if (courseResponse.status === 401) {
             setAuthError('Authentication required. Please log in again.')
             setTimeout(() => {
               router.push(`/auth/login?redirect=/learn/${courseId}`)
@@ -88,7 +134,7 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
             return
           }
           
-          if (enrollmentResponse.status === 403) {
+          if (courseResponse.status === 403) {
             setEnrollmentError('You are not enrolled in this course. Please purchase the course to access it.')
             setTimeout(() => {
               router.push(`/courses/${courseId}`)
@@ -96,30 +142,30 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
             return
           }
           
-          throw new Error('Failed to verify enrollment')
+          throw new Error('Failed to fetch course data')
         }
         
-        const enrollmentData = await enrollmentResponse.json()
+        const data = await courseResponse.json()
+        setCourseData(data)
         
-        if (!enrollmentData.data.enrolled) {
-          setEnrollmentError('You are not enrolled in this course. Redirecting to course page...')
-          setTimeout(() => {
-            router.push(`/courses/${courseId}`)
-          }, 3000)
-          return
-        }
-        
-        setEnrollment(enrollmentData.data.enrollment)
+        // Set enrollment data
+        setEnrollment({
+          id: 'enrollment-' + courseId,
+          courseId: courseId,
+          progress: data.progress_percentage,
+          enrolledAt: data.enrolled_at,
+          completedLessons: data.completed_lessons
+        })
         
       } catch (error) {
-        console.error('Auth/Enrollment check error:', error)
-        setAuthError('Failed to verify access. Please try again.')
+        console.error('Course data fetch error:', error)
+        setAuthError('Failed to load course data. Please try again.')
       } finally {
         setIsLoading(false)
       }
     }
 
-    checkAuthAndEnrollment()
+    fetchCourseData()
   }, [courseId, router])
 
   // Show loading state
@@ -171,109 +217,10 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
     )
   }
 
-  // Mock course data - in real app, fetch from API
-  const course = {
-    id: courseId,
-    title: "Complete React Development Course",
-    description: "Master React from basics to advanced concepts including hooks, context, and modern patterns. Build real-world projects and learn industry best practices.",
-    instructor: {
-      name: "John Smith",
-      avatar: "/api/placeholder/100/100",
-      bio: "Senior React Developer with 8+ years of experience",
-      rating: 4.9,
-      students: 15420
-    },
-    thumbnail: "/api/placeholder/800/400",
-    price: 99.99,
-    rating: 4.8,
-    totalStudents: 1542,
-    totalLessons: 24,
-    totalDuration: "8h 45m",
-    level: "Intermediate",
-    language: "English",
-    lastUpdated: "November 2024",
-    completionCertificate: true,
-    // Student progress
-    enrolledAt: "2024-10-15",
-    progress: 65,
-    completedLessons: 16,
-    timeSpent: "5h 32m",
-    nextLesson: {
-      id: "react-lesson-17",
-      title: "Advanced State Management with Redux",
-      chapterId: "react-ch2"
-    }
+  // Return early if no course data loaded yet
+  if (!courseData) {
+    return null
   }
-
-  const curriculum = [
-    {
-      id: "react-ch1",
-      title: "Getting Started with React",
-      order: 1,
-      lessons: [
-        { 
-          id: "react-lesson-1", 
-          title: "Introduction to React", 
-          duration: "20:15", 
-          completed: true,
-          description: "Learn what React is and why it's popular"
-        },
-        { 
-          id: "react-lesson-2", 
-          title: "Setting up Development Environment", 
-          duration: "18:30", 
-          completed: true,
-          description: "Install Node.js, npm, and create your first React app"
-        },
-        { 
-          id: "react-lesson-3", 
-          title: "Your First React Component", 
-          duration: "25:45", 
-          completed: true,
-          description: "Create and understand React components"
-        }
-      ]
-    },
-    {
-      id: "react-ch2",
-      title: "Advanced React Concepts",
-      order: 2,
-      lessons: [
-        { 
-          id: "react-lesson-17", 
-          title: "Advanced State Management with Redux", 
-          duration: "40:20", 
-          completed: false,
-          description: "Learn Redux for complex state management",
-          isNext: true
-        },
-        { 
-          id: "react-lesson-18", 
-          title: "React Router for Navigation", 
-          duration: "35:10", 
-          completed: false,
-          description: "Implement client-side routing"
-        }
-      ]
-    }
-  ]
-
-  const reviews = [
-    {
-      id: "1",
-      user: "Sarah Johnson",
-      rating: 5,
-      comment: "Excellent course! The instructor explains complex concepts very clearly.",
-      date: "2024-10-20"
-    },
-    {
-      id: "2", 
-      user: "Mike Chen",
-      rating: 4,
-      comment: "Great content and practical examples. Helped me land my first React job!",
-      date: "2024-10-18"
-    }
-  ]
 
   const handleBackToDashboard = () => {
     router.push('/learn')
@@ -284,10 +231,27 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
   }
 
   const handleContinueLearning = () => {
-    if (course.nextLesson) {
-      router.push(`/learn/${courseId}/${course.nextLesson.id}`)
+    if (courseData.next_lesson) {
+      router.push(`/learn/${courseId}/${courseData.next_lesson.id}`)
     }
   }
+
+  // Group lessons into a single chapter for display
+  const curriculum = [
+    {
+      id: "chapter-1",
+      title: "Course Content",
+      order: 1,
+      lessons: courseData.lessons.map(lesson => ({
+        id: lesson.id,
+        title: lesson.title,
+        duration: lesson.duration,
+        completed: lesson.completed,
+        description: lesson.content || "Lesson content",
+        isNext: courseData.next_lesson?.id === lesson.id
+      }))
+    }
+  ]
 
   const handleGenerateCertificate = async () => {
     if (!user || !enrollment) return
@@ -339,34 +303,24 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-2">
             <div className="mb-6">
-              <h1 className="text-3xl font-bold mb-4">{course.title}</h1>
-              <p className="text-lg text-muted-foreground mb-4">{course.description}</p>
+              <h1 className="text-3xl font-bold mb-4">{courseData.title}</h1>
+              <p className="text-lg text-muted-foreground mb-4">{courseData.description}</p>
               
               <div className="flex items-center space-x-6 text-sm text-muted-foreground mb-4">
                 <div className="flex items-center space-x-1">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium">{course.rating}</span>
-                  <span>({course.totalStudents.toLocaleString()} students)</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-4 w-4" />
-                  <span>{course.totalDuration}</span>
-                </div>
-                <div className="flex items-center space-x-1">
                   <BookOpen className="h-4 w-4" />
-                  <span>{course.totalLessons} lessons</span>
+                  <span>{courseData.total_lessons} lessons</span>
                 </div>
-                <Badge variant="secondary">{course.level}</Badge>
+                <Badge variant="secondary">{courseData.status}</Badge>
               </div>
 
               <div className="flex items-center space-x-4 mb-6">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={course.instructor.avatar} />
-                  <AvatarFallback>{course.instructor.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                  <AvatarFallback>{courseData.instructor.name.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-medium">{course.instructor.name}</h3>
-                  <p className="text-sm text-muted-foreground">{course.instructor.bio}</p>
+                  <h3 className="font-medium">{courseData.instructor.name}</h3>
+                  <p className="text-sm text-muted-foreground">Course Instructor</p>
                 </div>
               </div>
             </div>
@@ -381,27 +335,27 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span>{course.completedLessons} of {course.totalLessons} lessons</span>
-                    <span>{course.progress}%</span>
+                    <span>{courseData.completed_lessons} of {courseData.total_lessons} lessons</span>
+                    <span>{courseData.progress_percentage}%</span>
                   </div>
-                  <Progress value={course.progress} className="w-full" />
+                  <Progress value={courseData.progress_percentage} className="w-full" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Time Spent</p>
-                    <p className="font-medium">{course.timeSpent}</p>
+                    <p className="text-muted-foreground">Enrolled</p>
+                    <p className="font-medium">{courseData.enrolled_at ? new Date(courseData.enrolled_at).toLocaleDateString() : 'N/A'}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Enrolled</p>
-                    <p className="font-medium">{new Date(course.enrolledAt).toLocaleDateString()}</p>
+                    <p className="text-muted-foreground">Status</p>
+                    <p className="font-medium">{courseData.progress_percentage === 100 ? 'Completed' : 'In Progress'}</p>
                   </div>
                 </div>
 
-                {course.nextLesson && (
+                {courseData.next_lesson && (
                   <div className="pt-4 border-t">
                     <p className="text-sm text-muted-foreground mb-2">Next Lesson:</p>
-                    <p className="font-medium text-sm mb-3">{course.nextLesson.title}</p>
+                    <p className="font-medium text-sm mb-3">{courseData.next_lesson.title}</p>
                     <Button onClick={handleContinueLearning} className="w-full">
                       <Play className="h-4 w-4 mr-2" />
                       Continue Learning
@@ -409,7 +363,7 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
                   </div>
                 )}
 
-                {course.progress === 100 && (
+                {courseData.progress_percentage === 100 && (
                   <div className="pt-4 border-t">
                     <Button 
                       variant="outline" 
@@ -449,7 +403,7 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
               <CardHeader>
                 <CardTitle>Course Content</CardTitle>
                 <CardDescription>
-                  {course.totalLessons} lessons • {course.totalDuration} total length
+                  {courseData.total_lessons} lessons
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -536,20 +490,20 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Level</p>
-                    <p className="font-medium">{course.level}</p>
+                    <p className="text-muted-foreground">Status</p>
+                    <p className="font-medium">{courseData.status}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Duration</p>
-                    <p className="font-medium">{course.totalDuration}</p>
+                    <p className="text-muted-foreground">Total Lessons</p>
+                    <p className="font-medium">{courseData.total_lessons}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Language</p>
-                    <p className="font-medium">{course.language}</p>
+                    <p className="text-muted-foreground">Price</p>
+                    <p className="font-medium">${courseData.price}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Updated</p>
-                    <p className="font-medium">{course.lastUpdated}</p>
+                    <p className="font-medium">{new Date(courseData.updated_at).toLocaleDateString()}</p>
                   </div>
                 </div>
               </CardContent>
@@ -561,35 +515,12 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
               <CardHeader>
                 <CardTitle>Student Reviews</CardTitle>
                 <CardDescription>
-                  {course.rating} average rating • {course.totalStudents.toLocaleString()} reviews
+                  Reviews feature coming soon
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border-b pb-4 last:border-b-0">
-                      <div className="flex items-start space-x-4">
-                        <Avatar>
-                          <AvatarFallback>{review.user.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">{review.user}</h4>
-                            <span className="text-sm text-muted-foreground">{review.date}</span>
-                          </div>
-                          <div className="flex items-center space-x-1 mb-2">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`h-4 w-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
-                              />
-                            ))}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{review.comment}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Course reviews will be available soon.</p>
                 </div>
               </CardContent>
             </Card>

@@ -60,3 +60,85 @@ class User(AbstractUser):
         verbose_name = "User"
         verbose_name_plural = "Users"
         ordering = ['-date_joined']
+
+
+class SiteSettings(models.Model):
+    """
+    Singleton model for site-wide settings.
+    Only one instance should exist - configurable via Django admin.
+    """
+    # Email Configuration
+    email_backend = models.CharField(
+        max_length=255,
+        default='django.core.mail.backends.console.EmailBackend',
+        help_text="Email backend (console for dev, smtp for production)"
+    )
+    email_host = models.CharField(
+        max_length=255,
+        default='smtp.gmail.com',
+        blank=True,
+        help_text="SMTP server hostname (e.g., smtp.gmail.com)"
+    )
+    email_port = models.IntegerField(
+        default=587,
+        help_text="SMTP server port (587 for TLS, 465 for SSL)"
+    )
+    email_use_tls = models.BooleanField(
+        default=True,
+        help_text="Use TLS encryption (recommended for port 587)"
+    )
+    email_use_ssl = models.BooleanField(
+        default=False,
+        help_text="Use SSL encryption (for port 465, mutually exclusive with TLS)"
+    )
+    email_host_user = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="SMTP username/email address"
+    )
+    email_host_password = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="SMTP password or app-specific password"
+    )
+    default_from_email = models.EmailField(
+        default='noreply@coursecompass.com',
+        help_text="Default 'from' email address for system emails"
+    )
+    
+    # Site Configuration
+    site_name = models.CharField(
+        max_length=100,
+        default='CourseCompass',
+        help_text="Name of the site (used in emails and UI)"
+    )
+    site_url = models.URLField(
+        default='http://localhost:3000',
+        help_text="Frontend URL (used in password reset links)"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Site Settings'
+        verbose_name_plural = 'Site Settings'
+    
+    def __str__(self):
+        return f"Site Settings (Last updated: {self.updated_at.strftime('%Y-%m-%d %H:%M')})"
+    
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists (singleton pattern)"""
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """Prevent deletion of the singleton instance"""
+        pass
+    
+    @classmethod
+    def load(cls):
+        """Load the singleton instance, creating it if it doesn't exist"""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj

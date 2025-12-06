@@ -76,6 +76,130 @@ class AuthViewSet(viewsets.ViewSet):
             return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'], url_path='request-password-reset')
+    def request_password_reset(self, request):
+        """Request password reset - generates token and sends email"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from core.models import SiteSettings
+        
+        email = request.data.get('email')
+        if not email:
+            return Response(
+                {'email': ['Email is required.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Don't reveal if email exists or not for security
+            return Response(
+                {'detail': 'If an account with that email exists, a password reset link has been sent.'},
+                status=status.HTTP_200_OK
+            )
+        
+        # Generate token
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # Load site settings
+        site_settings = SiteSettings.load()
+        
+        # Create reset link using configured site URL
+        reset_link = f"{site_settings.site_url}/auth/reset-password?uid={uid}&token={token}"
+        
+        # Send email using configured settings
+        try:
+            # Temporarily override Django email settings with admin-configured values
+            from django.core.mail import get_connection
+            
+            connection = get_connection(
+                backend=site_settings.email_backend,
+                host=site_settings.email_host,
+                port=site_settings.email_port,
+                username=site_settings.email_host_user,
+                password=site_settings.email_host_password,
+                use_tls=site_settings.email_use_tls,
+                use_ssl=site_settings.email_use_ssl,
+            )
+            
+            send_mail(
+                subject=f'Password Reset Request - {site_settings.site_name}',
+                message=f'Hello,\n\nYou requested to reset your password for {site_settings.site_name}.\n\n'
+                       f'Click the link below to reset your password:\n\n{reset_link}\n\n'
+                       f'This link will expire in 24 hours.\n\n'
+                       f'If you did not request this, please ignore this email.\n\n'
+                       f'Best regards,\n{site_settings.site_name} Team',
+                from_email=site_settings.default_from_email,
+                recipient_list=[user.email],
+                connection=connection,
+                fail_silently=False,
+            )
+            print(f"✅ Password reset email sent to {user.email}")
+        except Exception as e:
+            # For development or if email fails, print the link
+            print(f"⚠️ Email sending failed: {str(e)}")
+            print(f"📧 Password reset link for {user.email}: {reset_link}")
+        
+        return Response(
+            {'detail': 'If an account with that email exists, a password reset link has been sent.'},
+            status=status.HTTP_200_OK
+        )
+    
+    @action(detail=False, methods=['post'], url_path='reset-password')
+    def reset_password(self, request):
+        """Reset password using token"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_decode
+        from django.utils.encoding import force_str
+        
+        uid = request.data.get('uid')
+        token = request.data.get('token')
+        new_password = request.data.get('new_password')
+        
+        if not all([uid, token, new_password]):
+            return Response(
+                {'detail': 'uid, token, and new_password are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate password strength
+        if len(new_password) < 8:
+            return Response(
+                {'new_password': ['Password must be at least 8 characters long.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Decode user ID
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {'detail': 'Invalid reset link.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify token
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {'detail': 'Invalid or expired reset link.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+        
+        return Response(
+            {'detail': 'Password has been reset successfully.'},
+            status=status.HTTP_200_OK
+        )
 
 
 class UserProfileViewSet(viewsets.ViewSet):

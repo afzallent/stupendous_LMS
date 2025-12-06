@@ -415,6 +415,55 @@ class LessonViewSet(viewsets.ModelViewSet):
         if instance.course.instructor != self.request.user:
             raise permissions.PermissionDenied("You can only delete lessons from your own courses.")
         instance.delete()
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def mark_complete(self, request, pk=None):
+        """Mark a lesson as complete for the current user"""
+        lesson = self.get_object()
+        
+        # Check if user is enrolled in the course
+        if not Enrollment.objects.filter(student=request.user, course=lesson.course).exists():
+            return Response(
+                {'detail': 'You must be enrolled in this course to mark lessons as complete.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get or create progress
+        progress, created = Progress.objects.get_or_create(
+            student=request.user,
+            lesson=lesson,
+            defaults={'completed': True, 'completed_at': timezone.now()}
+        )
+        
+        if not created and not progress.completed:
+            progress.completed = True
+            progress.completed_at = timezone.now()
+            progress.save()
+        
+        # Check if course is completed
+        course = lesson.course
+        total_lessons = course.lessons.count()
+        completed_lessons = Progress.objects.filter(
+            student=request.user,
+            lesson__course=course,
+            completed=True
+        ).count()
+        
+        course_completed = (completed_lessons == total_lessons)
+        
+        return Response({
+            'detail': 'Lesson marked as complete.',
+            'progress': {
+                'completed': progress.completed,
+                'completed_at': progress.completed_at.isoformat() if progress.completed_at else None
+            },
+            'course_progress': {
+                'completed_lessons': completed_lessons,
+                'total_lessons': total_lessons,
+                'percentage': int((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0,
+                'course_completed': course_completed
+            }
+        }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
     def reorder(self, request):
@@ -923,6 +972,179 @@ class InstructorStudentsView(APIView):
             'total': len(students_dict),
             'students': students_list
         })
+
+
+class CourseStudentsProgressView(APIView):
+    """Get all students' progress for a specific course (instructor only)"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, course_id):
+        """Get list of all students and their progress in the course"""
+        course = get_object_or_404(Course, id=course_id)
+        
+        # Only course instructor can view this
+        if not request.user.is_instructor or course.instructor != request.user:
+            return Response(
+                {'detail': 'Only the course instructor can view student progress.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get all enrollments for this course
+        enrollments = Enrollment.objects.filter(course=course).select_related('student')
+        total_lessons = course.lessons.count()
+        
+        students_progress = []
+        for enrollment in enrollments:
+            completed_lessons = Progress.objects.filter(
+                student=enrollment.student,
+                lesson__course=course,
+                completed=True
+            ).count()
+            
+            progress_percentage = int((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0
+            
+            # Get last activity
+            last_progress = Progress.objects.filter(
+                student=enrollment.student,
+                lesson__course=course
+            ).order_by('-completed_at').first()
+            
+            students_progress.append({
+                'student_id': enrollment.student.id,
+                'student_name': enrollment.student.username,
+                'student_email': enrollment.student.email,
+                'enrolled_at': enrollment.enrolled_at.isoformat(),
+                'completed_lessons': completed_lessons,
+                'total_lessons': total_lessons,
+                'progress_percentage': progress_percentage,
+                'last_activity': last_progress.completed_at.isoformat() if last_progress and last_progress.completed_at else None
+            })
+        
+        return Response({
+            'course_id': course.id,
+            'course_title': course.title,
+            'total_students': len(students_progress),
+            'total_lessons': total_lessons,
+            'students': students_progress
+        })
+
+
+class CourseDetailWithProgressView(APIView):
+    """Get course details with student progress and lessons"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, course_id):
+        """Get course details with progress for enrolled student or instructor"""
+        course = get_object_or_404(Course, id=course_id)
+        
+        # Get student_id from query params (for instructor viewing student progress)
+        student_id = request.query_params.get('studentId')
+        
+        # Determine which user's progress to show
+        if student_id and request.user.is_instructor and course.instructor == request.user:
+            # Instructor viewing a specific student's progress
+            target_user = get_object_or_404(User, id=student_id)
+            enrollment = Enrollment.objects.filter(student=target_user, course=course).first()
+            if not enrollment:
+                return Response(
+                    {'detail': 'This student is not enrolled in this course.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        elif request.user.is_instructor and course.instructor == request.user:
+            # Instructor viewing their own course (no specific student)
+            # Return course info without specific student progress
+            target_user = None
+            enrollment = None
+        else:
+            # Student viewing their own progress
+            target_user = request.user
+            enrollment = Enrollment.objects.filter(student=request.user, course=course).first()
+            if not enrollment:
+                return Response(
+                    {'detail': 'You are not enrolled in this course.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Get all lessons for the course
+        lessons = course.lessons.all().order_by('order')
+        total_lessons = lessons.count()
+        
+        # Get progress for each lesson
+        lesson_data = []
+        completed_count = 0
+        next_lesson = None
+        
+        for lesson in lessons:
+            if target_user:
+                progress = Progress.objects.filter(student=target_user, lesson=lesson).first()
+                is_completed = progress.completed if progress else False
+                
+                if is_completed:
+                    completed_count += 1
+                elif next_lesson is None and not is_completed:
+                    next_lesson = {
+                        'id': lesson.id,
+                        'title': lesson.title
+                    }
+                
+                lesson_data.append({
+                    'id': lesson.id,
+                    'title': lesson.title,
+                    'order': lesson.order,
+                    'duration': '0:00',  # Duration not stored in model yet
+                    'completed': is_completed,
+                    'completed_at': progress.completed_at.isoformat() if progress and progress.completed_at else None,
+                    'video_url': lesson.video_url,
+                    'video_file': request.build_absolute_uri(lesson.video_file.url) if lesson.video_file else None,
+                    'content': lesson.content
+                })
+            else:
+                # Instructor viewing course without specific student - no progress data
+                lesson_data.append({
+                    'id': lesson.id,
+                    'title': lesson.title,
+                    'order': lesson.order,
+                    'duration': '0:00',
+                    'completed': False,
+                    'completed_at': None,
+                    'video_url': lesson.video_url,
+                    'video_file': request.build_absolute_uri(lesson.video_file.url) if lesson.video_file else None,
+                    'content': lesson.content
+                })
+        
+        # Calculate progress percentage
+        progress_percentage = int((completed_count / total_lessons) * 100) if total_lessons > 0 and target_user else 0
+        
+        # Build response
+        response_data = {
+            'id': course.id,
+            'title': course.title,
+            'description': course.description,
+            'instructor': {
+                'id': course.instructor.id,
+                'name': course.instructor.username,
+                'email': course.instructor.email
+            },
+            'thumbnail': request.build_absolute_uri(course.thumbnail.url) if course.thumbnail else None,
+            'price': float(course.price),
+            'total_lessons': total_lessons,
+            'enrolled_at': enrollment.enrolled_at.isoformat() if enrollment else None,
+            'progress_percentage': progress_percentage,
+            'completed_lessons': completed_count,
+            'next_lesson': next_lesson,
+            'lessons': lesson_data,
+            'status': course.status,
+            'created_at': course.created_at.isoformat(),
+            'updated_at': course.updated_at.isoformat(),
+            'is_instructor_view': request.user.is_instructor and course.instructor == request.user,
+            'viewing_student': {
+                'id': target_user.id,
+                'username': target_user.username,
+                'email': target_user.email
+            } if target_user and student_id else None
+        }
+        
+        return Response(response_data)
 
 
 # Category ViewSet

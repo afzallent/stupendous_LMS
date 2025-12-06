@@ -332,10 +332,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Award className="h-4 w-4 mr-2" />
-                My Certificate
-              </Button>
               <Button variant="ghost" onClick={handleBackToCourse}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Course

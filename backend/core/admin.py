@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.db.models import Q
-from .models import User
+from .models import User, SiteSettings
 
 
 class UserAdmin(BaseUserAdmin):
@@ -43,7 +43,7 @@ class UserAdmin(BaseUserAdmin):
     # Fieldsets for edit view
     fieldsets = (
         ('Authentication', {
-            'fields': ('username', 'password')
+            'fields': ('username', 'password', 'password_reset_link')
         }),
         ('Personal Info', {
             'fields': ('first_name', 'last_name', 'email', 'phone', 'location', 'website')
@@ -70,7 +70,8 @@ class UserAdmin(BaseUserAdmin):
         'last_login',
         'created_at',
         'updated_at',
-        'password'
+        'password',
+        'password_reset_link'
     )
     
     # Add fieldsets for creation
@@ -146,6 +147,18 @@ class UserAdmin(BaseUserAdmin):
         )
     get_actions_links.short_description = 'Actions'
     
+    def password_reset_link(self, obj):
+        """Display a link to change the user's password."""
+        if obj.pk:
+            change_password_url = reverse('admin:auth_user_password_change', args=[obj.pk])
+            return format_html(
+                '<a class="button" href="{}" style="background-color: #417690; color: white; padding: 8px 15px; '
+                'text-decoration: none; border-radius: 4px; display: inline-block;">Change Password</a>',
+                change_password_url,
+            )
+        return "Save user first to change password"
+    password_reset_link.short_description = 'Password Management'
+    
     # Bulk actions
     def make_student(self, request, queryset):
         """Make selected users students."""
@@ -215,3 +228,51 @@ class UserAdmin(BaseUserAdmin):
 
 # Register the User model with the custom admin
 admin.site.register(User, UserAdmin)
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    """Admin interface for site settings (singleton)"""
+    
+    fieldsets = (
+        ('Email Configuration', {
+            'fields': (
+                'email_backend',
+                'email_host',
+                'email_port',
+                'email_use_tls',
+                'email_use_ssl',
+                'email_host_user',
+                'email_host_password',
+                'default_from_email',
+            ),
+            'description': 'Configure email settings for password resets and notifications. '
+                          'For Gmail, use an App Password instead of your regular password.'
+        }),
+        ('Site Configuration', {
+            'fields': ('site_name', 'site_url'),
+            'description': 'General site settings used throughout the application.'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ('created_at', 'updated_at')
+    
+    def has_add_permission(self, request):
+        """Prevent adding more than one instance"""
+        return not SiteSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of the singleton instance"""
+        return False
+    
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the edit page if instance exists"""
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        
+        obj = SiteSettings.load()
+        return redirect(reverse('admin:core_sitesettings_change', args=[obj.pk]))

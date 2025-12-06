@@ -17,6 +17,9 @@ urlpatterns = [
     # Router endpoints
     path('', include(router.urls)),
     
+    # Course detail with progress
+    path('courses/<int:course_id>/with-progress/', views.CourseDetailWithProgressView.as_view(), name='course-with-progress'),
+    
     # Student endpoints
     path('student/dashboard/', views.StudentDashboardView.as_view(), name='student-dashboard'),
     
