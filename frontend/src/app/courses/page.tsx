@@ -51,6 +51,7 @@ interface Course {
   rating: number
   students: number
   price: number
+  originalPrice?: number | null
   thumbnail?: string
   level: string
   category: string
@@ -106,7 +107,8 @@ export default function CoursesPage() {
           instructorAvatar: course.instructor?.avatar,
           rating: 4.5, // Default rating
           students: course.enrolled_count || 0,
-          price: 49.99, // Default price
+          price: course.is_free ? 0 : parseFloat(course.price || '0'),
+          originalPrice: course.original_price ? parseFloat(course.original_price) : null,
           thumbnail: course.thumbnail,
           level: 'Beginner', // Default level
           category: course.category?.name || 'General',
@@ -132,8 +134,8 @@ export default function CoursesPage() {
       title: course.title,
       instructor: course.instructor,
       price: course.price,
-      originalPrice: course.price * 1.2, // Assuming 20% discount
-      thumbnail: '/api/placeholder/400/240',
+      originalPrice: course.originalPrice || (course.price > 0 ? course.price * 1.2 : 0),
+      thumbnail: course.thumbnail || '/api/placeholder/400/240',
       duration: course.duration || '10h 30m',
       lectures: course.lectures || 45,
       level: course.level,
@@ -531,11 +533,13 @@ export default function CoursesPage() {
                     <CardFooter className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div className="flex items-center space-x-2">
                         <div className="text-2xl font-bold text-blue-600">
-                          {course.price === 0 ? "Free" : `$${course.price}`}
+                          {course.price === 0 ? "Free" : `$${course.price.toFixed(2)}`}
                         </div>
-                        <div className="text-sm text-gray-500 line-through">
-                          {course.price > 0 ? `$${(course.price * 1.2).toFixed(2)}` : ''}
-                        </div>
+                        {course.originalPrice && course.originalPrice > course.price && (
+                          <div className="text-sm text-gray-500 line-through">
+                            ${course.originalPrice.toFixed(2)}
+                          </div>
+                        )}
                       </div>
                       <Button 
                         className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"

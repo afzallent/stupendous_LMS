@@ -56,7 +56,7 @@ export default function CartPage() {
     router.push('/courses')
   }
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!isAuthenticated) {
       // Redirect to login with return URL
       router.push('/auth/login?redirect=/cart')
@@ -65,7 +65,72 @@ export default function CartPage() {
 
     setIsCheckingOut(true)
     
-    // Redirect to checkout process based on payment method
+    const finalTotal = calculateFinalTotal()
+    
+    // If total is 0 (free courses or 100% coupon), enroll directly
+    if (finalTotal === 0) {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const accessToken = localStorage.getItem('access_token')
+        
+        // Enroll in all courses in cart
+        const enrollmentPromises = cartState.items.map(async (item) => {
+          if (appliedCoupon) {
+            // Use coupon enrollment
+            const response = await fetch(`${API_BASE_URL}/api/enrollments/enroll_with_coupon/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                course_id: item.id,
+                coupon_code: appliedCoupon.code
+              })
+            })
+            return response.json()
+          } else {
+            // Regular free enrollment
+            const response = await fetch(`${API_BASE_URL}/api/enrollments/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                course_id: item.id
+              })
+            })
+            return response.json()
+          }
+        })
+        
+        await Promise.all(enrollmentPromises)
+        
+        // Clear cart
+        clearCart()
+        
+        toast({
+          title: "Enrollment Successful!",
+          description: `You've been enrolled in ${cartState.items.length} course(s)${appliedCoupon ? ` with ${appliedCoupon.code} coupon` : ''}.`
+        })
+        
+        // Redirect to learning page
+        router.push('/learn')
+      } catch (error: any) {
+        console.error('Enrollment error:', error)
+        toast({
+          title: "Enrollment Failed",
+          description: error.message || "Failed to enroll in courses. Please try again.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsCheckingOut(false)
+      }
+      return
+    }
+    
+    // For paid courses, redirect to payment
     if (paymentMethod === 'stripe') {
       router.push('/checkout/stripe')
     } else {
@@ -425,28 +490,43 @@ export default function CartPage() {
                       </Alert>
                     )}
 
-                    {/* Payment Method Selection */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Payment Method</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          variant={paymentMethod === 'stripe' ? 'default' : 'outline'}
-                          onClick={() => setPaymentMethod('stripe')}
-                          className="h-12 flex-col space-y-1"
-                        >
-                          <CreditCard className="h-4 w-4" />
-                          <span className="text-xs">Card</span>
-                        </Button>
-                        <Button
-                          variant={paymentMethod === 'upi' ? 'default' : 'outline'}
-                          onClick={() => setPaymentMethod('upi')}
-                          className="h-12 flex-col space-y-1"
-                        >
-                          <IndianRupee className="h-4 w-4" />
-                          <span className="text-xs">UPI</span>
-                        </Button>
+                    {/* Payment Method Selection - Only show for paid courses */}
+                    {calculateFinalTotal() > 0 && (
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium">Payment Method</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            variant={paymentMethod === 'stripe' ? 'default' : 'outline'}
+                            onClick={() => setPaymentMethod('stripe')}
+                            className="h-12 flex-col space-y-1"
+                          >
+                            <CreditCard className="h-4 w-4" />
+                            <span className="text-xs">Card</span>
+                          </Button>
+                          <Button
+                            variant={paymentMethod === 'upi' ? 'default' : 'outline'}
+                            onClick={() => setPaymentMethod('upi')}
+                            className="h-12 flex-col space-y-1"
+                          >
+                            <IndianRupee className="h-4 w-4" />
+                            <span className="text-xs">UPI</span>
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {/* Free enrollment message */}
+                    {calculateFinalTotal() === 0 && (
+                      <Alert className="bg-green-50 border-green-200">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-800">
+                          {appliedCoupon 
+                            ? `You're enrolling for free with ${appliedCoupon.code} coupon!`
+                            : "You're enrolling in free courses!"
+                          }
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
                     <Button 
                       onClick={handleCheckout}
@@ -454,7 +534,7 @@ export default function CartPage() {
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                       size="lg"
                     >
-                      {isCheckingOut ? 'Processing...' : `Checkout $${calculateFinalTotal().toFixed(2)}`}
+                      {isCheckingOut ? 'Processing...' : calculateFinalTotal() === 0 ? 'Enroll for Free' : `Checkout $${calculateFinalTotal().toFixed(2)}`}
                     </Button>
 
                     <div className="pt-4 space-y-2 text-sm text-gray-600">
