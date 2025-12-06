@@ -1,0 +1,1392 @@
+openapi: 3.0.3
+info:
+  title: Stupendous LMS API
+  description: |
+    A comprehensive Learning Management System (LMS) API built with Django REST Framework.
+    
+    ## Features
+    - User authentication with JWT tokens
+    - Course management for instructors
+    - Student enrollment and progress tracking
+    - Coupon system for discounts
+    - User profile management
+    - Admin user management
+    
+    ## Authentication
+    Most endpoints require authentication using JWT Bearer tokens.
+    
+    1. Login: `POST /api/auth/login/`
+    2. Use the returned `access` token in the Authorization header: `Bearer {token}`
+    
+  version: 1.0.0
+  contact:
+    name: Stupendous LMS Support
+    email: support@stupendouslms.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.stupendouslms.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Users
+    description: User profile and management
+  - name: Courses
+    description: Course management and browsing
+  - name: Lessons
+    description: Lesson management within courses
+  - name: Enrollments
+    description: Student course enrollments
+  - name: Progress
+    description: Student progress tracking
+  - name: Categories
+    description: Course categories
+  - name: Coupons
+    description: Discount coupon management
+  - name: Analytics
+    description: Analytics and statistics
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        is_student:
+          type: boolean
+        is_instructor:
+          type: boolean
+        is_staff:
+          type: boolean
+        avatar:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+
+    Course:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        instructor:
+          $ref: '#/components/schemas/User'
+        category:
+          $ref: '#/components/schemas/Category'
+        status:
+          type: string
+          enum: [draft, published, archived]
+        thumbnail:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        lesson_count:
+          type: integer
+        enrolled_count:
+          type: integer
+
+    Lesson:
+      type: object
+      properties:
+        id:
+          type: integer
+        course:
+          type: integer
+        title:
+          type: string
+        video_url:
+          type: string
+          format: uri
+          nullable: true
+        video_file:
+          type: string
+          nullable: true
+        order:
+          type: integer
+        content:
+          type: string
+
+    Enrollment:
+      type: object
+      properties:
+        id:
+          type: integer
+        student:
+          type: integer
+        course:
+          $ref: '#/components/schemas/Course'
+        enrolled_at:
+          type: string
+          format: date-time
+        progress_percentage:
+          type: integer
+
+    Progress:
+      type: object
+      properties:
+        id:
+          type: integer
+        student:
+          type: integer
+        lesson:
+          $ref: '#/components/schemas/Lesson'
+        completed:
+          type: boolean
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        course_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Coupon:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        description:
+          type: string
+        discount_percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        is_active:
+          type: boolean
+        max_uses:
+          type: integer
+          nullable: true
+        times_used:
+          type: integer
+        valid_from:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+          nullable: true
+        is_valid:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+
+paths:
+  # Authentication Endpoints
+  /api/auth/register/:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                is_student:
+                  type: boolean
+                  default: false
+                is_instructor:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access:
+                    type: string
+                  refresh:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login/:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Username or email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access:
+                    type: string
+                  refresh:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/logout/:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh
+              properties:
+                refresh:
+                  type: string
+      responses:
+        '200':
+          description: Logout successful
+        '400':
+          description: Invalid token
+
+  # User Profile Endpoints
+  /api/user/me/:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    
+    patch:
+      tags:
+        - Users
+      summary: Update current user profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                bio:
+                  type: string
+                phone:
+                  type: string
+                location:
+                  type: string
+                website:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/user/change_password/:
+    post:
+      tags:
+        - Users
+      summary: Change user password
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+              properties:
+                old_password:
+                  type: string
+                  format: password
+                new_password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password changed successfully
+        '400':
+          description: Invalid password
+
+  /api/user/upload_avatar/:
+    post:
+      tags:
+        - Users
+      summary: Upload user avatar
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar uploaded successfully
+        '400':
+          description: Invalid file
+
+  /api/user/delete_avatar/:
+    delete:
+      tags:
+        - Users
+      summary: Delete user avatar
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Avatar deleted successfully
+
+  # User Management (Admin)
+  /api/users/:
+    get:
+      tags:
+        - Users
+      summary: List all users (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '403':
+          description: Admin access required
+
+  /api/users/{id}/:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    
+    patch:
+      tags:
+        - Users
+      summary: Update user (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                is_student:
+                  type: boolean
+                is_instructor:
+                  type: boolean
+                is_staff:
+                  type: boolean
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: User updated
+    
+    delete:
+      tags:
+        - Users
+      summary: Delete user (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: User deleted
+
+  /api/users/create_user/:
+    post:
+      tags:
+        - Users
+      summary: Create new user (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                is_student:
+                  type: boolean
+                is_instructor:
+                  type: boolean
+                is_staff:
+                  type: boolean
+      responses:
+        '201':
+          description: User created
+
+  /api/users/{id}/reset_password/:
+    post:
+      tags:
+        - Users
+      summary: Reset user password (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password reset successfully
+
+  # Course Endpoints
+  /api/courses/:
+    get:
+      tags:
+        - Courses
+      summary: List all courses
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: integer
+        - name: instructorId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: string
+                    nullable: true
+                  previous:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Course'
+    
+    post:
+      tags:
+        - Courses
+      summary: Create new course (Instructor only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                category_id:
+                  type: integer
+                status:
+                  type: string
+                  enum: [draft, published]
+      responses:
+        '201':
+          description: Course created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /api/courses/{id}/:
+    get:
+      tags:
+        - Courses
+      summary: Get course details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Course details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+    
+    patch:
+      tags:
+        - Courses
+      summary: Update course (Owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                category_id:
+                  type: integer
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Course updated
+    
+    delete:
+      tags:
+        - Courses
+      summary: Delete course (Owner only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Course deleted
+
+  /api/courses/my_courses/:
+    get:
+      tags:
+        - Courses
+      summary: Get instructor's courses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of instructor's courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+
+  /api/courses/featured/:
+    get:
+      tags:
+        - Courses
+      summary: Get featured courses
+      responses:
+        '200':
+          description: List of featured courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+
+  /api/courses/{id}/publish/:
+    post:
+      tags:
+        - Courses
+      summary: Publish course
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Course published
+
+  /api/courses/{id}/unpublish/:
+    post:
+      tags:
+        - Courses
+      summary: Unpublish course
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Course unpublished
+
+  /api/courses/{id}/upload_thumbnail/:
+    post:
+      tags:
+        - Courses
+      summary: Upload course thumbnail
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - thumbnail
+              properties:
+                thumbnail:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Thumbnail uploaded
+
+  # Lesson Endpoints
+  /api/lessons/:
+    get:
+      tags:
+        - Lessons
+      summary: List lessons
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: course_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lesson'
+    
+    post:
+      tags:
+        - Lessons
+      summary: Create lesson (Course owner only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - course
+                - title
+                - order
+              properties:
+                course:
+                  type: integer
+                title:
+                  type: string
+                video_url:
+                  type: string
+                order:
+                  type: integer
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Lesson created
+
+  /api/lessons/{id}/:
+    get:
+      tags:
+        - Lessons
+      summary: Get lesson details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lesson details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+    
+    patch:
+      tags:
+        - Lessons
+      summary: Update lesson
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                video_url:
+                  type: string
+                order:
+                  type: integer
+                content:
+                  type: string
+      responses:
+        '200':
+          description: Lesson updated
+    
+    delete:
+      tags:
+        - Lessons
+      summary: Delete lesson
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Lesson deleted
+
+  /api/lessons/reorder/:
+    patch:
+      tags:
+        - Lessons
+      summary: Reorder lessons
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - course_id
+                - lessons
+              properties:
+                course_id:
+                  type: integer
+                lessons:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      order:
+                        type: integer
+      responses:
+        '200':
+          description: Lessons reordered
+
+  /api/lessons/{id}/upload_video/:
+    post:
+      tags:
+        - Lessons
+      summary: Upload lesson video
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - video
+              properties:
+                video:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Video uploaded
+
+  # Enrollment Endpoints
+  /api/enrollments/:
+    get:
+      tags:
+        - Enrollments
+      summary: Get user's enrollments
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of enrollments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Enrollment'
+    
+    post:
+      tags:
+        - Enrollments
+      summary: Enroll in course
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - course_id
+              properties:
+                course_id:
+                  type: integer
+      responses:
+        '201':
+          description: Enrolled successfully
+        '400':
+          description: Already enrolled
+
+  /api/enrollments/{id}/:
+    delete:
+      tags:
+        - Enrollments
+      summary: Unenroll from course
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Unenrolled successfully
+
+  /api/enrollments/check/:
+    get:
+      tags:
+        - Enrollments
+      summary: Check enrollment status
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: courseId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Enrollment status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_enrolled:
+                    type: boolean
+
+  /api/enrollments/enroll_with_coupon/:
+    post:
+      tags:
+        - Enrollments
+      summary: Enroll with coupon code
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - course_id
+                - coupon_code
+              properties:
+                course_id:
+                  type: integer
+                coupon_code:
+                  type: string
+      responses:
+        '201':
+          description: Enrolled with coupon
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                  enrollment:
+                    $ref: '#/components/schemas/Enrollment'
+                  discount_percentage:
+                    type: integer
+        '400':
+          description: Invalid coupon or already enrolled
+
+  # Progress Endpoints
+  /api/progress/:
+    get:
+      tags:
+        - Progress
+      summary: Get user's progress
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of progress records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Progress'
+    
+    post:
+      tags:
+        - Progress
+      summary: Create/update progress
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - lesson_id
+                - completed
+              properties:
+                lesson_id:
+                  type: integer
+                completed:
+                  type: boolean
+      responses:
+        '201':
+          description: Progress updated
+
+  /api/progress/course_progress/:
+    get:
+      tags:
+        - Progress
+      summary: Get progress for a course
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: course_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Course progress
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Progress'
+
+  /api/progress/student_progress/:
+    get:
+      tags:
+        - Progress
+      summary: Get all students' progress (Instructor only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: course_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Students' progress
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    student:
+                      type: string
+                    student_id:
+                      type: integer
+                    completed_lessons:
+                      type: integer
+                    total_lessons:
+                      type: integer
+                    percentage:
+                      type: integer
+
+  # Category Endpoints
+  /api/categories/:
+    get:
+      tags:
+        - Categories
+      summary: List all categories
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  # Coupon Endpoints
+  /api/coupons/:
+    get:
+      tags:
+        - Coupons
+      summary: List active coupons
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of coupons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Coupon'
+
+  /api/coupons/validate/:
+    post:
+      tags:
+        - Coupons
+      summary: Validate coupon code
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Coupon is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coupon'
+        '400':
+          description: Coupon is invalid
+        '404':
+          description: Coupon not found
+
+  # Analytics Endpoints
+  /api/dashboard/student/:
+    get:
+      tags:
+        - Analytics
+      summary: Get student dashboard data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Student dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enrolled_courses:
+                    type: array
+                    items:
+                      type: object
+                  total_courses:
+                    type: integer
+                  completed_courses:
+                    type: integer
+                  in_progress_courses:
+                    type: integer
+                  total_lessons_completed:
+                    type: integer
+
+  /api/analytics/instructor/:
+    get:
+      tags:
+        - Analytics
+      summary: Get instructor analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: instructorId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Instructor analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_courses:
+                    type: integer
+                  total_students:
+                    type: integer
+                  total_enrollments:
+                    type: integer
