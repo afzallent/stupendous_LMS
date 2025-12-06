@@ -51,10 +51,34 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ['title', 'instructor', 'category', 'status', 'created_at']
-    list_filter = ['status', 'category', 'created_at']
+    list_display = ['title', 'instructor', 'category', 'status', 'get_price_display', 'created_at']
+    list_filter = ['status', 'category', 'is_free', 'created_at']
     search_fields = ['title', 'description', 'instructor__username']
     readonly_fields = ['created_at', 'updated_at', 'published_at']
+    
+    fieldsets = (
+        ('Course Information', {
+            'fields': ('title', 'description', 'instructor', 'category', 'thumbnail')
+        }),
+        ('Pricing', {
+            'fields': ('is_free', 'price', 'original_price'),
+            'description': 'Set pricing for the course. Mark as free or set a price.'
+        }),
+        ('Status', {
+            'fields': ('status',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'published_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_price_display(self, obj):
+        """Display price in list view"""
+        if obj.is_free:
+            return format_html('<span style="color: green; font-weight: bold;">FREE</span>')
+        return f'${obj.price}'
+    get_price_display.short_description = 'Price'
 
 
 @admin.register(Lesson)

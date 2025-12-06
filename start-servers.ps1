@@ -1,11 +1,14 @@
 #!/usr/bin/env pwsh
 # Start both Django backend and Next.js frontend servers
 
+# Get script directory
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
 Write-Host "Starting LMS Servers..." -ForegroundColor Cyan
 Write-Host ""
 
 # Check if virtual environment exists
-if (-not (Test-Path "venv\Scripts\python.exe")) {
+if (-not (Test-Path "$ScriptDir\venv\Scripts\python.exe")) {
     Write-Host "Virtual environment not found!" -ForegroundColor Red
     Write-Host "Please create it first: python -m venv venv" -ForegroundColor Yellow
     exit 1
@@ -14,7 +17,7 @@ if (-not (Test-Path "venv\Scripts\python.exe")) {
 # Start Django backend
 Write-Host "Starting Django backend server (port 8000)..." -ForegroundColor Green
 $djangoJob = Start-Job -ScriptBlock {
-    Set-Location $using:PWD
+    Set-Location $using:ScriptDir
     & "venv\Scripts\python.exe" "backend\manage.py" "runserver"
 }
 
@@ -24,7 +27,7 @@ Start-Sleep -Seconds 3
 # Start Next.js frontend
 Write-Host "Starting Next.js frontend server (port 3000)..." -ForegroundColor Green
 $nextJob = Start-Job -ScriptBlock {
-    Set-Location $using:PWD
+    Set-Location $using:ScriptDir
     Set-Location "frontend"
     npm run dev
 }
@@ -49,7 +52,7 @@ Write-Host ""
 @{
     DjangoJobId = $djangoJob.Id
     NextJobId = $nextJob.Id
-} | ConvertTo-Json | Out-File ".server-jobs.json"
+} | ConvertTo-Json | Out-File "$ScriptDir\.server-jobs.json"
 
 Write-Host "Press Ctrl+C to stop monitoring (servers will continue running)" -ForegroundColor Gray
 Write-Host ""

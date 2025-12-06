@@ -87,6 +87,12 @@ class Course(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='courses')
     thumbnail = models.ImageField(upload_to='course_thumbnails/', null=True, blank=True, help_text="Course thumbnail image")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    
+    # Pricing fields
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Course price in USD")
+    original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Original price before discount")
+    is_free = models.BooleanField(default=False, help_text="Mark course as free")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)

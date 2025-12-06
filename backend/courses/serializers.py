@@ -58,7 +58,8 @@ class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = ['id', 'title', 'description', 'instructor', 'category', 'category_id',
-                  'status', 'created_at', 'updated_at', 'published_at',
+                  'status', 'price', 'original_price', 'is_free', 'thumbnail',
+                  'created_at', 'updated_at', 'published_at',
                   'lesson_count', 'enrolled_count', 'lessons']
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
 
@@ -86,6 +87,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = ['id', 'title', 'description', 'instructor', 'category', 'status',
+                  'price', 'original_price', 'is_free', 'thumbnail',
                   'created_at', 'updated_at', 'published_at',
                   'lessons', 'is_enrolled', 'progress_percentage']
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
