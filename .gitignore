@@ -45,6 +45,10 @@ frontend/.env.*.local
 *.swo
 *~
 
+# Markdown files (except README)
+*.md
+!README.md
+
 # OS
 .DS_Store
 Thumbs.db
