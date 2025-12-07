@@ -6,7 +6,6 @@ import Button from "@components/ui/button.astro";
 import { Picture } from 'astro:assets';
 import TIT_logo from '/public/tit-800.svg';
 import { Icon } from 'astro-icon/components';
-import { SignedIn, SignOutButton } from '@clerk/astro/components';
 
 const menuitems = [
   {
@@ -73,13 +72,11 @@ const menuitems = [
               Book Now
             </Button>
           </li>
-          <SignedIn>
-            <li class="lg:ml-3 self-start lg:self-center lg:mt-0 sm:mt-10">
-              <SignOutButton>
-                <Button size="md">Sign Out</Button>
-              </SignOutButton>
-            </li>
-          </SignedIn>
+          <li class="lg:ml-3 self-start lg:self-center lg:mt-0 sm:mt-10">
+            <a href="/login/student" class="text-gray-600 hover:text-gray-900">
+              Login
+            </a>
+          </li>
         </ul>
       </MenuItems>
     </Astronav>

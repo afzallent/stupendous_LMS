@@ -50,107 +50,104 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   // Unwrap the params Promise using React.use()
   const { courseId, lessonId } = use(params)
 
-  // Mock data
-  const course = {
-    id: courseId,
-    title: "Complete Web Development Bootcamp",
-    instructor: "Dr. Sarah Chen",
-    totalLessons: 320,
-    completedLessons: 45,
-    progress: 14
-  }
+  // State for real data from API
+  const [course, setCourse] = useState<any>(null)
+  const [currentLesson, setCurrentLesson] = useState<any>(null)
+  const [curriculum, setCurriculum] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const currentLesson = {
-    id: lessonId,
-    title: "HTML Document Structure",
-    description: "Learn the fundamental structure of HTML documents including doctype, html, head, and body elements.",
-    duration: 925, // 15:25 in seconds
-    videoUrl: "/api/placeholder/video",
-    completed: false,
-    order: 4,
-    chapter: {
-      id: "2",
-      title: "HTML5 Fundamentals",
-      order: 2
-    }
-  }
-
-  const curriculum = [
-    {
-      id: "1",
-      title: "Getting Started with Web Development",
-      order: 1,
-      lessons: [
-        { id: "1-1", title: "Course Introduction and Roadmap", duration: "12:45", completed: true },
-        { id: "1-2", title: "Setting Up Your Development Environment", duration: "18:30", completed: true },
-        { id: "1-3", title: "Web Development Basics: HTML, CSS, JavaScript", duration: "25:15", completed: true }
-      ]
-    },
-    {
-      id: "2",
-      title: "HTML5 Fundamentals",
-      order: 2,
-      lessons: [
-        { id: "2-1", title: "HTML Document Structure", duration: "15:20", completed: false, current: true },
-        { id: "2-2", title: "Text and Semantic Elements", duration: "22:10", completed: false },
-        { id: "2-3", title: "Forms and Input Validation", duration: "28:45", completed: false },
-        { id: "2-4", title: "HTML5 Best Practices", duration: "16:30", completed: false }
-      ]
-    },
-    {
-      id: "3",
-      title: "CSS3 and Responsive Design",
-      order: 3,
-      lessons: [
-        { id: "3-1", title: "CSS Selectors and Properties", duration: "20:15", completed: false },
-        { id: "3-2", title: "Flexbox Layout", duration: "24:40", completed: false },
-        { id: "3-3", title: "CSS Grid", duration: "26:55", completed: false },
-        { id: "3-4", title: "Media Queries and Responsive Design", duration: "30:20", completed: false }
-      ]
-    }
-  ]
-
-  const resources = [
-    { id: "1", title: "HTML Cheat Sheet", type: "pdf", size: "2.4 MB" },
-    { id: "2", title: "Exercise Files", type: "zip", size: "15.8 MB" },
-    { id: "3", title: "HTML Reference Links", type: "txt", size: "4 KB" }
-  ]
-
-  const quiz = {
-    id: "quiz-1",
-    title: "HTML Document Structure Quiz",
-    questions: [
-      {
-        id: "q1",
-        question: "Which HTML tag defines the root of an HTML document?",
-        options: ["<body>", "<html>", "<head>", "<document>"],
-        correctAnswer: 1
-      },
-      {
-        id: "q2",
-        question: "Where should the <title> tag be placed?",
-        options: ["In the <body> section", "In the <head> section", "Outside the <html> tag", "In the <footer> section"],
-        correctAnswer: 1
+  // Fetch course and lesson data from Django API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        
+        // Fetch course details with lessons
+        const courseData = await djangoApi.get<any>(`/api/courses/${courseId}/`)
+        console.log('Course data:', courseData)
+        
+        // Fetch specific lesson details
+        const lessonData = await djangoApi.get<any>(`/api/lessons/${lessonId}/`)
+        console.log('Lesson data:', lessonData)
+        
+        // Map course data
+        setCourse({
+          id: courseData.id,
+          title: courseData.title,
+          instructor: courseData.instructor?.username || 'Instructor',
+          totalLessons: courseData.lessons?.length || 0,
+          completedLessons: 0, // TODO: Calculate from progress
+          progress: 0 // TODO: Calculate from progress
+        })
+        
+        // Map lesson data
+        let videoUrl = lessonData.video_url || lessonData.video_file || ''
+        const isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')
+        
+        // Convert YouTube watch URL to embed URL
+        if (isYouTube && videoUrl) {
+          if (videoUrl.includes('watch?v=')) {
+            const videoId = videoUrl.split('watch?v=')[1]?.split('&')[0]
+            videoUrl = `https://www.youtube.com/embed/${videoId}`
+          } else if (videoUrl.includes('youtu.be/')) {
+            const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0]
+            videoUrl = `https://www.youtube.com/embed/${videoId}`
+          }
+        }
+        
+        console.log('Original URL:', lessonData.video_url)
+        console.log('Processed Video URL:', videoUrl)
+        console.log('Is YouTube:', isYouTube)
+        
+        setCurrentLesson({
+          id: lessonData.id,
+          title: lessonData.title,
+          description: lessonData.content || '',
+          duration: 0, // Django doesn't store duration yet
+          videoUrl: videoUrl,
+          isYouTube: isYouTube,
+          completed: false, // TODO: Check from progress
+          order: lessonData.order,
+          chapter: {
+            id: courseData.id.toString(),
+            title: courseData.title,
+            order: 1
+          }
+        })
+        
+        // Map curriculum (all lessons grouped)
+        const lessons = courseData.lessons || []
+        setCurriculum([{
+          id: courseData.id.toString(),
+          title: courseData.title,
+          order: 1,
+          lessons: lessons.map((lesson: any) => ({
+            id: lesson.id.toString(),
+            title: lesson.title,
+            duration: '0:00', // Duration not stored yet
+            completed: false, // TODO: Check from progress
+            current: lesson.id.toString() === lessonId
+          }))
+        }])
+        
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load lesson data",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
       }
-    ]
-  }
-
-  const discussions = [
-    {
-      id: "1",
-      user: "John Doe",
-      question: "Can we have multiple <body> tags in an HTML document?",
-      timestamp: "2 hours ago",
-      replies: 3
-    },
-    {
-      id: "2",
-      user: "Jane Smith",
-      question: "What's the difference between <div> and <span>?",
-      timestamp: "5 hours ago",
-      replies: 7
     }
-  ]
+    
+    fetchData()
+  }, [courseId, lessonId])
+
+  // TODO: Fetch from API when backend is ready
+  const resources: any[] = []
+  const discussions: any[] = []
 
   // Video controls
   const togglePlay = () => {
@@ -235,7 +232,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
     
     try {
       // Mark lesson as complete in Django
-      const data = await djangoApi.post(`/api/lessons/${lessonId}/mark-complete/`)
+      const data = await djangoApi.post<any>(`/api/lessons/${lessonId}/mark_complete/`)
       console.log('Progress updated:', data)
       
       toast({
@@ -244,7 +241,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
       })
       
       // If certificate was generated (course completed), show notification
-      if (data.data.certificate) {
+      if (data.data?.certificate) {
         alert('Congratulations! You have completed the course. Your certificate has been generated.')
         // Optionally redirect to certificate page
         // router.push(`/certificates/${data.data.certificate.certificateId}`)
@@ -315,6 +312,17 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
     return () => clearTimeout(timer)
   }, [notes])
 
+  if (loading || !course || !currentLesson) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading lesson...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -348,23 +356,45 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
           <div className="relative bg-black">
             {/* Video Player */}
             <div className="relative aspect-video">
-              <video
-                ref={videoRef}
-                className="w-full h-full"
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => {
-                  setIsPlaying(false)
-                  markLessonComplete()
-                }}
-              >
-                <source src={currentLesson.videoUrl} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
+              {currentLesson.videoUrl ? (
+                currentLesson.isYouTube ? (
+                  <iframe
+                    className="w-full h-full"
+                    src={currentLesson.videoUrl}
+                    title={currentLesson.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full"
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => {
+                      setIsPlaying(false)
+                      markLessonComplete()
+                    }}
+                  >
+                    <source src={currentLesson.videoUrl} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                )
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted">
+                  <div className="text-center">
+                    <Play className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">No video available</p>
+                    <p className="text-sm text-muted-foreground">The instructor hasn't uploaded a video for this lesson yet</p>
+                  </div>
+                </div>
+              )}
 
-              {/* Video Controls Overlay */}
+              {/* Video Controls Overlay - Only show for non-YouTube videos */}
+              {!currentLesson.isYouTube && currentLesson.videoUrl && (
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                 <div className="flex items-center space-x-4 text-white">
                   <Button
@@ -437,6 +467,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                   </div>
                 </div>
               </div>
+              )}
             </div>
           </div>
 
@@ -582,20 +613,27 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                           <CardTitle>Downloadable Resources</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-3">
-                            {resources.map((resource) => (
-                              <div key={resource.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                <div className="flex items-center space-x-3">
-                                  <FileText className="h-5 w-5 text-muted-foreground" />
-                                  <div>
-                                    <h4 className="font-medium">{resource.title}</h4>
-                                    <p className="text-sm text-muted-foreground">{resource.type.toUpperCase()} • {resource.size}</p>
+                          {resources.length > 0 ? (
+                            <div className="space-y-3">
+                              {resources.map((resource: any) => (
+                                <div key={resource.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div className="flex items-center space-x-3">
+                                    <FileText className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                      <h4 className="font-medium">{resource.title}</h4>
+                                      <p className="text-sm text-muted-foreground">{resource.type.toUpperCase()} • {resource.size}</p>
+                                    </div>
                                   </div>
+                                  <Button variant="outline" size="sm">Download</Button>
                                 </div>
-                                <Button variant="outline" size="sm">Download</Button>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                              <p className="text-muted-foreground">No resources available for this lesson</p>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     </TabsContent>
@@ -606,38 +644,10 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                           <CardTitle>Lesson Discussion</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex space-x-2">
-                              <input
-                                type="text"
-                                placeholder="Ask a question about this lesson..."
-                                className="flex-1 px-3 py-2 border rounded-md"
-                              />
-                              <Button>Post</Button>
-                            </div>
-                            
-                            <div className="space-y-4">
-                              {discussions.map((discussion) => (
-                                <div key={discussion.id} className="border rounded-lg p-4">
-                                  <div className="flex items-start space-x-3">
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarFallback>{discussion.user.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <h4 className="font-medium">{discussion.user}</h4>
-                                        <span className="text-sm text-muted-foreground">{discussion.timestamp}</span>
-                                      </div>
-                                      <p className="text-sm mb-2">{discussion.question}</p>
-                                      <Button variant="ghost" size="sm" className="text-xs">
-                                        <MessageCircle className="h-3 w-3 mr-1" />
-                                        {discussion.replies} replies
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                          <div className="text-center py-8">
+                            <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                            <p className="text-muted-foreground mb-2">Discussion feature coming soon</p>
+                            <p className="text-sm text-muted-foreground">Ask questions and interact with other students</p>
                           </div>
                         </CardContent>
                       </Card>

@@ -3,9 +3,6 @@ import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { Icon } from 'astro-icon/components';
 
 export const prerender = false;
-
-// Authentication is handled by middleware
-// Dashboard data will be loaded client-side
 ---
 
 <DashboardLayout title="Student Dashboard - CourseCompass LMS" userType="student">
@@ -65,160 +62,32 @@ export const prerender = false;
     </div>
   </div>
   
-  <!-- Continue Learning Section -->
-  <div class="bg-white rounded-lg shadow p-6 mb-8">
-    <h2 class="text-xl font-bold mb-4">Continue Learning</h2>
-    
-    <div class="border rounded-lg overflow-hidden">
-      <div class="flex flex-col md:flex-row">
-        <div class="w-full md:w-64 h-48 bg-gray-200">
-          <!-- Course Thumbnail Placeholder -->
-          <div class="w-full h-full flex items-center justify-center bg-gray-300">
-            <span class="text-gray-600">Course Thumbnail</span>
-          </div>
-        </div>
-        
-        <div class="flex-1 p-4">
-          <h3 class="text-lg font-bold">Introduction to Web Development</h3>
-          <p class="text-gray-600 mb-3">Learn the fundamentals of HTML, CSS, and JavaScript</p>
-          
-          <div class="mb-3">
-            <div class="flex items-center">
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 65%"></div>
-              </div>
-              <span class="ml-2 text-sm text-gray-600">65%</span>
-            </div>
-          </div>
-          
-          <div class="flex items-center text-sm text-gray-600 mb-4">
-            <Icon name="mdi:play-circle" class="w-5 h-5 mr-1" />
-            <span>Last viewed: Module 4 - CSS Flexbox</span>
-          </div>
-          
-          [1m<a href="/course-player?course_id=2&title=Introduction%20to%20Web%20Development" class="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">[0m
-            Continue Learning
-          [1m</a>[0m
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- My Recent Quiz/Assessment Activity -->
-  <div class="bg-white rounded-lg shadow p-6 mb-8">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold">My Recent Activity</h2> <span class="text-gray-500 text-sm">(Assessments)</span>
-      <a href="/dashboard/student/assessments" class="text-blue-600 hover:underline text-sm">View All</a>
-    </div>
-    <ul class="space-y-4">
-      <!-- Placeholder Item 1 -->
-      <li class="flex items-center justify-between p-3 border rounded-md hover:bg-gray-50">
-        <div>
-          <p class="font-semibold text-gray-700">Introduction to Web Development - Quiz 1</p>
-          <p class="text-sm text-gray-500">Attempted: Oct 28, 2023 - <span class="text-green-600 font-medium">Score: 90%</span></p>
-        </div>
-        <a href="#" class="text-blue-600 hover:underline text-sm">Review</a>
-      </li>
-      <!-- Placeholder Item 2 -->
-      <li class="flex items-center justify-between p-3 border rounded-md hover:bg-gray-50">
-        <div>
-          <p class="font-semibold text-gray-700">Advanced JavaScript - Module 2 Quiz</p>
-          <p class="text-sm text-gray-500">Attempted: Oct 25, 2023 - <span class="text-orange-500 font-medium">Score: 65% (Needs Improvement)</span></p>
-        </div>
-        <a href="#" class="text-blue-600 hover:underline text-sm">Retake</a>
-      </li>
-      <!-- Placeholder Item 3 -->
-      <li class="flex items-center justify-between p-3 border rounded-md hover:bg-gray-50">
-        <div>
-          <p class="font-semibold text-gray-700">Responsive Design - Final Assessment</p>
-          <p class="text-sm text-gray-500">Attempted: Oct 20, 2023 - <span class="text-green-600 font-medium">Score: 95%</span></p>
-        </div>
-        <a href="#" class="text-blue-600 hover:underline text-sm">Review</a>
-      </li>
-      {/* Add a message for no activity if needed */}
-    </ul>
-  </div>
-  
-  <!-- Recent Courses Section -->
+  <!-- Your Courses Section -->
   <div class="bg-white rounded-lg shadow p-6 mb-8">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-bold">Your Courses</h2>
-      <a href="/dashboard/student/courses" class="text-blue-600 hover:underline text-sm">View All</a>
+      <a href="/courses" class="text-blue-600 hover:underline text-sm">Browse More Courses</a>
     </div>
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- Course Card 1 -->
-      <div class="border rounded-lg overflow-hidden">
-        <div class="h-40 bg-gray-300 flex items-center justify-center">
-          <span class="text-gray-600">Course Thumbnail</span>
-        </div>
-        
-        <div class="p-4">
-          <h3 class="font-bold mb-1">Introduction to Web Development</h3>
-          <p class="text-sm text-gray-600 mb-3">15 modules • 10 hours</p>
-          
-          <div class="mb-3">
-            <div class="flex items-center">
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 65%"></div>
-              </div>
-              <span class="ml-2 text-sm text-gray-600">65%</span>
-            </div>
-          </div>
-          
-          [1m<a href="/course-player?course_id=3&title=Advanced%20JavaScript" class="text-blue-600 hover:underline text-sm">[0mContinue Course[1m</a>[0m
-        </div>
+    <div id="courses-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Loading state -->
+      <div class="col-span-full text-center py-8">
+        <p class="text-gray-500">Loading your courses...</p>
       </div>
-      
-      <!-- Course Card 2 -->
-      <div class="border rounded-lg overflow-hidden">
-        <div class="h-40 bg-gray-300 flex items-center justify-center">
-          <span class="text-gray-600">Course Thumbnail</span>
-        </div>
-        
-        <div class="p-4">
-          <h3 class="font-bold mb-1">Advanced JavaScript</h3>
-          <p class="text-sm text-gray-600 mb-3">12 modules • 8 hours</p>
-          
-          <div class="mb-3">
-            <div class="flex items-center">
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 20%"></div>
-              </div>
-              <span class="ml-2 text-sm text-gray-600">20%</span>
-            </div>
-          </div>
-          
-          <a href="/course-player?course_id=5&title=Advanced%20JavaScript%20and%20TypeScript%20Mastery" class="text-blue-600 hover:underline text-sm">Continue Course</a>
-        </div>
-      </div>
-      
-      <!-- Course Card 3 -->
-      <div class="border rounded-lg overflow-hidden">
-        <div class="h-40 bg-gray-300 flex items-center justify-center">
-          <span class="text-gray-600">Course Thumbnail</span>
-        </div>
-        
-        <div class="p-4">
-          <h3 class="font-bold mb-1">Responsive Design with Tailwind CSS</h3>
-          <p class="text-sm text-gray-600 mb-3">8 modules • 5 hours</p>
-          
-          <div class="mb-3">
-            <div class="flex items-center">
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div class="bg-green-600 h-2.5 rounded-full" style="width: 100%"></div>
-              </div>
-              <span class="ml-2 text-sm text-gray-600">100%</span>
-            </div>
-          </div>
-          
-          <a href="/dashboard/student/certificates/1" class="text-green-600 hover:underline text-sm">View Certificate</a>
-        </div>
-      </div>
+    </div>
+    
+    <!-- Empty state template (hidden by default) -->
+    <div id="empty-state" class="hidden text-center py-12">
+      <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      </svg>
+      <p class="text-gray-600 mb-4">You haven't enrolled in any courses yet</p>
+      <a href="/courses" class="inline-block px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        Browse Courses
+      </a>
     </div>
   </div>
 </DashboardLayout>
-
 
 <script>
   import { djangoApi, API_ENDPOINTS, TokenManager } from '../../../config/django-api.config';
@@ -248,9 +117,11 @@ export const prerender = false;
         if (completedCourses) completedCourses.textContent = response.completed_courses?.toString() || '0';
         if (inProgressCourses) inProgressCourses.textContent = response.in_progress_courses?.toString() || '0';
         if (totalLessons) totalLessons.textContent = response.total_lessons_completed?.toString() || '0';
+        
+        // Load enrolled courses
+        loadEnrolledCourses(response.enrolled_courses || []);
       } else {
         console.error('Failed to load dashboard:', response.error);
-        // Redirect to login if unauthorized
         if (response.error?.includes('Authentication') || response.error?.includes('credentials')) {
           TokenManager.clearTokens();
           window.location.href = '/login/student';
@@ -259,6 +130,77 @@ export const prerender = false;
     } catch (error) {
       console.error('Error loading dashboard:', error);
     }
+  }
+  
+  function loadEnrolledCourses(courses) {
+    const container = document.getElementById('courses-container');
+    const emptyState = document.getElementById('empty-state');
+    
+    if (!container) return;
+    
+    // Clear loading state
+    container.innerHTML = '';
+    
+    if (!courses || courses.length === 0) {
+      // Show empty state
+      if (emptyState) {
+        emptyState.classList.remove('hidden');
+      }
+      return;
+    }
+    
+    // Hide empty state
+    if (emptyState) {
+      emptyState.classList.add('hidden');
+    }
+    
+    // Render course cards
+    courses.forEach(course => {
+      const progressPercent = course.progress_percentage || 0;
+      const isCompleted = progressPercent >= 100;
+      const progressColor = isCompleted ? 'bg-green-600' : 'bg-blue-600';
+      
+      const card = document.createElement('div');
+      card.className = 'border rounded-lg overflow-hidden hover:shadow-lg transition-shadow';
+      card.innerHTML = `
+        <div class="h-40 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          ${course.thumbnail ? 
+            `<img src="${course.thumbnail}" alt="${course.title}" class="w-full h-full object-cover" />` :
+            `<svg class="w-16 h-16 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>`
+          }
+        </div>
+        
+        <div class="p-4">
+          <h3 class="font-bold mb-1 text-gray-800">${course.title}</h3>
+          <p class="text-sm text-gray-600 mb-3">
+            ${course.total_lessons || 0} lessons
+            ${course.instructor ? ` • ${course.instructor}` : ''}
+          </p>
+          
+          <div class="mb-3">
+            <div class="flex items-center">
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="${progressColor} h-2.5 rounded-full transition-all" style="width: ${progressPercent}%"></div>
+              </div>
+              <span class="ml-2 text-sm text-gray-600 font-medium">${progressPercent}%</span>
+            </div>
+          </div>
+          
+          ${isCompleted ? 
+            `<a href="/courses/${course.id}" class="text-green-600 hover:underline text-sm font-medium">
+              ✓ Completed - View Course
+            </a>` :
+            `<a href="/course-player?course_id=${course.id}" class="text-blue-600 hover:underline text-sm font-medium">
+              Continue Learning →
+            </a>`
+          }
+        </div>
+      `;
+      
+      container.appendChild(card);
+    });
   }
   
   // Load dashboard on page load

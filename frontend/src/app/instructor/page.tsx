@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -34,19 +35,17 @@ import {
   User,
   Settings
 } from "lucide-react"
+import { useAuth } from "@/lib/auth"
 
 export default function InstructorDashboard() {
   const router = useRouter()
+  const { logout: authLogout } = useAuth()
   const [timeRange, setTimeRange] = useState("30d")
   const [selectedCourse, setSelectedCourse] = useState("all")
   const [user, setUser] = useState<any>(null)
   const [courses, setCourses] = useState<any[]>([])
   const [stats, setStats] = useState<any>({})
   const [recentActivity, setRecentActivity] = useState<any[]>([])
-  const [revenueData, setRevenueData] = useState<any[]>([])
-  const [engagementData, setEngagementData] = useState<any[]>([])
-  const [atRiskStudents, setAtRiskStudents] = useState<any[]>([])
-  const [topPerformers, setTopPerformers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
@@ -82,60 +81,69 @@ export default function InstructorDashboard() {
           'Content-Type': 'application/json'
         }
 
-        // Fetch instructor analytics from Django (endpoint not implemented yet)
+        // Fetch instructor's courses from Django
         try {
-          const analyticsResponse = await fetch(`${API_BASE_URL}/api/instructor/analytics/`, { headers })
-          if (analyticsResponse.ok) {
-            const analyticsData = await analyticsResponse.json()
-            console.log('📊 Instructor analytics from Django:', analyticsData)
+          const coursesResponse = await fetch(`${API_BASE_URL}/api/courses/?instructorId=${user.id}`, { headers })
+          if (coursesResponse.ok) {
+            const coursesData = await coursesResponse.json()
+            console.log('📚 Courses from Django:', coursesData)
             
             // Map Django response to frontend format
-            const mappedCourses = analyticsData.courses?.map((course: any) => ({
+            const mappedCourses = coursesData.results?.map((course: any) => ({
               id: course.id,
               title: course.title,
-              enrollments: course.enrollments || 0,
-              lessons: course.lessons || 0,
-              averageProgress: course.average_progress || 0,
-              status: 'published'
+              status: course.status || 'draft',
+              thumbnail: course.thumbnail, // Course thumbnail URL
+              students: course.enrolled_count || 0,
+              rating: 4.5, // Default rating (not in Django model yet)
+              revenue: 0, // Revenue tracking not implemented yet
+              completionRate: 0, // Completion rate not calculated yet
+              lastUpdated: course.updated_at ? new Date(course.updated_at).toLocaleDateString() : 'N/A',
+              lessons: course.lesson_count || 0,
+              enrollments: course.enrolled_count || 0,
+              averageProgress: 0
             })) || []
             
             const mappedStats = {
-              totalCourses: analyticsData.total_courses || 0,
-              totalStudents: analyticsData.total_students || 0,
-              totalEnrollments: analyticsData.total_enrollments || 0,
-              totalLessons: analyticsData.total_lessons || 0,
+              totalCourses: coursesData.count || mappedCourses.length,
+              totalStudents: mappedCourses.reduce((sum: number, c: any) => sum + c.students, 0),
+              totalEnrollments: mappedCourses.reduce((sum: number, c: any) => sum + c.enrollments, 0),
+              totalLessons: mappedCourses.reduce((sum: number, c: any) => sum + c.lessons, 0),
               totalRevenue: 0, // Django doesn't track revenue yet
-              avgRating: 4.5 // Default rating
+              averageRating: 4.5, // Default rating
+              completionRate: 0
             }
             
             setCourses(mappedCourses)
             setStats(mappedStats)
-          } else if (analyticsResponse.status === 401) {
+          } else if (coursesResponse.status === 401) {
             console.error('Authentication failed')
             router.push('/auth/login')
             return
           } else {
-            console.log('Analytics endpoint not available, using defaults')
-            // Set default values
+            console.log('Courses endpoint returned error, using defaults')
+            setCourses([])
             setStats({
               totalCourses: 0,
               totalStudents: 0,
               totalEnrollments: 0,
               totalLessons: 0,
               totalRevenue: 0,
-              avgRating: 0
+              averageRating: 0,
+              completionRate: 0
             })
           }
         } catch (error) {
-          console.log('Analytics endpoint not available:', error)
-          // Set default values
+          console.log('Error fetching courses:', error)
+          setCourses([])
           setStats({
             totalCourses: 0,
             totalStudents: 0,
             totalEnrollments: 0,
             totalLessons: 0,
             totalRevenue: 0,
-            avgRating: 0
+            averageRating: 0,
+            completionRate: 0
           })
         }
 
@@ -166,36 +174,8 @@ export default function InstructorDashboard() {
           setRecentActivity([])
         }
 
-        // Mock revenue and engagement data (Django doesn't have these endpoints yet)
-        setRevenueData([
-          { month: 'Jan', revenue: 1200 },
-          { month: 'Feb', revenue: 1800 },
-          { month: 'Mar', revenue: 2400 },
-          { month: 'Apr', revenue: 2100 },
-          { month: 'May', revenue: 2800 },
-          { month: 'Jun', revenue: 3200 }
-        ])
-        
-        setEngagementData([
-          { date: 'Mon', students: 45 },
-          { date: 'Tue', students: 52 },
-          { date: 'Wed', students: 48 },
-          { date: 'Thu', students: 61 },
-          { date: 'Fri', students: 55 },
-          { date: 'Sat', students: 38 },
-          { date: 'Sun', students: 42 }
-        ])
-
-        // Mock student performance data
-        setAtRiskStudents([
-          { id: '1', name: 'John Doe', progress: 15, lastActive: '5 days ago', course: 'Python Basics' },
-          { id: '2', name: 'Jane Smith', progress: 22, lastActive: '7 days ago', course: 'Web Development' }
-        ])
-        
-        setTopPerformers([
-          { id: '3', name: 'Alice Johnson', progress: 95, completedLessons: 28, course: 'Data Science' },
-          { id: '4', name: 'Bob Wilson', progress: 88, completedLessons: 24, course: 'Python Basics' }
-        ])
+        // Note: Revenue, engagement, and student performance analytics
+        // will be implemented when backend endpoints are ready
       } catch (error) {
         console.error('Error fetching instructor data:', error)
       } finally {
@@ -210,7 +190,7 @@ export default function InstructorDashboard() {
     console.log('Instructor logout clicked')
     try {
       // Use the auth context logout method which uses djangoApi
-      await logout()
+      await authLogout()
       // The logout method will handle redirect
     } catch (error) {
       console.error('Logout error:', error)
@@ -235,47 +215,7 @@ export default function InstructorDashboard() {
     return new Intl.NumberFormat('en-US').format(num)
   }
 
-  // Helper function to format revenue chart data
-  const formatRevenueData = () => {
-    if (!revenueData || revenueData.length === 0) {
-      return [
-        { month: "Jan", revenue: 0 },
-        { month: "Feb", revenue: 0 },
-        { month: "Mar", revenue: 0 },
-        { month: "Apr", revenue: 0 },
-        { month: "May", revenue: 0 },
-        { month: "Jun", revenue: 0 }
-      ]
-    }
-    
-    return revenueData.slice(-6).map(item => ({
-      month: item.formattedPeriod || new Date(item.period).toLocaleDateString('en-US', { month: 'short' }),
-      revenue: item.revenue || 0
-    }))
-  }
 
-  // Helper function to format engagement data
-  const formatEngagementData = () => {
-    if (!engagementData || engagementData.length === 0) {
-      return [
-        { day: "Mon", active: 0 },
-        { day: "Tue", active: 0 },
-        { day: "Wed", active: 0 },
-        { day: "Thu", active: 0 },
-        { day: "Fri", active: 0 },
-        { day: "Sat", active: 0 },
-        { day: "Sun", active: 0 }
-      ]
-    }
-    
-    return engagementData.slice(-7).map(item => ({
-      day: item.dayOfWeek || new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
-      active: item.activeStudents || 0
-    }))
-  }
-
-  const formattedRevenueData = formatRevenueData()
-  const formattedEngagementData = formatEngagementData()
 
   if (loading) {
     return (
@@ -393,9 +333,8 @@ export default function InstructorDashboard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Students</p>
                   <p className="text-2xl font-bold">{formatNumber(instructorStats.totalStudents)}</p>
-                  <p className="text-xs text-green-600 flex items-center">
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    +12% from last month
+                  <p className="text-xs text-muted-foreground">
+                    Across all courses
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
@@ -409,9 +348,8 @@ export default function InstructorDashboard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
                   <p className="text-2xl font-bold">${formatNumber(instructorStats.totalRevenue)}</p>
-                  <p className="text-xs text-green-600 flex items-center">
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    +8% from last month
+                  <p className="text-xs text-muted-foreground">
+                    Revenue tracking coming soon
                   </p>
                 </div>
                 <DollarSign className="h-8 w-8 text-green-600" />
@@ -464,30 +402,13 @@ export default function InstructorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Revenue Overview</CardTitle>
-                  <CardDescription>Your monthly revenue for the last 6 months</CardDescription>
+                  <CardDescription>Track your course earnings</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-end justify-between h-32">
-                      {formattedRevenueData.map((item, index) => {
-                        const maxRevenue = Math.max(...formattedRevenueData.map(d => d.revenue), 1)
-                        return (
-                          <div key={index} className="flex flex-col items-center flex-1">
-                            <div 
-                              className="w-full bg-primary rounded-t"
-                              style={{ height: `${Math.max((item.revenue / maxRevenue) * 100, 2)}%` }}
-                            />
-                            <span className="text-xs mt-2">{item.month}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold">
-                        ${formatNumber(formattedRevenueData.length > 0 ? formattedRevenueData[formattedRevenueData.length - 1].revenue : 0)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Latest month</p>
-                    </div>
+                  <div className="text-center py-12">
+                    <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground mb-2">Revenue tracking coming soon</p>
+                    <p className="text-sm text-muted-foreground">Monitor your course sales and earnings</p>
                   </div>
                 </CardContent>
               </Card>
@@ -496,30 +417,13 @@ export default function InstructorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Student Engagement</CardTitle>
-                  <CardDescription>Daily active students this week</CardDescription>
+                  <CardDescription>Track student activity and participation</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-end justify-between h-32">
-                      {formattedEngagementData.map((item, index) => {
-                        const maxActive = Math.max(...formattedEngagementData.map(d => d.active), 1)
-                        return (
-                          <div key={index} className="flex flex-col items-center flex-1">
-                            <div 
-                              className="w-full bg-blue-600 rounded-t"
-                              style={{ height: `${Math.max((item.active / maxActive) * 100, 2)}%` }}
-                            />
-                            <span className="text-xs mt-2">{item.day}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold">
-                        {formattedEngagementData.reduce((sum, item) => sum + item.active, 0)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Total active students</p>
-                    </div>
+                  <div className="text-center py-12">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground mb-2">Engagement analytics coming soon</p>
+                    <p className="text-sm text-muted-foreground">See daily active students and participation rates</p>
                   </div>
                 </CardContent>
               </Card>
@@ -571,8 +475,18 @@ export default function InstructorDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => (
                 <Card key={course.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="aspect-video bg-muted flex items-center justify-center">
-                    <Play className="h-12 w-12 text-muted-foreground/50" />
+                  <div className="aspect-video bg-muted flex items-center justify-center overflow-hidden relative">
+                    {course.thumbnail ? (
+                      <Image 
+                        src={course.thumbnail} 
+                        alt={course.title}
+                        fill
+                        className="object-cover"
+                        unoptimized // Since images come from Django backend
+                      />
+                    ) : (
+                      <Play className="h-12 w-12 text-muted-foreground/50" />
+                    )}
                   </div>
                   <CardContent className="p-4">
                     <div className="space-y-3">

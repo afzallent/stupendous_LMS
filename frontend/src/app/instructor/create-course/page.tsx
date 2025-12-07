@@ -47,6 +47,7 @@ function CreateCoursePageContent() {
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
   const [uploadingVideos, setUploadingVideos] = useState<Record<string, boolean>>({})
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
+  const [categories, setCategories] = useState<any[]>([])
   const [courseData, setCourseData] = useState({
     title: "",
     subtitle: "",
@@ -70,6 +71,22 @@ function CreateCoursePageContent() {
       // Redirect to login if no user
       router.push('/auth/login')
     }
+
+    // Fetch categories from Django API
+    const fetchCategories = async () => {
+      try {
+        const categoriesData = await djangoApi.get<any[]>('/api/categories/')
+        setCategories(categoriesData)
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        toast({
+          title: "Warning",
+          description: "Failed to load categories. Using defaults.",
+          variant: "destructive"
+        })
+      }
+    }
+    fetchCategories()
   }, [])
 
   // Load existing course data when in edit mode
@@ -84,59 +101,49 @@ function CreateCoursePageContent() {
   const loadCourseData = async (courseId: string) => {
     try {
       setLoadingCourseData(true)
-      console.log('Fetching course data:', `/api/instructor/courses/${courseId}?instructorId=${user.id}`)
-      const response = await fetch(`/api/instructor/courses/${courseId}?instructorId=${user.id}`)
+      console.log('Fetching course data:', `/api/courses/${courseId}?instructorId=${user.id}`)
+      const course = await djangoApi.get<any>(`/api/courses/${courseId}`, { instructorId: user.id })
+      console.log('Course data received:', course)
       
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Course data received:', data)
-        const course = data.data
-        
-        // Update course data
-        setCourseData({
-          title: course.title || '',
-          subtitle: course.subtitle || '',
-          description: course.description || '',
-          category: course.category?.name || '',
-          level: course.level || '',
-          language: course.language || 'English',
-          price: course.price?.toString() || '',
-          thumbnail: null, // Will be handled separately
-          learningObjectives: course.learningObjectives || [''],
-          requirements: course.requirements || [''],
-          targetAudience: course.targetAudience || ''
-        })
-        
-        // Update chapters and lessons if available
-        if (course.chapters && course.chapters.length > 0) {
-          const formattedChapters = course.chapters.map((chapter: any, chapterIndex: number) => ({
-            id: chapter.id || (chapterIndex + 1).toString(),
-            title: chapter.title || '',
-            lessons: chapter.lessons?.map((lesson: any, lessonIndex: number) => ({
-              id: lesson.id || `${chapterIndex + 1}-${lessonIndex + 1}`,
-              title: lesson.title || '',
-              description: lesson.description || '',
-              videoFile: null,
-              videoUrl: lesson.videoUrl || '',
-              duration: lesson.duration?.toString() || '',
-              resources: lesson.resources || []
-            })) || [{
-              id: `${chapterIndex + 1}-1`,
-              title: '',
-              description: '',
-              videoFile: null,
-              videoUrl: '',
-              duration: '',
-              resources: []
-            }]
-          }))
-          setChapters(formattedChapters)
-        }
-      } else {
-        console.error('Failed to load course data:', response.status, response.statusText)
-        const errorData = await response.text()
-        console.error('Error details:', errorData)
-        alert('Failed to load course data. Please try again.')
+      // Update course data
+      setCourseData({
+        title: course.title || '',
+        subtitle: course.subtitle || '',
+        description: course.description || '',
+        category: course.category?.name || '',
+        level: course.level || '',
+        language: course.language || 'English',
+        price: course.price?.toString() || '',
+        thumbnail: null, // Will be handled separately
+        learningObjectives: course.learningObjectives || [''],
+        requirements: course.requirements || [''],
+        targetAudience: course.targetAudience || ''
+      })
+      
+      // Update chapters and lessons if available
+      if (course.chapters && course.chapters.length > 0) {
+        const formattedChapters = course.chapters.map((chapter: any, chapterIndex: number) => ({
+          id: chapter.id || (chapterIndex + 1).toString(),
+          title: chapter.title || '',
+          lessons: chapter.lessons?.map((lesson: any, lessonIndex: number) => ({
+            id: lesson.id || `${chapterIndex + 1}-${lessonIndex + 1}`,
+            title: lesson.title || '',
+            description: lesson.description || '',
+            videoFile: null,
+            videoUrl: lesson.videoUrl || '',
+            duration: lesson.duration?.toString() || '',
+            resources: lesson.resources || []
+          })) || [{
+            id: `${chapterIndex + 1}-1`,
+            title: '',
+            description: '',
+            videoFile: null,
+            videoUrl: '',
+            duration: '',
+            resources: []
+          }]
+        }))
+        setChapters(formattedChapters)
       }
     } catch (error) {
       console.error('Error loading course data:', error)
@@ -163,17 +170,6 @@ function CreateCoursePageContent() {
       ]
     }
   ])
-
-  const categories = [
-    "Web Development",
-    "Data Science", 
-    "Design",
-    "Business",
-    "Marketing",
-    "Photography",
-    "Music",
-    "Health & Fitness"
-  ]
 
   const levels = ["Beginner", "Intermediate", "Advanced"]
 
@@ -269,7 +265,7 @@ function CreateCoursePageContent() {
       formData.append('thumbnail', file)
 
       // Upload to Django backend
-      const result = await djangoApi.upload(`/api/courses/${courseId}/upload-thumbnail/`, formData)
+      const result = await djangoApi.upload(`/api/courses/${courseId}/upload_thumbnail/`, formData)
 
       setCourseData(prev => ({ ...prev, thumbnail: file }))
       toast({
@@ -324,7 +320,7 @@ function CreateCoursePageContent() {
         throw new Error('Lesson must be saved before uploading video')
       }
 
-      const result = await djangoApi.upload(`/api/lessons/${lesson.id}/upload-video/`, formData)
+      const result = await djangoApi.upload(`/api/lessons/${lesson.id}/upload_video/`, formData)
 
       // Update lesson with video file
       const updatedChapters = [...chapters]
@@ -356,40 +352,53 @@ function CreateCoursePageContent() {
 
     setIsLoading(true)
     try {
-      const draftData = {
-        id: courseId,
-        title: courseData.title,
-        subtitle: courseData.subtitle,
-        description: courseData.description,
-        category: courseData.category,
-        level: courseData.level.toUpperCase(),
-        language: courseData.language,
+      // Prepare course data matching Django model
+      // Map category name to ID
+      const selectedCategory = categories.find(c => c.name === courseData.category)
+      
+      const coursePayload = {
+        title: courseData.title || 'Untitled Course',
+        description: courseData.description || '',
+        category_id: selectedCategory?.id || null,
         price: parseFloat(courseData.price) || 0,
-        trainerId: user.id,
-        learningObjectives: courseData.learningObjectives.filter(obj => obj.trim()),
-        requirements: courseData.requirements.filter(req => req.trim()),
-        targetAudience: courseData.targetAudience,
-        chapters: chapters.map((chapter, chapterIndex) => ({
-          id: chapter.id,
-          title: chapter.title,
-          order: chapterIndex + 1,
-          lessons: chapter.lessons.map((lesson, lessonIndex) => ({
-            id: lesson.id,
-            title: lesson.title,
-            description: lesson.description,
-            order: lessonIndex + 1,
-            duration: lesson.duration ? parseInt(lesson.duration) : undefined,
-            videoUrl: lesson.videoFile ? undefined : lesson.videoUrl, // Handle file upload separately
-            content: lesson.description,
-            isPreview: false
-          }))
-        }))
+        status: "draft",
       }
 
-      // Create course in Django (no separate draft status in current Django model)
-      const result = await djangoApi.post('/api/courses/', draftData)
+      let course
+      if (courseId) {
+        // Update existing course
+        course = await djangoApi.put<any>(`/api/courses/${courseId}/`, coursePayload)
+      } else {
+        // Create new course (instructor is set automatically)
+        course = await djangoApi.post<any>('/api/courses/', coursePayload)
+        setCourseId(course.id)
+      }
 
-      setCourseId(result.id)
+      // Create or update lessons
+      let lessonOrder = 1
+      for (const chapter of chapters) {
+        for (const lesson of chapter.lessons) {
+          if (lesson.title) {
+            const lessonPayload = {
+              course: course.id,
+              title: lesson.title,
+              content: lesson.description || '',
+              order: lessonOrder++,
+            }
+            
+            if (lesson.id && typeof lesson.id === 'number') {
+              // Update existing lesson
+              await djangoApi.put(`/api/lessons/${lesson.id}/`, lessonPayload)
+            } else {
+              // Create new lesson
+              const createdLesson = await djangoApi.post<any>('/api/lessons/', lessonPayload)
+              // Update lesson ID in state for future updates
+              lesson.id = createdLesson.id.toString()
+            }
+          }
+        }
+      }
+
       toast({
         title: "Success",
         description: "Course saved successfully!"
@@ -421,35 +430,35 @@ function CreateCoursePageContent() {
 
     setIsLoading(true)
     try {
-      const publishData = {
+      // First, create or update the course
+      // Map category name to ID
+      const selectedCategory = categories.find(c => c.name === courseData.category)
+      
+      const coursePayload = {
         title: courseData.title,
-        subtitle: courseData.subtitle,
         description: courseData.description,
-        category: courseData.category,
-        level: courseData.level.toUpperCase(),
-        language: courseData.language,
+        category_id: selectedCategory?.id || null,
         price: parseFloat(courseData.price),
-        trainerId: user.id,
-        learningObjectives: courseData.learningObjectives.filter(obj => obj.trim()),
-        requirements: courseData.requirements.filter(req => req.trim()),
-        targetAudience: courseData.targetAudience,
-        status: "PUBLISHED",
-        chapters: chapters.map((chapter, chapterIndex) => ({
-          title: chapter.title,
-          order: chapterIndex + 1,
-          lessons: chapter.lessons.map((lesson, lessonIndex) => ({
-            title: lesson.title,
-            description: lesson.description,
-            order: lessonIndex + 1,
-            duration: lesson.duration ? parseInt(lesson.duration) : undefined,
-            content: lesson.description,
-            isPreview: false
-          }))
-        }))
+        status: "published",
       }
 
-      // Create course in Django
-      const result = await djangoApi.post('/api/courses/', publishData)
+      // Create course in Django (instructor is set automatically)
+      const course = await djangoApi.post<any>('/api/courses/', coursePayload)
+      
+      // Create lessons for the course
+      let lessonOrder = 1
+      for (const chapter of chapters) {
+        for (const lesson of chapter.lessons) {
+          if (lesson.title) {
+            await djangoApi.post('/api/lessons/', {
+              course: course.id,
+              title: lesson.title,
+              content: lesson.description || '',
+              order: lessonOrder++,
+            })
+          }
+        }
+      }
 
       toast({
         title: "Success",
@@ -619,11 +628,15 @@ function CreateCoursePageContent() {
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
+                          {categories.length > 0 ? (
+                            categories.map((category) => (
+                              <SelectItem key={category.id} value={category.name}>
+                                {category.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>

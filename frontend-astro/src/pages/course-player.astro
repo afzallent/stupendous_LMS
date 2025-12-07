@@ -1,20 +1,12 @@
 ---
+export const prerender = false;
+
 import Layout from '../layouts/Layout.astro';
 import Container from '../components/container.astro';
 import { Icon } from 'astro-icon/components';
-import CoursePlayerComponent from '../components/CoursePlayer';
 
-// Get course_id and other parameters from URL
+// Get course_id from URL
 const courseId = Astro.url.searchParams.get('course_id');
-const currentCourseSlug = Astro.url.searchParams.get('course');
-const courseTitle = Astro.url.searchParams.get('title');
-
-// Set up navigation links
-const backLinkHref = currentCourseSlug ? `/courses/${currentCourseSlug}` : '/courses';
-
-// Dynamic page title based on course info
-const displayCourseTitle = courseTitle || "Course Player";
-const pageTitle = `${displayCourseTitle} - CourseCompass LMS`;
 
 // Check if course_id is provided
 if (!courseId) {
@@ -22,33 +14,66 @@ if (!courseId) {
 }
 ---
 
-<Layout title={pageTitle}>
+<Layout title="Course Player - CourseCompass LMS">
   <Container>
-    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"> {/* Adjusted max-width for player focus */}
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
       
       <header class="mb-6 pb-4 border-b border-gray-200">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex justify-between items-center">
           <div>
-            <a href={backLinkHref} class="text-sm text-blue-600 hover:text-blue-800 flex items-center mb-2 sm:mb-0">
+            <a href={`/courses/${courseId}`} class="text-sm text-blue-600 hover:text-blue-800 flex items-center mb-2">
               <Icon name="mdi:arrow-left-circle-outline" class="w-5 h-5 mr-2" />
-              <span>{currentCourseSlug ? 'Back to Course Details' : 'Back to Courses'}</span>
+              Back to Course Details
             </a>
-            <h1 class="text-3xl font-bold text-gray-800 mt-1">
-              {displayCourseTitle}
-            </h1>
-            {/* You could add breadcrumbs here if CoursePlayerComponent signals current lesson/module */}
+            <h1 id="course-title" class="text-3xl font-bold text-gray-800">Loading...</h1>
           </div>
-          {/* Additional actions could go here, e.g., progress, settings */}
+          <div id="progress-indicator" class="text-sm text-gray-600">
+            <!-- Progress will be shown here -->
+          </div>
         </div>
       </header>
 
-      <main>
-        {/* The CoursePlayerComponent will render here. 
-            It should handle its own internal layout (e.g., video vs. lesson list).
-            The surrounding div provides a consistent card-like appearance.
-        */}
-        <div id="course-player-root" class="bg-gray-50 rounded-lg shadow-lg overflow-hidden min-h-[60vh]">
-          <CoursePlayerComponent client:only="react" courseId={courseId} />
+      <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Video Player Section -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <!-- Video Container -->
+            <div id="video-container" class="aspect-w-16 aspect-h-9 bg-gray-900">
+              <div class="flex items-center justify-center h-full">
+                <Icon name="mdi:loading" class="w-12 h-12 text-white animate-spin" />
+              </div>
+            </div>
+            
+            <!-- Lesson Info -->
+            <div class="p-6">
+              <h2 id="lesson-title" class="text-2xl font-bold text-gray-800 mb-2">Select a lesson</h2>
+              <div id="lesson-content" class="prose max-w-none text-gray-700">
+                <!-- Lesson content will be loaded here -->
+              </div>
+              
+              <div class="mt-6 flex gap-4">
+                <button id="mark-complete-btn" class="hidden px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                  Mark as Complete
+                </button>
+                <button id="next-lesson-btn" class="hidden px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                  Next Lesson
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Lessons Sidebar -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-lg shadow-lg p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Course Content</h3>
+            <div id="lessons-list" class="space-y-2">
+              <div class="text-center py-4">
+                <Icon name="mdi:loading" class="w-8 h-8 text-gray-400 animate-spin mx-auto" />
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -56,12 +81,200 @@ if (!courseId) {
   </Container>
 </Layout>
 
+<script>
+  import { djangoApi, API_ENDPOINTS, TokenManager } from '../config/django-api.config';
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const courseId = urlParams.get('course_id');
+  
+  let currentCourse = null;
+  let currentLesson = null;
+  let lessons = [];
+  
+  async function loadCourse() {
+    if (!courseId) return;
+    
+    const response = await djangoApi.get(API_ENDPOINTS.courses.withProgress(parseInt(courseId)));
+    
+    if (response.success) {
+      currentCourse = response.data || response;
+      lessons = currentCourse.lessons || [];
+      
+      document.getElementById('course-title').textContent = currentCourse.title;
+      document.getElementById('progress-indicator').textContent = 
+        `${currentCourse.completed_lessons || 0}/${currentCourse.total_lessons || 0} lessons completed`;
+      
+      renderLessonsList();
+      
+      // Load first incomplete lesson or first lesson
+      const firstIncomplete = lessons.find(l => !l.completed);
+      loadLesson(firstIncomplete || lessons[0]);
+    } else {
+      alert('Error loading course: ' + response.error);
+      window.location.href = '/courses';
+    }
+  }
+  
+  function renderLessonsList() {
+    const container = document.getElementById('lessons-list');
+    if (!container) return;
+    
+    container.innerHTML = lessons.map((lesson, index) => `
+      <div 
+        class="lesson-item p-3 border rounded-md cursor-pointer hover:bg-gray-50 ${lesson.completed ? 'bg-green-50 border-green-200' : ''}"
+        data-lesson-id="${lesson.id}"
+      >
+        <div class="flex items-center">
+          <div class="flex-shrink-0 w-8 h-8 ${lesson.completed ? 'bg-green-500' : 'bg-gray-200'} rounded-full flex items-center justify-center mr-3">
+            ${lesson.completed ? 
+              '<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>' :
+              `<span class="text-gray-600 font-semibold text-sm">${index + 1}</span>`
+            }
+          </div>
+          <div class="flex-1">
+            <h4 class="font-medium text-gray-900 text-sm">${lesson.title}</h4>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    
+    // Add click handlers
+    document.querySelectorAll('.lesson-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const lessonId = item.getAttribute('data-lesson-id');
+        const lesson = lessons.find(l => l.id == lessonId);
+        if (lesson) loadLesson(lesson);
+      });
+    });
+  }
+  
+  function loadLesson(lesson) {
+    if (!lesson) return;
+    
+    currentLesson = lesson;
+    
+    document.getElementById('lesson-title').textContent = lesson.title;
+    document.getElementById('lesson-content').innerHTML = lesson.content || '<p>No content available.</p>';
+    
+    // Load video
+    const videoContainer = document.getElementById('video-container');
+    if (lesson.video_url) {
+      // Handle YouTube URLs
+      if (lesson.video_url.includes('youtube.com') || lesson.video_url.includes('youtu.be')) {
+        const videoId = extractYouTubeId(lesson.video_url);
+        videoContainer.innerHTML = `
+          <iframe 
+            src="https://www.youtube.com/embed/${videoId}" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen
+            class="w-full h-full"
+          ></iframe>
+        `;
+      } else {
+        videoContainer.innerHTML = `
+          <video controls class="w-full h-full">
+            <source src="${lesson.video_url}" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        `;
+      }
+    } else {
+      videoContainer.innerHTML = `
+        <div class="flex items-center justify-center h-full">
+          <div class="text-center text-white">
+            <svg class="w-24 h-24 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/>
+            </svg>
+            <p>No video available for this lesson</p>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Show/hide buttons
+    const markCompleteBtn = document.getElementById('mark-complete-btn');
+    const nextLessonBtn = document.getElementById('next-lesson-btn');
+    
+    if (lesson.completed) {
+      markCompleteBtn.classList.add('hidden');
+    } else {
+      markCompleteBtn.classList.remove('hidden');
+    }
+    
+    const currentIndex = lessons.findIndex(l => l.id === lesson.id);
+    if (currentIndex < lessons.length - 1) {
+      nextLessonBtn.classList.remove('hidden');
+    } else {
+      nextLessonBtn.classList.add('hidden');
+    }
+  }
+  
+  function extractYouTubeId(url) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  }
+  
+  async function markComplete() {
+    if (!currentLesson) return;
+    
+    const btn = document.getElementById('mark-complete-btn');
+    btn.disabled = true;
+    btn.textContent = 'Marking...';
+    
+    const response = await djangoApi.post(API_ENDPOINTS.lessons.markComplete(currentLesson.id), {});
+    
+    if (response.success) {
+      currentLesson.completed = true;
+      currentLesson.completed_at = new Date().toISOString();
+      
+      // Update progress
+      if (currentCourse) {
+        currentCourse.completed_lessons = (currentCourse.completed_lessons || 0) + 1;
+        document.getElementById('progress-indicator').textContent = 
+          `${currentCourse.completed_lessons}/${currentCourse.total_lessons} lessons completed`;
+      }
+      
+      renderLessonsList();
+      btn.classList.add('hidden');
+      
+      alert('Lesson marked as complete!');
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Mark as Complete';
+      alert('Error: ' + response.error);
+    }
+  }
+  
+  function nextLesson() {
+    const currentIndex = lessons.findIndex(l => l.id === currentLesson.id);
+    if (currentIndex < lessons.length - 1) {
+      loadLesson(lessons[currentIndex + 1]);
+    }
+  }
+  
+  // Event listeners
+  document.getElementById('mark-complete-btn')?.addEventListener('click', markComplete);
+  document.getElementById('next-lesson-btn')?.addEventListener('click', nextLesson);
+  
+  // Load course on page load
+  loadCourse();
+</script>
+
 <style>
-  #course-player-root {
+  .aspect-w-16 {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  }
+  
+  .aspect-w-16 > * {
+    position: absolute;
+    height: 100%;
     width: 100%;
-    /* min-height: 60vh; /* Ensures the player area has a decent default height. */
-    /* The React component should dictate its actual height and internal scrolling. */
-    /* Consider adding specific styling if the React component needs a particular environment,
-       e.g., display: flex; flex-direction: column; if it has distinct header/content/footer sections. */
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
   }
 </style> 

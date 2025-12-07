@@ -7,7 +7,7 @@ class CertificateAdmin(admin.ModelAdmin):
     list_display = ['certificate_id', 'student_name', 'course_title', 'issued_at', 'is_valid']
     list_filter = ['is_valid', 'issued_at']
     search_fields = ['student_name', 'course_title', 'certificate_id']
-    readonly_fields = ['certificate_id', 'issued_at']
+    readonly_fields = ['certificate_id', 'issued_at', 'completion_date']
     
     fieldsets = (
         ('Certificate Information', {

@@ -1,0 +1,132 @@
+---
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Registration - CourseCompass LMS</title>
+</head>
+<body class="bg-gray-50">
+  <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+      <div>
+        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Create Student Account
+        </h2>
+        <p class="mt-2 text-center text-sm text-gray-600">
+          Already have an account?
+          <a href="/login/student" class="font-medium text-blue-600 hover:text-blue-500">
+            Sign in
+          </a>
+        </p>
+      </div>
+      
+      <form id="register-form" class="mt-8 space-y-6 bg-white p-8 rounded-lg shadow">
+        <div id="error-message" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"></div>
+        
+        <div class="space-y-4">
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+            <input id="username" name="username" type="text" required 
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+            <input id="email" name="email" type="email" required 
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <input id="password" name="password" type="password" required 
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+            <p class="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
+          </div>
+          
+          <div>
+            <label for="confirm-password" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <input id="confirm-password" name="confirm-password" type="password" required 
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+        </div>
+        
+        <button type="submit" id="submit-btn"
+          class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+          Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    import { djangoApi, API_ENDPOINTS, TokenManager } from '../../config/django-api.config';
+    
+    const form = document.getElementById('register-form');
+    const errorMessage = document.getElementById('error-message');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(form);
+      const password = formData.get('password');
+      const confirmPassword = formData.get('confirm-password');
+      
+      // Validate passwords match
+      if (password !== confirmPassword) {
+        showError('Passwords do not match');
+        return;
+      }
+      
+      // Disable submit button
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating account...';
+      
+      try {
+        const response = await djangoApi.post(API_ENDPOINTS.auth.register, {
+          username: formData.get('username'),
+          email: formData.get('email'),
+          password: password,
+          is_student: true,
+          is_instructor: false
+        });
+        
+        if (response.success) {
+          // Store tokens
+          if (response.access) {
+            TokenManager.setAccessToken(response.access);
+          }
+          if (response.refresh) {
+            TokenManager.setRefreshToken(response.refresh);
+          }
+          if (response.user) {
+            TokenManager.setUser(response.user);
+          }
+          
+          // Redirect to dashboard
+          window.location.href = '/dashboard/student';
+        } else {
+          showError(response.error || 'Registration failed');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Account';
+        }
+      } catch (error) {
+        showError('An error occurred. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account';
+      }
+    });
+    
+    function showError(message) {
+      if (errorMessage) {
+        errorMessage.textContent = message;
+        errorMessage.classList.remove('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
