@@ -25,7 +25,7 @@ $djangoJob = Start-Job -ScriptBlock {
 Start-Sleep -Seconds 3
 
 # Start Next.js frontend
-Write-Host "Starting Next.js frontend server (port 3000)..." -ForegroundColor Green
+Write-Host "Starting Next.js frontend server (port 4000)..." -ForegroundColor Green
 $nextJob = Start-Job -ScriptBlock {
     Set-Location $using:ScriptDir
     Set-Location "frontend"
@@ -36,7 +36,7 @@ Write-Host ""
 Write-Host "Servers started successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Server URLs:" -ForegroundColor Cyan
-Write-Host "   - Frontend: http://localhost:3000" -ForegroundColor White
+Write-Host "   - Frontend: http://localhost:4000" -ForegroundColor White
 Write-Host "   - Backend:  http://localhost:8000" -ForegroundColor White
 Write-Host "   - Admin:    http://localhost:8000/admin" -ForegroundColor White
 Write-Host ""

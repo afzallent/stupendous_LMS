@@ -142,15 +142,16 @@ function AuthPageContent() {
       } else {
         toast({
           title: "Login Failed",
-          description: "Invalid email or password",
+          description: "Invalid email or password. Please check your credentials and try again.",
           variant: "destructive"
         })
       }
     } catch (error) {
-      console.error('Login error:', error)
+      const errorMsg = error instanceof Error ? error.message : 'An unexpected error occurred'
+      console.error('Login error:', errorMsg, error)
       toast({
         title: "Login Failed",
-        description: "An unexpected error occurred",
+        description: errorMsg,
         variant: "destructive"
       })
     } finally {

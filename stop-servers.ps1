@@ -54,20 +54,39 @@ if ($allJobs) {
 Write-Host "Checking for processes on ports 3000 and 8000..." -ForegroundColor Yellow
 
 # Kill process on port 3000 (Next.js)
-$nextProcess = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
-if ($nextProcess) {
-    Write-Host "Killing Next.js process (PID: $nextProcess)..." -ForegroundColor Yellow
-    Stop-Process -Id $nextProcess -Force -ErrorAction SilentlyContinue
-    $stoppedCount++
+try {
+    $nextProcess = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+    if ($nextProcess) {
+        Write-Host "Killing Next.js process (PID: $nextProcess)..." -ForegroundColor Yellow
+        Stop-Process -Id $nextProcess -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+        # Use taskkill as fallback
+        taskkill /PID $nextProcess /F /T 2>$null
+        $stoppedCount++
+    }
+} catch {
+    Write-Host "Error killing Next.js process: $_" -ForegroundColor Yellow
 }
 
 # Kill process on port 8000 (Django)
-$djangoProcess = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
-if ($djangoProcess) {
-    Write-Host "Killing Django process (PID: $djangoProcess)..." -ForegroundColor Yellow
-    Stop-Process -Id $djangoProcess -Force -ErrorAction SilentlyContinue
-    $stoppedCount++
+try {
+    $djangoProcess = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+    if ($djangoProcess) {
+        Write-Host "Killing Django process (PID: $djangoProcess)..." -ForegroundColor Yellow
+        Stop-Process -Id $djangoProcess -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+        # Use taskkill as fallback
+        taskkill /PID $djangoProcess /F /T 2>$null
+        $stoppedCount++
+    }
+} catch {
+    Write-Host "Error killing Django process: $_" -ForegroundColor Yellow
 }
+
+# Kill any node processes (Next.js)
+Write-Host "Killing any remaining node processes..." -ForegroundColor Yellow
+taskkill /IM node.exe /F /T 2>$null
+$stoppedCount++
 
 Write-Host ""
 if ($stoppedCount -gt 0) {

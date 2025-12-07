@@ -36,9 +36,20 @@ def custom_exception_handler(exc, context):
             }
     elif response.status_code == status.HTTP_401_UNAUTHORIZED:
         # Authentication errors
+        detail = 'Authentication failed.'
+        
+        # Handle different error formats
+        if isinstance(response.data, dict):
+            if 'detail' in response.data:
+                detail = response.data['detail']
+            elif 'non_field_errors' in response.data:
+                detail = response.data['non_field_errors'][0] if response.data['non_field_errors'] else detail
+        elif isinstance(response.data, list) and len(response.data) > 0:
+            detail = str(response.data[0])
+        
         response.data = {
             'error': 'Authentication Error',
-            'detail': response.data.get('detail', 'Authentication failed.')
+            'detail': detail
         }
     elif response.status_code == status.HTTP_403_FORBIDDEN:
         # Authorization errors

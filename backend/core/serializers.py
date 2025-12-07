@@ -133,22 +133,35 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         username = attrs.get('username')
         password = attrs.get('password')
         
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔐 Login attempt: username={username}")
+        
         # Try to find user by username first, then by email
+        user = None
         try:
             user = User.objects.get(username=username)
+            logger.info(f"✅ Found user by username: {user.username}")
         except User.DoesNotExist:
+            logger.info(f"❌ User not found by username, trying email...")
             try:
                 user = User.objects.get(email=username)
+                logger.info(f"✅ Found user by email: {user.username}")
             except User.DoesNotExist:
+                logger.error(f"❌ User not found by username or email: {username}")
                 raise serializers.ValidationError('Invalid credentials')
         
         # Verify password
         if not user.check_password(password):
+            logger.error(f"❌ Invalid password for user: {user.username}")
             raise serializers.ValidationError('Invalid credentials')
         
         # Check if user is active
         if not user.is_active:
+            logger.error(f"❌ User account disabled: {user.username}")
             raise serializers.ValidationError('User account is disabled')
+        
+        logger.info(f"✅ Login successful for user: {user.username}")
         
         # Generate tokens
         refresh = self.get_token(user)

@@ -1,11 +1,8 @@
 ﻿---
 export const prerender = false;
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
-import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
 ---
-export const prerender = false;
 
-<ClerkProviderWrapper>
 <DashboardLayout title="Student Settings - CourseCompass LMS" userType="student">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800">Student Settings</h1>
@@ -90,6 +87,37 @@ export const prerender = false;
     </form>
   </div>
 </DashboardLayout>
-</ClerkProviderWrapper>
+
+<script>
+  import { djangoApi, API_ENDPOINTS, TokenManager } from '../../../config/django-api.config';
+  
+  // Load user data
+  async function loadUserData() {
+    const response = await djangoApi.get(API_ENDPOINTS.user.me);
+    if (response.success) {
+      const user = response.data || response;
+      document.getElementById('firstName').value = user.first_name || '';
+      document.getElementById('lastName').value = user.last_name || '';
+      document.getElementById('email').value = user.email || '';
+      document.getElementById('phone').value = user.phone || '';
+    }
+  }
+  
+  // Handle form submission
+  document.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    const response = await djangoApi.patch(API_ENDPOINTS.user.me, data);
+    if (response.success) {
+      alert('Settings saved successfully!');
+    } else {
+      alert('Error: ' + response.error);
+    }
+  });
+  
+  loadUserData();
+</script>
 
 
