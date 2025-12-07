@@ -1,0 +1,38 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import AssessmentEditor from '../../../../../components/AssessmentEditor';
+import { Icon } from 'astro-icon/components';
+
+// Set this to false since we want server-side rendering for dynamic assessment IDs
+export const prerender = false;
+
+const { id } = Astro.params;
+const pageTitle = `Edit Assessment (ID: ${id})`; // Dynamic title
+
+// Redirect to assessments list if no ID is provided (though Astro's routing might handle missing [id] differently)
+if (!id) {
+  return Astro.redirect('/dashboard/trainer/assessments');
+}
+---
+
+<DashboardLayout title={pageTitle + " - CourseCompass LMS"} userType="trainer">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">{pageTitle}</h1>
+    <a href="/dashboard/trainer/assessments" class="text-blue-600 hover:text-blue-800 flex items-center text-sm">
+      <Icon name="mdi:arrow-left" class="w-4 h-4 mr-1" />
+      Back to Assessments
+    </a>
+  </div>
+  
+  <div class="bg-white shadow rounded-lg p-6 md:p-8">
+    <p class="text-gray-600 mb-4">Modify the details and questions for this assessment.</p>
+    <AssessmentEditor client:load assessmentId={id} />
+    {/* 
+      The AssessmentEditor component is expected to handle:
+      - Loading assessment data based on assessmentId.
+      - Form fields for assessment title, description, associated course, etc.
+      - UI for adding, editing, and removing questions (various types).
+      - "Save Changes" button logic.
+    */}
+  </div>
+</DashboardLayout>

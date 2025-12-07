@@ -1,0 +1,28 @@
+---
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import AssessmentList from '../../../../components/AssessmentList';
+import { Icon } from 'astro-icon/components';
+---
+
+<DashboardLayout title="Assessments - Trainer - CourseCompass LMS" userType="trainer">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Manage Assessments</h1>
+    <a href="/dashboard/trainer/assessments/new" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+      <Icon name="mdi:plus" class="w-5 h-5 mr-2" />
+      Create New Assessment
+    </a>
+  </div>
+  
+  <div class="bg-white shadow rounded-lg p-6 md:p-8">
+    <p class="text-gray-600 mb-4">View, edit, or create new assessments for your courses.</p>
+    <AssessmentList client:load />
+    {/* 
+      The AssessmentList component is expected to handle:
+      - Displaying a list of existing assessments.
+      - Links to edit individual assessments (e.g., to /dashboard/trainer/assessments/[assessmentId]/edit which could use AssessmentCreator).
+      - Displaying status, number of questions, associated course, etc.
+    */}
+  </div>
+</DashboardLayout>
+
+

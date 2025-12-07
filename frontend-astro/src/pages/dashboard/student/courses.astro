@@ -1,0 +1,192 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { Icon } from 'astro-icon/components';
+import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
+
+export const prerender = false;
+
+// Authentication is handled by middleware
+// Fetch courses from backend API
+let courses = [];
+const API_URL = import.meta.env.PUBLIC_API_URL;
+if (!API_URL) {
+  throw new Error('PUBLIC_API_URL environment variable is not set');
+}
+try {
+  const response = await fetch(`${API_URL}/courses.php`);
+  if (response.ok) {
+    const data = await response.json();
+    // Handle standardized API response format
+    if (data.success === true && data.data) {
+      courses = Array.isArray(data.data) ? data.data : [];
+    } else {
+      // Fallback for direct array response
+      courses = Array.isArray(data) ? data : [];
+    }
+  }
+} catch (error) {
+  console.error('Error fetching courses from API:', error);
+}
+---
+
+<ClerkProviderWrapper>
+<DashboardLayout title="My Courses - CourseCompass LMS" userType="student">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">My Courses</h1>
+    <p class="text-gray-600">Manage and track your enrolled courses</p>
+  </div>
+  
+  <!-- Course Filters -->
+  <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+      <div class="flex items-center">
+        <div class="relative">
+          <input 
+            type="text" 
+            placeholder="Search courses..." 
+            class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64"
+          />
+          <div class="absolute left-3 top-2.5">
+            <Icon name="mdi:magnify" class="w-5 h-5 text-gray-400" />
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex flex-wrap gap-2">
+        <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+          <span>All</span>
+        </button>
+        <button class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center">
+          <span>In Progress</span>
+        </button>
+        <button class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center">
+          <span>Completed</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Course List -->
+  <div class="space-y-6">
+    <!-- Course Item 1 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="flex flex-col md:flex-row">
+        <div class="w-full md:w-64 h-48 bg-gray-200">
+          <!-- Course Thumbnail Placeholder -->
+          <div class="w-full h-full flex items-center justify-center bg-gray-300">
+            <span class="text-gray-600">Course Thumbnail</span>
+          </div>
+        </div>
+        
+        <div class="flex-1 p-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 class="text-xl font-bold">Introduction to Web Development</h3>
+              <p class="text-gray-600 mb-2">Learn the fundamentals of HTML, CSS, and JavaScript</p>
+              <div class="flex items-center text-sm text-gray-500 mb-4">
+                <Icon name="mdi:clock" class="w-4 h-4 mr-1" />
+                <span>15 modules • 10 hours</span>
+              </div>
+            </div>
+            
+            <div class="flex flex-col items-start md:items-end">
+              <div class="mb-2 w-full md:w-48">
+                <div class="flex items-center">
+                  <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: 65%"></div>
+                  </div>
+                  <span class="ml-2 text-sm text-gray-600">65%</span>
+                </div>
+              </div>
+              <a href="/course-player" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Continue Learning
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Course Item 2 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="flex flex-col md:flex-row">
+        <div class="w-full md:w-64 h-48 bg-gray-200">
+          <!-- Course Thumbnail Placeholder -->
+          <div class="w-full h-full flex items-center justify-center bg-gray-300">
+            <span class="text-gray-600">Course Thumbnail</span>
+          </div>
+        </div>
+        
+        <div class="flex-1 p-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 class="text-xl font-bold">Advanced JavaScript</h3>
+              <p class="text-gray-600 mb-2">Master advanced JavaScript concepts and patterns</p>
+              <div class="flex items-center text-sm text-gray-500 mb-4">
+                <Icon name="mdi:clock" class="w-4 h-4 mr-1" />
+                <span>12 modules • 8 hours</span>
+              </div>
+            </div>
+            
+            <div class="flex flex-col items-start md:items-end">
+              <div class="mb-2 w-full md:w-48">
+                <div class="flex items-center">
+                  <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: 20%"></div>
+                  </div>
+                  <span class="ml-2 text-sm text-gray-600">20%</span>
+                </div>
+              </div>
+              <a href="/course-player" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Continue Learning
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Course Item 3 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="flex flex-col md:flex-row">
+        <div class="w-full md:w-64 h-48 bg-gray-200">
+          <!-- Course Thumbnail Placeholder -->
+          <div class="w-full h-full flex items-center justify-center bg-gray-300">
+            <span class="text-gray-600">Course Thumbnail</span>
+          </div>
+        </div>
+        
+        <div class="flex-1 p-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 class="text-xl font-bold">Responsive Design with Tailwind CSS</h3>
+              <p class="text-gray-600 mb-2">Learn to build responsive interfaces with Tailwind CSS</p>
+              <div class="flex items-center text-sm text-gray-500 mb-4">
+                <Icon name="mdi:clock" class="w-4 h-4 mr-1" />
+                <span>8 modules • 5 hours</span>
+              </div>
+            </div>
+            
+            <div class="flex flex-col items-start md:items-end">
+              <div class="mb-2 w-full md:w-48">
+                <div class="flex items-center">
+                  <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: 100%"></div>
+                  </div>
+                  <span class="ml-2 text-sm text-gray-600">100%</span>
+                </div>
+              </div>
+              <a href="/dashboard/student/certificates/1" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                View Certificate
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+</ClerkProviderWrapper>
+
+
+

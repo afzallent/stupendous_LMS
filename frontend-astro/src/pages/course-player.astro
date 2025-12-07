@@ -1,0 +1,67 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Container from '../components/container.astro';
+import { Icon } from 'astro-icon/components';
+import CoursePlayerComponent from '../components/CoursePlayer';
+
+// Get course_id and other parameters from URL
+const courseId = Astro.url.searchParams.get('course_id');
+const currentCourseSlug = Astro.url.searchParams.get('course');
+const courseTitle = Astro.url.searchParams.get('title');
+
+// Set up navigation links
+const backLinkHref = currentCourseSlug ? `/courses/${currentCourseSlug}` : '/courses';
+
+// Dynamic page title based on course info
+const displayCourseTitle = courseTitle || "Course Player";
+const pageTitle = `${displayCourseTitle} - CourseCompass LMS`;
+
+// Check if course_id is provided
+if (!courseId) {
+  return Astro.redirect('/courses?error=no-course-id');
+}
+---
+
+<Layout title={pageTitle}>
+  <Container>
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"> {/* Adjusted max-width for player focus */}
+      
+      <header class="mb-6 pb-4 border-b border-gray-200">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <a href={backLinkHref} class="text-sm text-blue-600 hover:text-blue-800 flex items-center mb-2 sm:mb-0">
+              <Icon name="mdi:arrow-left-circle-outline" class="w-5 h-5 mr-2" />
+              <span>{currentCourseSlug ? 'Back to Course Details' : 'Back to Courses'}</span>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-800 mt-1">
+              {displayCourseTitle}
+            </h1>
+            {/* You could add breadcrumbs here if CoursePlayerComponent signals current lesson/module */}
+          </div>
+          {/* Additional actions could go here, e.g., progress, settings */}
+        </div>
+      </header>
+
+      <main>
+        {/* The CoursePlayerComponent will render here. 
+            It should handle its own internal layout (e.g., video vs. lesson list).
+            The surrounding div provides a consistent card-like appearance.
+        */}
+        <div id="course-player-root" class="bg-gray-50 rounded-lg shadow-lg overflow-hidden min-h-[60vh]">
+          <CoursePlayerComponent client:only="react" courseId={courseId} />
+        </div>
+      </main>
+
+    </div>
+  </Container>
+</Layout>
+
+<style>
+  #course-player-root {
+    width: 100%;
+    /* min-height: 60vh; /* Ensures the player area has a decent default height. */
+    /* The React component should dictate its actual height and internal scrolling. */
+    /* Consider adding specific styling if the React component needs a particular environment,
+       e.g., display: flex; flex-direction: column; if it has distinct header/content/footer sections. */
+  }
+</style> 

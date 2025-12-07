@@ -1,0 +1,231 @@
+---
+import Layout from './Layout.astro';
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  title: string;
+  userType: 'student' | 'trainer';
+}
+
+const { title, userType } = Astro.props;
+---
+
+<Layout title={title}>
+  <div class="min-h-screen bg-gray-100">
+    <!-- Sidebar -->
+    <aside class="fixed inset-y-0 left-0 bg-white w-64 shadow-md z-10 hidden md:block">
+      <div class="flex flex-col h-full">
+        <div class="p-4 border-b">
+          <h2 class="text-xl font-bold text-blue-600">CourseCompass</h2>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-1">
+          {userType === 'student' && (
+            <!-- Student Navigation -->
+            <div>
+              <a href="/dashboard/student" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:home" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Dashboard</span>
+              </a>
+              <a href="/dashboard/student/courses" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:book" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>My Courses</span>
+              </a>
+              <a href="/courses" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:view-grid" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Browse Courses</span>
+              </a>
+              <a href="/dashboard/student/assessments" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:clipboard-text-clock-outline" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>My Assessments</span>
+              </a>
+              <a href="/dashboard/student/certificates" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:certificate" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Certificates</span>
+              </a>
+              <a href="/dashboard/student/settings" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:cog" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Settings</span>
+              </a>
+            </div>
+          )}
+          
+          {userType === 'trainer' && (
+            <!-- Trainer Navigation -->
+            <div>
+            <a href="/dashboard/trainer" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:view-dashboard" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Dashboard</span>
+            </a>
+            <a href="/dashboard/trainer/courses" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:book-open-variant" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Manage Courses</span>
+            </a>
+            <a href="/dashboard/trainer/students" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:account-group" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Manage Students</span>
+            </a>
+            <a href="/dashboard/trainer/assessments" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:clipboard-check" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Manage Assessments</span>
+            </a>
+            <a href="/dashboard/trainer/analytics" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:chart-bar" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Analytics</span>
+            </a>
+            <a href="/dashboard/trainer/discussions" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:forum-outline" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Discussions</span>
+            </a>
+            <a href="/dashboard/trainer/settings" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:cog" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Settings</span>
+            </a>
+          </div>
+          )}
+        </nav>
+        
+        <div class="p-4 border-t">
+          <div class="flex items-center mb-3">
+            <div class="w-10 h-10 bg-gray-300 rounded-full mr-3"></div>
+            <div class="flex-1">
+              <p class="text-sm font-medium">{userType === 'student' ? 'Student' : 'Trainer'}</p>
+              <p class="text-xs text-gray-500">user@example.com</p>
+            </div>
+          </div>
+          <a href="/logout" class="flex items-center p-2 rounded-md hover:bg-gray-100 text-red-600">
+            <Icon name="mdi:logout" class="w-5 h-5 mr-3" />
+            <span>Sign Out</span>
+          </a>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Mobile Header -->
+    <div class="md:hidden bg-white shadow-md p-4 flex items-center justify-between">
+      <h2 class="text-xl font-bold text-blue-600">CourseCompass</h2>
+      <button id="menu-button" class="p-2">
+        <Icon name="mdi:menu" class="w-6 h-6" />
+      </button>
+    </div>
+    
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="fixed inset-0 bg-gray-800 bg-opacity-75 z-20 hidden">
+      <div class="bg-white w-64 min-h-screen overflow-y-auto">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h2 class="text-xl font-bold text-blue-600">CourseCompass</h2>
+          <button id="close-menu" class="p-2">
+            <Icon name="mdi:close" class="w-6 h-6" />
+          </button>
+        </div>
+        
+        <nav class="p-4 space-y-1">
+          {userType === 'student' && (
+            <!-- Student Navigation -->
+            <div>
+              <a href="/dashboard/student" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:home" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Dashboard</span>
+              </a>
+              <a href="/dashboard/student/courses" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:book" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>My Courses</span>
+              </a>
+              <a href="/courses" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:view-grid" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Browse Courses</span>
+              </a>
+              <a href="/dashboard/student/assessments" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:clipboard-text-clock-outline" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>My Assessments</span>
+              </a>
+              <a href="/dashboard/student/certificates" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:certificate" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Certificates</span>
+              </a>
+              <a href="/dashboard/student/settings" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+                <Icon name="mdi:cog" class="w-5 h-5 mr-3 text-gray-500" />
+                <span>Settings</span>
+              </a>
+            </div>
+          )}
+          
+          {userType === 'trainer' && (
+            <!-- Trainer Navigation -->
+            <div>
+            <a href="/dashboard/trainer" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:view-dashboard" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Dashboard</span>
+            </a>
+            <a href="/dashboard/trainer/courses" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:book-open-variant" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Manage Courses</span>
+            </a>
+            <a href="/dashboard/trainer/students" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:account-group" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Manage Students</span>
+            </a>
+            <a href="/dashboard/trainer/assessments" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:clipboard-check" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Manage Assessments</span>
+            </a>
+            <a href="/dashboard/trainer/analytics" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:chart-bar" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Analytics</span>
+            </a>
+            <a href="/dashboard/trainer/discussions" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:forum-outline" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Discussions</span>
+            </a>
+            <a href="/dashboard/trainer/settings" class="flex items-center p-2 rounded-md hover:bg-gray-100">
+              <Icon name="mdi:cog" class="w-5 h-5 mr-3 text-gray-500" />
+              <span>Settings</span>
+            </a>
+          </div>
+          )}
+        </nav>
+        <div class="p-4 border-t">
+          <div class="flex items-center mb-3">
+            <div class="w-10 h-10 bg-gray-300 rounded-full mr-3"></div>
+            <div class="flex-1">
+              <p class="text-sm font-medium">{userType === 'student' ? 'Student' : 'Trainer'}</p>
+              <p class="text-xs text-gray-500">user@example.com</p>
+            </div>
+          </div>
+          <a href="/logout" class="flex items-center p-2 rounded-md hover:bg-gray-100 text-red-600">
+            <Icon name="mdi:logout" class="w-5 h-5 mr-3" />
+            <span>Sign Out</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Content -->
+    <main class="md:ml-64 min-h-screen pt-4 md:pt-0">
+      <div class="max-w-7xl mx-auto px-4 py-6">
+        <slot />
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<style>
+  /* Component-specific styles can be added here if needed */
+</style>
+
+<script>
+  // Mobile menu toggle
+  document.addEventListener('DOMContentLoaded', () => {
+    const menuButton = document.getElementById('menu-button');
+    const closeButton = document.getElementById('close-menu');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    menuButton?.addEventListener('click', () => {
+      mobileMenu?.classList.remove('hidden');
+    });
+      
+    closeButton?.addEventListener('click', () => {
+      mobileMenu?.classList.add('hidden');
+    });
+  });
+</script>

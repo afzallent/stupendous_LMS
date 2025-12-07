@@ -1,0 +1,91 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Container from '../components/container.astro';
+import { Icon } from 'astro-icon/components';
+
+const title = "Checkout - CourseCompass LMS";
+---
+<Layout title={title}>
+  <Container>
+    <div class="max-w-2xl mx-auto py-12">
+      <h1 class="text-3xl font-bold mb-8">Checkout</h1>
+      <div id="checkoutContent" class="bg-white rounded-lg shadow-md p-8">
+        <div id="cartSummarySection">
+          <h2 class="text-xl font-bold mb-4">Order Summary</h2>
+          <div id="cartItems"></div>
+          <div class="flex justify-between mt-6 border-t pt-4 font-bold text-lg">
+            <span>Total</span>
+            <span id="total">$0.00</span>
+          </div>
+          <button id="payNow" class="w-full mt-8 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-lg">
+            Pay Now
+          </button>
+        </div>
+        <div id="successSection" class="hidden text-center">
+          <Icon name="mdi:check-circle" class="w-16 h-16 mx-auto text-green-500 mb-4" />
+          <h2 class="text-2xl font-bold mb-2">Payment Successful!</h2>
+          <p class="mb-6">Thank you for your purchase. You can now access your courses in your dashboard.</p>
+          <a href="/dashboard/student" class="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">Go to Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<script is:inline>
+document.addEventListener('DOMContentLoaded', function() {
+  const cartItemsElement = document.getElementById('cartItems');
+  const totalElement = document.getElementById('total');
+  const payNowButton = document.getElementById('payNow');
+  const cartSummarySection = document.getElementById('cartSummarySection');
+  const successSection = document.getElementById('successSection');
+
+  function loadCart() {
+    let cart = [];
+    let total = 0;
+    try {
+      const cartData = localStorage.getItem('courseCart');
+      if (cartData) cart = JSON.parse(cartData);
+    } catch (e) { cart = []; }
+
+    if (!cart || cart.length === 0) {
+      cartItemsElement.innerHTML = '<div class="text-gray-500 mb-4">Your cart is empty.</div>';
+      totalElement.textContent = '$0.00';
+      payNowButton.disabled = true;
+      payNowButton.classList.add('opacity-50', 'cursor-not-allowed');
+      return;
+    }
+
+    cartItemsElement.innerHTML = '';
+    cart.forEach(function(item) {
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between py-2 border-b';
+      div.innerHTML = `
+        <div>
+          <span class="font-medium">${item.title}</span>
+        </div>
+        <div>
+          <span>$${item.price.toFixed(2)}</span>
+        </div>
+      `;
+      cartItemsElement.appendChild(div);
+      total += item.price;
+    });
+    totalElement.textContent = '$' + total.toFixed(2);
+    payNowButton.disabled = false;
+    payNowButton.classList.remove('opacity-50', 'cursor-not-allowed');
+  }
+
+  payNowButton.addEventListener('click', function() {
+    // Simulate payment
+    localStorage.removeItem('courseCart');
+    cartSummarySection.classList.add('hidden');
+    successSection.classList.remove('hidden');
+  });
+
+  loadCart();
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'courseCart') loadCart();
+  });
+});
+</script>

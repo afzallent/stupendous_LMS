@@ -1,0 +1,35 @@
+# build output
+dist/
+.output/
+.astro
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+pnpm-debug.log*
+
+
+# environment variables
+.env
+.env.production
+
+# Gemini related files
+GEMINI.md
+GEMINI.md.txt
+alter_trainers_table.sql
+alter_trainers_table_temp.sql
+backend/api/check_trainers_schema.php
+backend/api/execute_sql.php
+drop_trainers_table_temp.sql
+install_gd.sh
+public/uploads/
+
+
+# macOS-specific files
+.DS_Store
+public/data/json_csv_converter.py
+public/data/output.csv
+public/data/output.json
+yarn.lock

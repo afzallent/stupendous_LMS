@@ -1,0 +1,63 @@
+---
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Courses API</title>
+</head>
+<body>
+    <h1>Debug Courses API</h1>
+    <div id="debug-output"></div>
+    <button onclick="testAPI()">Test API</button>
+    
+    <script src="/src/utils/api-client.js"></script>
+    <script>
+        // API configuration is loaded from api-client.js
+        
+        async function testAPI() {
+            const output = document.getElementById('debug-output');
+            output.innerHTML = '<p>Testing API...</p>';
+            
+            try {
+                console.log('Fetching from:', window.getApiUrl(window.API_ENDPOINTS.courses));
+                
+                const result = await window.apiCall(window.API_ENDPOINTS.courses, {
+                    method: 'GET'
+                });
+                
+                console.log('API Result:', result);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'API request failed');
+                }
+                
+                const data = result.data || [];
+                console.log('Response data:', data);
+                
+                output.innerHTML = `
+                    <h2>API Response</h2>
+                    <p><strong>Success:</strong> ${result.success}</p>
+                    <p><strong>Data:</strong></p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('API Error:', error);
+                output.innerHTML = `
+                    <h2>API Error</h2>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Stack:</strong></p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        }
+        
+        // Auto-test on load
+        document.addEventListener('DOMContentLoaded', () => {
+            testAPI();
+        });
+    </script>
+</body>
+</html>

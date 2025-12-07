@@ -1,0 +1,68 @@
+---
+import Container from "@components/container.astro";
+import Sectionhead from "@components/sectionhead.astro";
+import Layout from "@layouts/Layout.astro";
+import BookingForm from "@components/bookingform.astro";
+import { Icon } from "astro-icon/components";
+---
+
+<Layout title="Book a Training Session">
+  <Container>
+    <Sectionhead>
+      <Fragment slot="title">Book a Training Session</Fragment>
+      <Fragment slot="desc">Schedule a custom training program for your institution or join one of our upcoming online sessions.</Fragment>
+    </Sectionhead>
+
+    <div class="grid md:grid-cols-2 gap-10 mx-auto max-w-4xl mt-16">
+      <div>
+        <h2 class="font-medium text-2xl text-gray-800">Why Book With Us</h2>
+        <div class="mt-5 space-y-6">
+          <div class="flex items-start gap-4">
+            <Icon class="w-6 h-6 text-blue-600" name="bx:bxs-user-check" />
+            <div>
+              <h3 class="font-semibold">Experienced Trainers</h3>
+              <p class="text-slate-500 mt-1">Learn from certified professionals with extensive classroom experience.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <Icon class="w-6 h-6 text-blue-600" name="bx:bxs-customize" />
+            <div>
+              <h3 class="font-semibold">Customized Programs</h3>
+              <p class="text-slate-500 mt-1">Training tailored to your specific requirements and objectives.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <Icon class="w-6 h-6 text-blue-600" name="bx:bxs-time" />
+            <div>
+              <h3 class="font-semibold">Flexible Scheduling</h3>
+              <p class="text-slate-500 mt-1">Choose online, on-site, or hybrid sessions at convenient times.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <Icon class="w-6 h-6 text-blue-600" name="bx:bxs-book-content" />
+            <div>
+              <h3 class="font-semibold">Comprehensive Resources</h3>
+              <p class="text-slate-500 mt-1">Receive training materials, guides, and follow-up support.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <Icon class="w-6 h-6 text-blue-600" name="bx:bx-world" />
+            <div>
+              <h3 class="font-semibold">Global Reach</h3>
+              <p class="text-slate-500 mt-1">We provide training services to educators worldwide.</p>
+            </div>
+          </div>
+        </div>
+        <div class="mt-8 space-y-2 text-slate-600">
+          <p>• Training sessions typically last 3-6 hours</p>
+          <p>• Available for individuals and groups of all sizes</p>
+          <p>• On-site training available across India</p>
+          <p>• Special rates for government schools</p>
+        </div>
+      </div>
+      <div>
+        <BookingForm />
+      </div>
+    </div>
+  </Container>
+</Layout>

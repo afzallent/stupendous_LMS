@@ -1,0 +1,519 @@
+---
+import DashboardLayout from '../../../../../layouts/DashboardLayout.astro';
+import Icon from '../../../../../components/Icon.astro';
+import ClerkTrainerWrapper from '../../../../../components/auth/ClerkTrainerWrapper.jsx';
+
+// Set prerender to false since this is a dynamic page
+export const prerender = false;
+
+const { courseId } = Astro.params;
+
+// Fetch course and lessons data from PHP API
+let course = null;
+let lessons = [];
+let fetchError = null;
+
+try {
+  // Fetch course details
+  const API_URL = import.meta.env.PUBLIC_API_URL;
+  if (!API_URL) {
+    throw new Error('PUBLIC_API_URL environment variable is not set');
+  }
+  const courseResponse = await fetch(`${API_URL}/courses.php`);
+  if (courseResponse.ok) {
+    const allCourses = await courseResponse.json();
+    course = allCourses.find(c => c.id == courseId);
+  }
+  
+  // Fetch lessons for this course
+  const lessonsResponse = await fetch(`${API_URL}/lessons.php?course_id=${courseId}`);
+  if (lessonsResponse.ok) {
+    lessons = await lessonsResponse.json();
+  } else {
+    fetchError = `Failed to fetch lessons: HTTP ${lessonsResponse.status}`;
+  }
+} catch (error) {
+  fetchError = error.message;
+  console.error('Failed to fetch course/lessons:', error);
+}
+---
+
+<DashboardLayout title="Course Lessons">
+  <ClerkTrainerWrapper client:only="react">
+  <div class="space-y-6">
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Course Lessons</h1>
+        <p class="mt-1 text-sm text-gray-500">Manage your course lessons</p>
+      </div>
+      <button
+        id="addLessonBtn"
+        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+      >
+        <Icon name="plus" class="h-5 w-5 mr-2" />
+        Add New Lesson
+      </button>
+    </div>
+
+    <!-- Add/Edit Lesson Form -->
+    <div id="lessonForm" class="hidden bg-white shadow sm:rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 id="formTitle" class="text-lg font-medium leading-6 text-gray-900">Add New Lesson</h3>
+        <div class="mt-2 max-w-xl text-sm text-gray-500">
+          <p>Fill in the details for your new lesson.</p>
+        </div>
+        <form id="addLessonForm" class="mt-5 space-y-4">
+          <input type="hidden" id="lessonId" name="lessonId" />
+          <div>
+            <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+            <input
+              type="text"
+              name="title"
+              id="title"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea
+              name="description"
+              id="description"
+              rows="3"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            ></textarea>
+          </div>
+          <div>
+            <label for="videoUrl" class="block text-sm font-medium text-gray-700">Video URL</label>
+            <input
+              type="url"
+              name="videoUrl"
+              id="videoUrl"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label for="duration" class="block text-sm font-medium text-gray-700">Duration (minutes)</label>
+            <input
+              type="number"
+              name="duration"
+              id="duration"
+              required
+              min="1"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label for="orderNumber" class="block text-sm font-medium text-gray-700">Order Number</label>
+            <input
+              type="number"
+              name="orderNumber"
+              id="orderNumber"
+              required
+              min="1"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button
+              type="button"
+              id="cancelBtn"
+              class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Save Lesson
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Course Info -->
+    {course && (
+      <div class="bg-white shadow sm:rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+          <h3 class="text-lg font-medium leading-6 text-gray-900">{course.title}</h3>
+          <div class="mt-2 max-w-xl text-sm text-gray-500">
+            <p>{course.description}</p>
+          </div>
+          <div class="mt-3">
+            <div class="flex items-center space-x-4">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                ${course.price}
+              </span>
+              {course.duration && (
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {course.duration} minutes
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- Lessons List -->
+    <div id="lessonsList" class="bg-white shadow overflow-hidden sm:rounded-md">
+      {fetchError ? (
+        <div class="px-6 py-4 text-center text-red-500">
+          <h3 class="text-lg font-medium">Failed to load lessons</h3>
+          <p class="mt-1 text-sm">{fetchError}</p>
+          <button
+            onclick="location.reload()"
+            class="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : lessons.length === 0 ? (
+        <div class="px-6 py-4 text-center text-gray-500">
+          <h3 class="text-lg font-medium">No lessons found</h3>
+          <p class="mt-1 text-sm">Add your first lesson to get started.</p>
+          <button
+            onclick="window.showAddLessonForm()"
+            class="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <Icon name="plus" class="h-5 w-5 mr-2" />
+            Add First Lesson
+          </button>
+        </div>
+      ) : (
+        <ul role="list" class="divide-y divide-gray-200">
+          {lessons.map(lesson => (
+            <li class="px-6 py-4 hover:bg-gray-50">
+              <div class="flex items-center justify-between">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-indigo-600 truncate">
+                      {lesson.title}
+                    </p>
+                    <div class="ml-2 flex-shrink-0 flex">
+                      <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        Order: {lesson.order_number}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="mt-2 flex justify-between">
+                    <div class="sm:flex">
+                      <p class="flex items-center text-sm text-gray-500">
+                        <Icon name="clock" class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
+                        {lesson.duration} minutes
+                      </p>
+                    </div>
+                    <div class="flex space-x-2">
+                      <button
+                        onclick={`window.editLesson(${lesson.id})`}
+                        class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onclick={`window.deleteLesson(${lesson.id})`}
+                        class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <p class="mt-2 text-sm text-gray-500 line-clamp-2">{lesson.description}</p>
+                  <div class="mt-2">
+                    <a
+                      href={lesson.video_url}
+                      target="_blank"
+                      class="text-sm text-indigo-600 hover:text-indigo-500"
+                    >
+                      View Video →
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+  </ClerkTrainerWrapper>
+</DashboardLayout>
+
+<script src="/src/utils/api-client.js"></script>
+<script define:vars={{ courseId }}>
+
+  // Function to get Clerk token
+  async function getClerkToken() {
+    if (window.Clerk && window.Clerk.session) {
+      try {
+        const token = await window.Clerk.session.getToken();
+        return token;
+      } catch (error) {
+        console.error('Error getting Clerk token:', error);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // Make functions globally available
+  window.showAddLessonForm = function() {
+    const form = document.getElementById('lessonForm');
+    const formTitle = document.getElementById('formTitle');
+    const lessonId = document.getElementById('lessonId');
+    const addLessonForm = document.getElementById('addLessonForm');
+
+    formTitle.textContent = 'Add New Lesson';
+    lessonId.value = '';
+    addLessonForm.reset();
+    form.classList.remove('hidden');
+  };
+
+  window.hideLessonForm = function() {
+    const form = document.getElementById('lessonForm');
+    form.classList.add('hidden');
+  };
+
+  window.editLesson = async function(lessonId) {
+    // First try to get Clerk token
+    let token = await getClerkToken();
+    
+    // If no Clerk token, fall back to localStorage (for development)
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+
+    const form = document.getElementById('lessonForm');
+    const formTitle = document.getElementById('formTitle');
+
+    try {
+      const headers = await window.getAuthHeaders();
+      const response = await fetch(window.getApiUrl(`${window.API_ENDPOINTS.lessons}?course_id=${courseId}&lesson_id=${lessonId}`), {
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch lesson');
+      }
+
+      const lessons = await response.json();
+      
+      if (!lessons || lessons.length === 0) {
+        throw new Error('Lesson not found');
+      }
+
+      const lesson = lessons[0]; // Get the first lesson from the array
+      
+      // Populate the form with lesson data
+      document.getElementById('lessonId').value = lesson.id;
+      document.getElementById('title').value = lesson.title;
+      document.getElementById('description').value = lesson.description;
+      document.getElementById('videoUrl').value = lesson.video_url;
+      document.getElementById('duration').value = lesson.duration;
+      document.getElementById('orderNumber').value = lesson.order_number;
+
+      formTitle.textContent = 'Edit Lesson';
+      form.classList.remove('hidden');
+    } catch (error) {
+      console.error('Error fetching lesson:', error);
+      alert('Failed to fetch lesson details. Please try again.');
+    }
+  };
+
+  window.deleteLesson = async function(lessonId) {
+    if (!confirm('Are you sure you want to delete this lesson? This action cannot be undone.')) {
+      return;
+    }
+
+    // First try to get Clerk token
+    let token = await getClerkToken();
+    
+    // If no Clerk token, fall back to localStorage (for development)
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+
+    try {
+      const headers = await window.getAuthHeaders();
+      const response = await fetch(window.getApiUrl(`${window.API_ENDPOINTS.lessons}?course_id=${courseId}`), {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: lessonId })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete lesson');
+      }
+
+      // Reload the lessons list
+      loadLessons();
+    } catch (error) {
+      console.error('Error deleting lesson:', error);
+      alert('Failed to delete lesson. Please try again.');
+    }
+  };
+
+  // Function to load lessons
+  async function loadLessons() {
+    const lessonsList = document.getElementById('lessonsList');
+    
+    // First try to get Clerk token
+    let token = await getClerkToken();
+    
+    // If no Clerk token, fall back to localStorage (for development)
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+
+    try {
+      const headers = await window.getAuthHeaders();
+      const response = await fetch(window.getApiUrl(`${window.API_ENDPOINTS.lessons}?course_id=${courseId}`), {
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch lessons');
+      }
+
+      const lessons = await response.json();
+      
+      if (lessons.length === 0) {
+        lessonsList.innerHTML = `
+          <li class="px-6 py-4 text-center text-gray-500">
+            No lessons found. Add your first lesson to get started.
+          </li>
+        `;
+        return;
+      }
+
+      lessonsList.innerHTML = `
+        <ul role="list" class="divide-y divide-gray-200">
+          ${lessons.map(lesson => `
+            <li class="px-6 py-4 hover:bg-gray-50">
+              <div class="flex items-center justify-between">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-indigo-600 truncate">
+                      ${lesson.title}
+                    </p>
+                    <div class="ml-2 flex-shrink-0 flex">
+                      <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        Order: ${lesson.order_number}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="mt-2 flex justify-between">
+                    <div class="sm:flex">
+                      <p class="flex items-center text-sm text-gray-500">
+                        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                        </svg>
+                        ${lesson.duration} minutes
+                      </p>
+                    </div>
+                    <div class="flex space-x-2">
+                      <button
+                        onclick="window.editLesson(${lesson.id})"
+                        class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onclick="window.deleteLesson(${lesson.id})"
+                        class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <p class="mt-2 text-sm text-gray-500 line-clamp-2">${lesson.description}</p>
+                  <div class="mt-2">
+                    <a
+                      href="${lesson.video_url}"
+                      target="_blank"
+                      class="text-sm text-indigo-600 hover:text-indigo-500"
+                    >
+                      View Video →
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    } catch (error) {
+      console.error('Error loading lessons:', error);
+      lessonsList.innerHTML = `
+        <li class="px-6 py-4 text-center text-red-500">
+          Failed to load lessons. Please try again.
+        </li>
+      `;
+    }
+  }
+
+  // Handle form submission
+  document.getElementById('addLessonForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const lessonId = formData.get('lessonId');
+    
+    // First try to get Clerk token
+    let token = await getClerkToken();
+    
+    // If no Clerk token, fall back to localStorage (for development)
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+
+    const lessonData = {
+      course_id: courseId,
+      title: formData.get('title'),
+      description: formData.get('description'),
+      video_url: formData.get('videoUrl'),
+      duration: formData.get('duration'),
+      order_number: formData.get('orderNumber')
+    };
+
+    try {
+      if (lessonId) {
+        lessonData.id = lessonId; // Add lesson ID to the request body for updates
+      }
+
+      const headers = await window.getAuthHeaders();
+      const response = await fetch(window.getApiUrl(`${window.API_ENDPOINTS.lessons}?course_id=${courseId}`), {
+        method: lessonId ? 'PUT' : 'POST',
+        headers,
+        body: JSON.stringify(lessonData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save lesson');
+      }
+
+      // Hide the form and reload the lessons list
+      window.hideLessonForm();
+      loadLessons();
+    } catch (error) {
+      console.error('Error saving lesson:', error);
+      alert('Failed to save lesson. Please try again.');
+    }
+  });
+
+  // Add event listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    // Add New Lesson button
+    document.getElementById('addLessonBtn').addEventListener('click', window.showAddLessonForm);
+    
+    // Cancel button
+    document.getElementById('cancelBtn').addEventListener('click', window.hideLessonForm);
+    
+    // Load initial lessons
+    loadLessons();
+  });
+</script>

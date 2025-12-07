@@ -1,0 +1,296 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Container from '../components/container.astro';
+import { Icon } from 'astro-icon/components';
+
+const title = "Shopping Cart - CourseCompass LMS";
+---
+<Layout title={title}>
+  <Container>
+    <div class="max-w-5xl mx-auto py-12">
+      <h1 class="text-3xl font-bold mb-8">Your Shopping Cart</h1>
+      <div id="cartContent" class="flex flex-col lg:flex-row gap-8">
+        <!-- Empty Cart Message -->
+        <div id="emptyCartMessage" class="w-full lg:w-2/3 bg-white rounded-lg shadow-md p-6">
+          <div class="text-center py-12">
+            <Icon name="mdi:cart-outline" class="w-16 h-16 mx-auto text-gray-300 mb-4" />
+            <h2 class="text-xl font-medium text-gray-600 mb-2">Your cart is empty</h2>
+            <p class="text-gray-500 mb-6">Browse our courses and add some to your cart</p>
+            <a href="/courses" class="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              Browse Courses
+            </a>
+          </div>
+        </div>
+        <!-- Cart Items Container -->
+        <div id="cartItemsContainer" class="w-full lg:w-2/3 hidden">
+          <div id="cartItems" class="bg-white rounded-lg shadow-md divide-y"></div>
+        </div>
+        <!-- Cart Summary -->
+        <div id="cartSummary" class="w-full lg:w-1/3 bg-white rounded-lg shadow-md p-6 h-fit hidden">
+          <h2 class="text-xl font-bold mb-4">Order Summary</h2>
+          <div class="space-y-2 mb-4">
+            <div class="flex justify-between">
+              <span class="text-gray-600">Subtotal</span>
+              <span id="subtotal" class="font-medium">$0.00</span>
+            </div>
+          </div>
+          <!-- Coupon code input -->
+          <div class="mb-4">
+            <input id="couponInput" type="text" placeholder="Coupon code" class="w-2/3 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 mr-2" />
+            <button id="applyCoupon" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Apply</button>
+            <div id="couponMessage" class="mt-2 text-sm"></div>
+          </div>
+          <div class="border-t border-gray-200 my-4 pt-4">
+            <div class="flex justify-between font-bold">
+              <span>Total</span>
+              <span id="total">$0.00</span>
+            </div>
+          </div>
+          <a href="/checkout" id="checkoutButton" class="block w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 mt-4 font-medium text-center">
+            Proceed to Checkout
+          </a>
+          <a href="/courses" id="continueShoppingButton" class="block w-full py-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 mt-2 font-medium text-center">
+            Continue Shopping
+          </a>
+        </div>
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<script is:inline>
+document.addEventListener('astro:page-load', function() {
+  const cartItemsElement = document.getElementById('cartItems');
+  const cartItemsContainer = document.getElementById('cartItemsContainer');
+  const cartSummary = document.getElementById('cartSummary');
+  const emptyCartMessage = document.getElementById('emptyCartMessage');
+  const subtotalElement = document.getElementById('subtotal');
+  const totalElement = document.getElementById('total');
+  const couponInputElement = document.getElementById('couponInput');
+  const applyCouponBtn = document.getElementById('applyCoupon');
+  const couponMessageElement = document.getElementById('couponMessage');
+  
+
+  let currentCart = [];
+  let appliedCouponDetails = null;
+
+  function getAdminCoupons() {
+    try {
+      const adminCouponsData = localStorage.getItem('adminCoupons');
+      return adminCouponsData ? JSON.parse(adminCouponsData) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveAppliedCoupon() {
+    if (appliedCouponDetails) {
+      localStorage.setItem('appliedCouponCode', appliedCouponDetails.code);
+    } else {
+      localStorage.removeItem('appliedCouponCode');
+    }
+  }
+
+  function loadAppliedCoupon() {
+    const savedCode = localStorage.getItem('appliedCouponCode');
+    if (savedCode) {
+      const adminCoupons = getAdminCoupons();
+      const coupon = adminCoupons.find(c => c.code === savedCode);
+      if (coupon) {
+        const validation = validateCoupon(coupon, currentCart);
+        if (validation.isValid) {
+          appliedCouponDetails = coupon;
+          if (couponInputElement) couponInputElement.value = coupon.code;
+          couponMessageElement.textContent = validation.message;
+          couponMessageElement.className = 'mt-2 text-sm text-green-600';
+        } else {
+          appliedCouponDetails = null;
+          localStorage.removeItem('appliedCouponCode');
+          couponMessageElement.textContent = validation.message;
+          couponMessageElement.className = 'mt-2 text-sm text-red-600';
+        }
+      } else {
+        localStorage.removeItem('appliedCouponCode');
+      }
+    }
+  }
+
+  function validateCoupon(coupon, cart) {
+    if (!coupon) return { isValid: false, message: 'Invalid coupon code.' };
+    if (!coupon.enabled) return { isValid: false, message: 'This coupon is disabled.' };
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiryDate = new Date(coupon.expiryDate);
+    expiryDate.setHours(23, 59, 59, 999);
+
+    if (expiryDate < today) return { isValid: false, message: 'This coupon has expired.' };
+
+    if (coupon.courseId !== null) {
+      const isCourseInCart = cart.some(item => item.id === coupon.courseId);
+      if (!isCourseInCart) {
+        return { isValid: false, message: 'Coupon not applicable to items in your cart.' };
+      }
+    }
+    let discountValue = 0;
+    if (coupon.discountType === 'percentage') {
+        discountValue = parseFloat(coupon.discount.replace('%', ''));
+    } else if (coupon.discountType === 'fixed') {
+        discountValue = parseFloat(coupon.discount);
+    }
+    return { isValid: true, message: `Coupon applied! ${coupon.discountType === 'percentage' ? discountValue + '%' : '$' + discountValue.toFixed(2)} discount.`, coupon }; 
+  }
+
+  function calculateTotals() {
+    let subtotal = 0;
+    currentCart.forEach(item => subtotal += Number(item.price));
+
+    let discountAmount = 0;
+    if (appliedCouponDetails) {
+      const validation = validateCoupon(appliedCouponDetails, currentCart);
+      if (validation.isValid) {
+        const coupon = appliedCouponDetails;
+        if (coupon.discountType === 'percentage') {
+          const discountValue = parseFloat(coupon.discount.replace('%', '')) / 100;
+          if (coupon.courseId !== null) {
+            const specificCourse = currentCart.find(item => item.id === coupon.courseId);
+            if (specificCourse) {
+                discountAmount = Number(specificCourse.price) * discountValue;
+            }
+          } else {
+            discountAmount = subtotal * discountValue;
+          }
+        } else if (coupon.discountType === 'fixed') {
+          discountAmount = parseFloat(coupon.discount);
+          if (coupon.courseId !== null) {
+                const specificCourse = currentCart.find(item => item.id === coupon.courseId);
+                if (specificCourse) {
+                    discountAmount = Math.min(discountAmount, Number(specificCourse.price));
+                }
+           } else {
+             discountAmount = Math.min(discountAmount, subtotal);
+           }
+        }
+      } else {
+        appliedCouponDetails = null;
+        saveAppliedCoupon();
+        couponMessageElement.textContent = validation.message;
+        couponMessageElement.className = 'mt-2 text-sm text-red-600';
+      }
+    }
+
+    const finalTotal = Math.max(0, subtotal - discountAmount);
+    if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toFixed(2);
+    if (totalElement) totalElement.textContent = '$' + finalTotal.toFixed(2);
+  }
+
+  function loadCart() {
+    try {
+      const cartData = localStorage.getItem('courseCart');
+      currentCart = cartData ? JSON.parse(cartData) : [];
+    } catch (e) {
+      currentCart = [];
+    }
+
+    loadAppliedCoupon();
+
+    if (!currentCart || currentCart.length === 0) {
+      if (emptyCartMessage) emptyCartMessage.classList.remove('hidden');
+      if (cartItemsContainer) cartItemsContainer.classList.add('hidden');
+      if (cartSummary) cartSummary.classList.add('hidden');
+      calculateTotals();
+      return;
+    }
+    if (emptyCartMessage) emptyCartMessage.classList.add('hidden');
+    if (cartItemsContainer) cartItemsContainer.classList.remove('hidden');
+    if (cartSummary) cartSummary.classList.remove('hidden');
+    if (cartItemsElement) cartItemsElement.innerHTML = '';
+
+    currentCart.forEach(function(item, index) {
+      const itemElement = document.createElement('div');
+      itemElement.className = 'flex items-center p-6';
+      const imageUrl = item.image || 'https://placehold.co/400x200/e2e8f0/1e40af?text=No+Image';
+      itemElement.innerHTML = `
+        <div class="w-20 h-20 flex-shrink-0 overflow-hidden rounded-md">
+          <img src="${imageUrl}" alt="${item.title}" class="w-full h-full object-cover">
+        </div>
+        <div class="ml-4 flex-1">
+          <h3 class="text-lg font-medium text-gray-800">
+            <a href="/courses/${item.id}" class="hover:text-blue-600">${item.title} (ID: ${item.id})</a>
+          </h3>
+          <p class="mt-1 text-lg font-medium text-gray-800">$${Number(item.price).toFixed(2)}</p>
+        </div>
+        <button data-index="${index}" class="remove-item text-gray-400 hover:text-red-500 ml-4">
+          <span class="sr-only">Remove</span>
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      `;
+      if (cartItemsElement) cartItemsElement.appendChild(itemElement);
+    });
+
+    document.querySelectorAll('.remove-item').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const index = parseInt(this.getAttribute('data-index') || '0');
+        const oldCartJson = localStorage.getItem('courseCart'); // Get old value for the event
+        currentCart.splice(index, 1);
+        const newCartJson = JSON.stringify(currentCart);
+        localStorage.setItem('courseCart', newCartJson);
+
+        // Dispatch storage event to notify other pages (e.g., navbar)
+        try {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'courseCart',
+            newValue: newCartJson,
+            oldValue: oldCartJson,
+            storageArea: localStorage
+          }));
+        } catch (e) {
+          console.error('Error dispatching storage event after item removal:', e);
+        }
+        
+        loadCart();
+      });
+    });
+    calculateTotals();
+  }
+
+  if (applyCouponBtn && couponInputElement) {
+    applyCouponBtn.addEventListener('click', function() {
+      const code = couponInputElement.value.trim().toUpperCase();
+      if (!code) {
+        appliedCouponDetails = null;
+        couponMessageElement.textContent = '';
+        saveAppliedCoupon();
+        calculateTotals();
+        return;
+      }
+
+      const adminCoupons = getAdminCoupons();
+      const matchedCoupon = adminCoupons.find(c => c.code.toUpperCase() === code);
+      
+      const validationResult = validateCoupon(matchedCoupon, currentCart);
+
+      if (validationResult.isValid) {
+        appliedCouponDetails = validationResult.coupon;
+        couponMessageElement.textContent = validationResult.message;
+        couponMessageElement.className = 'mt-2 text-sm text-green-600';
+      } else {
+        appliedCouponDetails = null;
+        couponMessageElement.textContent = validationResult.message;
+        couponMessageElement.className = 'mt-2 text-sm text-red-600';
+      }
+      saveAppliedCoupon();
+      calculateTotals();
+    });
+  }
+
+  loadCart();
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'courseCart' || e.key === 'adminCoupons' || e.key === 'appliedCouponCode') {
+      loadCart();
+    }
+  });
+});
+</script>

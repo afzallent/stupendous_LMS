@@ -1,0 +1,78 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<footer class="bg-slate-50 py-20 mt-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      {/* Quick Links Section */}
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Links</h3>
+        <ul class="space-y-2">
+          <li><a href="/articles" class="text-slate-500 hover:text-primary transition">Articles</a></li>
+          <li><a href="/booking" class="text-slate-500 hover:text-primary transition">Book a Training</a></li>
+          <li><a href="/programs" class="text-slate-500 hover:text-primary transition">Programs</a></li>
+          <li><a href="/contact" class="text-slate-500 hover:text-primary transition">Contact Us</a></li>
+          <li><a href="/privacy" class="text-slate-500 hover:text-primary transition">Privacy Policy</a></li>
+          <li><a href="/sitemap" class="text-slate-500 hover:text-primary transition">Sitemap</a></li>
+        </ul>
+      </div>
+
+      {/* Contact Information */}
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+        <ul class="space-y-2 text-slate-500">
+          <li class="flex items-center">
+            <Icon name="mdi:email" class="w-5 h-5 mr-2" />
+            <a href="mailto:hello@techinteach.com" class="hover:text-primary transition">
+              hello@techinteach.com
+            </a>
+          </li>
+          <li class="flex items-center">
+            <Icon name="mdi:phone" class="w-5 h-5 mr-2" />
+            <a href="tel:+919048490525" class="hover:text-primary transition">
+              +91 90484 90525
+            </a>
+          </li>
+          <li class="flex items-center">
+            <Icon name="mdi:location" class="w-5 h-5 mr-2" />
+            <span>Tech in Teach Academy,<br/>Trivandrum, Kerala</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* About Section */}
+      <div class="lg:col-span-2">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">About Tech in Teach</h3>
+        <p class="text-slate-500 mb-6">
+          Teacher training programs designed to empower educators with innovative techniques and technology integration.
+        </p>
+        
+        {/* Social Icons */}
+        <div class="flex space-x-4">
+          <a href="https://www.facebook.com/techinteach" target="_blank" rel="noopener" class="text-slate-400 hover:text-blue-600 transition transform hover:scale-110">
+            <Icon name="mdi:facebook" class="w-6 h-6" />
+          </a>
+          <a href="https://x.com/techinteach" target="_blank" rel="noopener" class="text-slate-400 hover:text-black transition transform hover:scale-110">
+            <Icon name="mdi:twitter" class="w-6 h-6" />
+          </a>
+          <a href="https://www.instagram.com/techinteach" target="_blank" rel="noopener" class="text-slate-400 hover:text-pink-600 transition transform hover:scale-110">
+            <Icon name="mdi:instagram" class="w-6 h-6" />
+          </a>
+          <a href="https://www.linkedin.com/company/tech-in-teach" target="_blank" rel="noopener" class="text-slate-400 hover:text-blue-700 transition transform hover:scale-110">
+            <Icon name="mdi:linkedin" class="w-6 h-6" />
+          </a>
+          <a href="https://www.youtube.com/@techinteach" target="_blank" rel="noopener" class="text-slate-400 hover:text-red-600 transition transform hover:scale-110">
+            <Icon name="mdi:youtube" class="w-6 h-6" />
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-12 pt-8 border-t border-gray-200">
+      <p class="text-center text-sm text-slate-500">
+        Copyright © {new Date().getFullYear()} Tech in Teach Academy. All rights reserved.
+      </p>
+    </div>
+  </div>
+</footer>

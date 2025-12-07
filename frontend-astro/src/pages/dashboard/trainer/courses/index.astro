@@ -1,0 +1,363 @@
+---
+import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
+import Icon from '../../../../components/Icon.astro';
+import ClerkTrainerWrapper from '../../../../components/auth/ClerkTrainerWrapper.jsx';
+
+// Set prerender to false since this is a dynamic page
+export const prerender = false;
+
+// Authentication is handled by middleware
+// Fetch ALL courses from PHP API for debugging
+let courses = [];
+let fetchError = null;
+
+try {
+  const API_URL = import.meta.env.PUBLIC_API_URL;
+  if (!API_URL) {
+    throw new Error('PUBLIC_API_URL environment variable is not set');
+  }
+  const response = await fetch(`${API_URL}/courses.php`);
+  if (response.ok) {
+    const data = await response.json();
+    // Handle standardized API response format
+    if (data.success === true && data.data) {
+      courses = Array.isArray(data.data) ? data.data : [];
+    } else {
+      // Fallback for direct array response
+      courses = Array.isArray(data) ? data : [];
+    }
+  } else {
+    fetchError = `HTTP ${response.status}: ${response.statusText}`;
+  }
+} catch (error) {
+  fetchError = error.message;
+  console.error('Failed to fetch courses:', error);
+}
+---
+
+<DashboardLayout title="My Courses">
+  <ClerkTrainerWrapper client:only="react">
+  <div class="space-y-6">
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">My Courses</h1>
+        <p class="mt-1 text-sm text-gray-500">Manage your courses and lessons</p>
+      </div>
+      <a
+        href="/dashboard/trainer/courses/new"
+        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+      >
+        <Icon name="plus" class="h-5 w-5 mr-2" />
+        Add New Course
+      </a>
+    </div>
+
+    <!-- Course Grid -->
+    <div id="coursesList" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {fetchError ? (
+        <div class="col-span-full text-center py-12">
+          <div class="mx-auto h-12 w-12 text-red-500">
+            <Icon name="exclamation" class="h-12 w-12" />
+          </div>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">Failed to load courses</h3>
+          <p class="mt-1 text-sm text-gray-500">{fetchError}</p>
+          <div class="mt-6">
+            <button
+              onclick="location.reload()"
+              class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      ) : courses.length === 0 ? (
+        <div class="col-span-full text-center py-12">
+          <div class="mx-auto h-12 w-12 text-gray-400">
+            <Icon name="book" class="h-12 w-12" />
+          </div>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">No courses</h3>
+          <p class="mt-1 text-sm text-gray-500">Get started by creating a new course.</p>
+          <div class="mt-6">
+            <a
+              href="/dashboard/trainer/courses/new"
+              class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <Icon name="plus" class="h-5 w-5 mr-2" />
+              Add New Course
+            </a>
+          </div>
+        </div>
+      ) : (
+        courses.map(course => (
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="relative">
+              <div class="aspect-w-16 aspect-h-9 bg-gray-200">
+                <img
+                  src={`https://placehold.co/400x200/e2e8f0/1e40af?text=${encodeURIComponent(course.title)}`}
+                  alt={course.title}
+                  class="object-cover w-full h-full"
+                />
+              </div>
+              <div class="absolute top-2 right-2">
+                <button
+                  onclick={`deleteCourse(${course.id})`}
+                  class="p-1 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-600 transition-colors"
+                  title="Delete course"
+                >
+                  <Icon name="trash" class="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div class="p-4">
+              <h3 class="text-lg font-medium text-gray-900 truncate">{course.title}</h3>
+              <p class="mt-1 text-sm text-gray-500 line-clamp-2">{course.description}</p>
+              <div class="mt-4 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm font-medium text-indigo-600">${course.price}</span>
+                  <span class="text-sm text-gray-500">•</span>
+                  <span class="text-sm text-gray-500">Created {new Date(course.created_at).toLocaleDateString()}</span>
+                </div>
+                <a
+                  href={`/dashboard/trainer/courses/${course.id}/lessons`}
+                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Manage Course
+                </a>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+  </ClerkTrainerWrapper>
+</DashboardLayout>
+
+<script src="/src/utils/api-client.js"></script>
+<script>
+
+  // Function to format date
+  function formatDate(dateString) {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  }
+
+  // Function to format price
+  function formatPrice(price) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(price);
+  }
+
+  // Function to get Clerk token
+  async function getClerkToken() {
+    if (window.Clerk && window.Clerk.session) {
+      try {
+        const token = await window.Clerk.session.getToken();
+        return token;
+      } catch (error) {
+        console.error('Error getting Clerk token:', error);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // Function to load courses
+  async function loadCourses() {
+    const coursesList = document.getElementById('coursesList');
+    
+    try {
+      // First try to get Clerk token
+      let token = await getClerkToken();
+      
+      // If no Clerk token, fall back to localStorage (for development)
+      if (!token) {
+        token = localStorage.getItem('token');
+      }
+      
+      const headers = await window.getAuthHeaders();
+      const response = await fetch(window.getApiUrl(window.API_ENDPOINTS.courses), {
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch courses');
+      }
+
+      const data = await response.json();
+      let courses = [];
+      // Handle standardized API response format
+      if (data.success === true && data.data) {
+        courses = Array.isArray(data.data) ? data.data : [];
+      } else {
+        // Fallback for direct array response
+        courses = Array.isArray(data) ? data : [];
+      }
+      
+      if (courses.length === 0) {
+        coursesList.innerHTML = `
+          <div class="col-span-full text-center py-12">
+            <div class="mx-auto h-12 w-12 text-gray-400">
+              <Icon name="book" class="h-12 w-12" />
+            </div>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No courses</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating a new course.</p>
+            <div class="mt-6">
+              <a
+                href="/dashboard/trainer/courses/new"
+                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <Icon name="plus" class="h-5 w-5 mr-2" />
+                Add New Course
+              </a>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      coursesList.innerHTML = courses.map(course => `
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="relative">
+            <div class="aspect-w-16 aspect-h-9 bg-gray-200">
+              <img
+                src="https://placehold.co/400x200/e2e8f0/1e40af?text=${encodeURIComponent(course.title)}"
+                alt="${course.title}"
+                class="object-cover w-full h-full"
+              />
+            </div>
+            <div class="absolute top-2 right-2">
+              <button
+                onclick="deleteCourse(${course.id})"
+                class="p-1 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-600 transition-colors"
+                title="Delete course"
+              >
+                <Icon name="trash" class="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 truncate">${course.title}</h3>
+            <p class="mt-1 text-sm text-gray-500 line-clamp-2">${course.description}</p>
+            <div class="mt-4 flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm font-medium text-indigo-600">${formatPrice(course.price)}</span>
+                <span class="text-sm text-gray-500">•</span>
+                <span class="text-sm text-gray-500">Created ${formatDate(course.created_at)}</span>
+              </div>
+              <a
+                href="/dashboard/trainer/courses/${course.id}/lessons"
+                class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Manage Course
+              </a>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } catch (error) {
+      console.error('Error loading courses:', error);
+      coursesList.innerHTML = `
+        <div class="col-span-full text-center py-12">
+          <div class="mx-auto h-12 w-12 text-red-500">
+            <Icon name="exclamation" class="h-12 w-12" />
+          </div>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">Failed to load courses</h3>
+          <p class="mt-1 text-sm text-gray-500">Please try again later.</p>
+          <div class="mt-6">
+            <button
+              onclick="loadCourses()"
+              class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Function to delete a course
+  async function deleteCourse(courseId) {
+    if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // First try to get Clerk token
+      let token = await getClerkToken();
+      
+      // If no Clerk token, fall back to localStorage (for development)
+      if (!token) {
+        token = localStorage.getItem('token');
+      }
+
+      const headers = await window.getAuthHeaders();
+      const response = await fetch(window.getApiUrl(window.API_ENDPOINTS.courses), {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ id: courseId })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete course');
+      }
+
+      // Reload the courses list
+      loadCourses();
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      alert('Failed to delete course. Please try again.');
+    }
+  }
+
+  // Function to check if we're on the courses page
+  function isCoursesPage() {
+    return window.location.pathname === '/dashboard/trainer/courses';
+  }
+
+  // Function to wait for Clerk to be available
+  function waitForClerk() {
+    return new Promise((resolve) => {
+      if (window.Clerk) {
+        resolve();
+      } else {
+        const checkClerk = setInterval(() => {
+          if (window.Clerk) {
+            clearInterval(checkClerk);
+            resolve();
+          }
+        }, 100);
+        
+        // Timeout after 3 seconds (shorter timeout)
+        setTimeout(() => {
+          clearInterval(checkClerk);
+          console.log('Clerk timeout reached, proceeding without Clerk');
+          resolve(); // Continue anyway
+        }, 3000);
+      }
+    });
+  }
+
+  // Load courses when the page loads or when navigating to the page
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM loaded, checking if courses page');
+    if (isCoursesPage()) {
+      console.log('Is courses page, loading courses');
+      // Wait for Clerk to be available, then load courses
+      await waitForClerk();
+      loadCourses();
+    }
+  });
+
+  // Listen for navigation events
+  document.addEventListener('astro:page-load', () => {
+    if (isCoursesPage()) {
+      loadCourses();
+    }
+  });
+</script>
+
+

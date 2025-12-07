@@ -1,0 +1,45 @@
+---
+import { Picture } from "astro:assets";
+import heroImage from "assets/hero.png";
+import Link from "@components/ui/link.astro";
+import { Icon } from "astro-icon/components";
+---
+
+<main class="grid lg:grid-cols-2 place-items-center pt-16 pb-8 md:pt-12 md:pb-24">
+  <div class="py-6 md:order-1 hidden md:block">
+    <Picture
+      src={heroImage}
+      alt="Digital Teacher Training"
+      formats={['avif', 'webp']}
+    />
+  </div>
+  <div>
+    <div class="mb-4">
+      <span class="text-blue-600 font-semibold">CPD Accredited Training Provider</span>
+    </div>
+    <h1 class="text-5xl lg:text-6xl xl:text-7xl font-bold lg:tracking-tight xl:tracking-tighter mb-4">
+      Teacher Training for the Digital Age
+    </h1>
+    <p class="text-lg mt-4 text-slate-600 max-w-xl mb-8">
+      Specialized training programs for educators worldwide, designed to transform teaching methods with cutting-edge techniques and technology integration.
+    </p>
+    <div class="mt-6 flex flex-col sm:flex-row gap-3 mb-8">
+      <Link
+        href="/contact"
+        class="flex gap-1 items-center justify-center"
+        rel="noopener">
+        <Icon class="text-white w-5 h-5" name="bx:bxs-calendar" />
+        Book a Training Session
+      </Link>
+      <Link
+        size="lg"
+        style="outline"
+        rel="noopener"
+        href="/programs"
+        class="flex gap-1 items-center justify-center">
+        <Icon class="text-black w-4 h-4" name="bx:bxs-book-open" />
+        Explore Programs
+      </Link>
+    </div>
+  </div>
+</main>

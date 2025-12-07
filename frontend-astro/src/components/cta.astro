@@ -1,0 +1,81 @@
+---
+import Link from "./ui/link.astro";
+import { Icon } from "astro-icon/components";
+---
+
+<div class="bg-black p-8 md:px-20 md:py-20 mt-20 mx-auto max-w-5xl rounded-lg">
+  <div class="text-center mb-10">
+    <h2 class="text-white text-4xl md:text-6xl tracking-tight font-bold">
+      Upcoming Introductory Sessions
+    </h2>
+    <p class="text-slate-400 mt-4 text-lg md:text-xl">
+      Join our expert-led training sessions from anywhere in the world
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-8">
+    <div class="bg-white p-6 rounded-lg">
+      <h3 class="text-xl font-bold mb-2">Design Thinking Workshop</h3>
+      <p class="text-gray-600 mb-4">A comprehensive introduction to design thinking principles for educators.</p>
+      <div class="space-y-2 mb-4">
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-calendar" class="w-5 h-5 text-blue-600" />
+          <span>June 15, 2025</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-time" class="w-5 h-5 text-blue-600" />
+          <span>10:00 AM - 11:00 AM IST</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-dollar" class="w-5 h-5 text-blue-600" />
+          <span class="font-semibold"><s>499</s> <span class="text-green-600">Free</span></span>
+        </div>
+      </div>
+      <Link href="/booking" style="inverted" class="w-full text-blue-600">Book Now</Link>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg">
+      <h3 class="text-xl font-bold mb-2">AI in Education Masterclass</h3>
+      <p class="text-gray-600 mb-4">Learn practical ways to integrate AI tools in your classroom.</p>
+      <div class="space-y-2 mb-4">
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-calendar" class="w-5 h-5 text-blue-600" />
+          <span>June 22, 2025</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-time" class="w-5 h-5 text-blue-600" />
+          <span>2:00 PM - 3:00 PM IST</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-dollar" class="w-5 h-5 text-blue-600" />
+          <span class="font-semibold"><s>399</s> <span class="text-green-600">Free</span></span>
+        </div>
+      </div>
+      <Link href="/booking" style="inverted" class="w-full text-blue-600">Book Now</Link>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg">
+      <h3 class="text-xl font-bold mb-2">Google Certified Educator Prep</h3>
+      <p class="text-gray-600 mb-4">Intensive preparation course for Google Educator Level 1 certification.</p>
+      <div class="space-y-2 mb-4">
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-calendar" class="w-5 h-5 text-blue-600" />
+          <span>July 9, 2025</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-time" class="w-5 h-5 text-blue-600" />
+          <span>10:00 AM - 11:00 AM IST</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Icon name="bx:bx-dollar" class="w-5 h-5 text-blue-600" />
+          <span class="font-semibold"><s>499</s> <span class="text-green-600">Free</span></span>
+        </div>
+      </div>
+      <Link href="/booking" style="inverted" class="w-full text-blue-600">Book Now</Link>
+    </div>
+  </div>
+
+  <div class="text-center mt-8">
+    <Link href="/programs" size="md">View all upcoming sessions</Link>
+  </div>
+</div>

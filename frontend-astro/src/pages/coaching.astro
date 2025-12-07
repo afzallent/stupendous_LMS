@@ -1,0 +1,120 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Container from "../components/container.astro";
+import Sectionhead from "../components/sectionhead.astro";
+import { Icon } from "astro-icon/components";
+import Link from "../components/ui/link.astro";
+
+const features = [
+  {
+    title: "Personalized Learning Path",
+    description: "Your mentor will create a customized learning plan based on your goals, experience level, and specific needs.",
+    icon: "bx:bx-book-open",
+  },
+  {
+    title: "Flexible Scheduling",
+    description: "Choose your preferred time slots and frequency of sessions to fit your busy schedule.",
+    icon: "bx:bx-calendar-check",
+  },
+  {
+    title: "Direct Feedback",
+    description: "Receive immediate, constructive feedback on your progress and areas for improvement.",
+    icon: "bx:bx-conversation",
+  },
+  {
+    title: "Accountability",
+    description: "Stay motivated and on track with regular check-ins and progress monitoring.",
+    icon: "bx:bx-target-lock",
+  },
+  {
+    title: "Customized Curriculum",
+    description: "Focus on the specific skills and knowledge areas that matter most to your professional development.",
+    icon: "bx:bx-customize",
+  },
+  {
+    title: "Expert Guidance",
+    description: "Learn from experienced educators who have successfully navigated similar challenges.",
+    icon: "bx:bx-certification",
+  }
+];
+
+const cardColors = [
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-purple-500",
+  "bg-red-500",
+  "bg-yellow-500",
+  "bg-indigo-500",
+];
+---
+
+<Layout title="Exclusive 1:1 Coaching">
+  <Container>
+    <Sectionhead>
+      <Fragment slot="title">Unlock Your Potential with Exclusive 1:1 Mentoring</Fragment>
+      <Fragment slot="desc">
+        Experience a premium, personalized coaching journey designed for educators who seek dedicated attention and accelerated professional growth. Our 1-to-1 mentoring ensures you receive the focused guidance you need to achieve your specific goals.
+      </Fragment>
+    </Sectionhead>
+
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 mt-16 gap-8">
+      {
+        features.map((item, index) => (
+          <div class="flex flex-col gap-4 items-start p-6 bg-white rounded-lg border border-slate-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out group">
+            <div class={`mt-1 ${cardColors[index % cardColors.length]} rounded-full p-3 w-12 h-12 shrink-0 flex items-center justify-center group-hover:bg-opacity-80 transition-colors duration-300`}>
+              <Icon name={item.icon} class="text-white size-6" />
+            </div>
+            <div>
+              <h3 class="font-bold text-xl text-gray-900 group-hover:text-black transition-colors duration-300">{item.title}</h3>
+              <p class="text-slate-600 mt-3 leading-relaxed text-base">{item.description}</p>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="mt-16">
+      <h2 class="text-3xl font-bold mb-8 text-center">Why Choose Our Premium 1:1 Mentoring?</h2>
+      
+      <div class="grid md:grid-cols-2 gap-12 mt-10 items-start">
+        <div>
+          <h3 class="text-2xl font-semibold mb-4">This Exclusive Program is For You If:</h3>
+          <ul class="list-disc list-inside space-y-3 text-slate-600 text-base">
+            <li>You value direct, undivided attention from an expert mentor.</li>
+            <li>You're committed to accelerated growth and achieving specific career goals.</li>
+            <li>You prefer a learning experience tailored precisely to your unique needs and pace.</li>
+            <li>You seek a supportive, confidential space for in-depth professional development.</li>
+            <li>You understand the impact of dedicated, personalized guidance on your success.</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-2xl font-semibold mb-4">What Your Premium Journey Includes:</h3>
+          <ul class="list-disc list-inside space-y-3 text-slate-600 text-base">
+            <li>In-depth initial consultation to define your bespoke mentoring path.</li>
+            <li>Regular, dedicated 1-hour 1-to-1 mentoring sessions.</li>
+            <li>Fully customized learning materials and curated resources.</li>
+            <li>Continuous progress tracking, actionable feedback, and unwavering support.</li>
+            <li>Priority access to your mentor for guidance between sessions.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-12 p-6 bg-slate-50 rounded-lg border border-slate-200">
+        <h3 class="text-2xl font-semibold mb-4 text-gray-800">Investment in Your Success</h3>
+        <p class="text-slate-600 text-base leading-relaxed">
+          Our exclusive 1:1 mentoring is a premium service designed for maximum impact. Packages start from a minimum commitment of 4 sessions to ensure a transformative experience. 
+          We invite you to connect with us to discuss how we can tailor this premium program to your aspirations and provide detailed investment options.
+        </p>
+      </div>
+
+      <div class="mt-12 flex flex-col items-center text-center">
+        <p class="text-lg text-slate-700 mb-6">Ready to experience the difference of truly personalized mentorship?</p>
+        <Link href="/contact" variant="primary" size="lg" class="inline-flex gap-2 items-center justify-center">
+          Discuss Your Premium Mentoring Plan
+          <Icon class="w-5 h-5" name="bx:bx-right-arrow-alt" />
+        </Link>
+      </div>
+    </div>
+  </Container>
+</Layout>

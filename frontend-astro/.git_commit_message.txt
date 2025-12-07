@@ -1,0 +1,6 @@
+feat: Add student management functionality to admin panel
+
+- Creates a new page for adding and editing students, handling both database and Clerk operations.
+- Updates the student list page to display all students from Clerk.
+- Implements functionality to add, edit, block, unblock, and delete students.
+- Ensures email updates are handled correctly through a multi-step process in the Clerk API.

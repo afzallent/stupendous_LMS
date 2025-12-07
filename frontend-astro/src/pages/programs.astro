@@ -1,0 +1,239 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Container from "../components/container.astro";
+import Sectionhead from "../components/sectionhead.astro";
+import { Image } from "astro:assets";
+import { Icon } from "astro-icon/components";
+import { updatePricesBasedOnLocation } from '../utils/currency.js';
+
+interface Program {
+  title: string;
+  category: string;
+  featured?: boolean;
+  description: string;
+  duration: string;
+  mode: string[];
+  outcomes: string[];
+  whyTake: string;
+  fee: string;
+  "fee-USD": string;
+  "fee-AED": string;
+  institutionalDiscount: string;
+  image: string;
+  icon?: string;
+  slug: string;
+}
+
+// Import programs data
+const programsData = await import("../../public/data/programs.json");
+const programs = Object.entries(programsData.default).map(([slug, data]) => ({
+  slug,
+  ...data,
+})) as Program[];
+
+// Get unique categories
+const categories = [...new Set(programs.map(program => program.category))];
+---
+
+<Layout title="Programs">
+  <Container>
+    <Sectionhead>
+      <Fragment slot="title">Our Programs</Fragment>
+      <Fragment slot="desc">
+        Explore our comprehensive range of educational programs designed to enhance
+        teaching and learning.
+      </Fragment>
+    </Sectionhead>
+
+    <div class="max-w-7xl mx-auto mt-8">
+      <!-- Search and View Toggle -->
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
+        <div class="flex items-center gap-4">
+          <button class="view-toggle grid-view p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200" aria-label="Grid View">
+            <Icon name="bx:bx-grid-alt" class="w-5 h-5" />
+          </button>
+          <button class="view-toggle list-view p-2 rounded-lg hover:bg-gray-100 text-gray-500" aria-label="List View">
+            <Icon name="bx:bx-list-ul" class="w-5 h-5" />
+          </button>
+        </div>
+        <div class="w-full sm:w-72">
+          <div class="relative">
+            <input
+              type="text"
+              id="search"
+              placeholder="Search programs..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <Icon name="bx:bx-search" class="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Filters -->
+      <div class="flex flex-wrap gap-2 mb-8">
+        <button class="category-filter active px-4 py-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+          All
+        </button>
+        {categories.map((category) => (
+          <button class="category-filter px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+            {category}
+          </button>
+        ))}
+      </div>
+
+      <!-- Programs Grid -->
+      <div class="grid-container grid md:grid-cols-3 gap-10 mx-auto max-w-7xl">
+        {programs.map((program) => (
+          <div class="group bg-white p-6 rounded-lg border border-slate-200 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
+            <div class="w-full aspect-[2/1] rounded-md overflow-hidden">
+              <div 
+                class="w-full h-full bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
+                style={`background-image: url(${program.image})`}
+                role="img"
+                aria-label={program.title}
+              />
+            </div>
+            <div class="mt-4 space-y-3 flex flex-col flex-grow">
+              <div class="flex items-center gap-2">
+                {program.featured && (
+                  <span class="text-xs font-semibold tracking-wider uppercase text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                    Featured
+                  </span>
+                )}
+                <span class="text-xs font-medium text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full">
+                  {program.category}
+                </span>
+              </div>
+              <h3 class="text-xl font-semibold text-gray-800 group-hover:text-blue-600 transition-colors duration-200">{program.title}</h3>
+              <p class="text-gray-600 line-clamp-3 text-sm flex-grow">{program.description}</p>
+              <div class="mt-2 space-y-1">
+                <p class="font-semibold text-md text-gray-700">
+                  <span class="currency-symbol"></span>
+                  <span class="program-fee" 
+                    data-fee={program.fee} 
+                    data-fee-usd={program["fee-USD"]} 
+                    data-fee-aed={program["fee-AED"]}>
+                    {program.fee}
+                  </span> per participant
+                </p>
+                <p class="text-xs text-gray-500">Duration: {program.duration}</p>
+              </div>
+              <div class="mt-auto pt-3">
+                <a
+                  href={`/programs/${program.slug}`}
+                  class="inline-flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 group-hover:bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-md transition-all duration-200 w-full border border-blue-200 hover:border-blue-300">
+                  Learn more <Icon name="bx:bx-right-arrow-alt" class="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<style>
+  /* Grid View: Default is 3 columns, handled by md:grid-cols-3 on the grid-container */
+
+  /* List View Styles */
+  .grid-container.list-view {
+    @apply grid-cols-1; /* Container becomes a single column */
+  }
+
+  .grid-container.list-view > div.group { /* Each card in list view */
+    @apply flex flex-row items-start gap-6 p-4;
+    /* Override flex-col from the card's direct classes */
+    /* Reset hover scale for the entire card in list view if it feels too much, e.g. hover:scale-100 */
+    /* For now, keeping the card scale effect */
+  }
+
+  .grid-container.list-view > div.group > .aspect-\[2\/1\] { /* Image container */
+    @apply w-60 flex-shrink-0; /* Fixed width, e.g., w-60 (15rem or 240px). Adjust as needed. */
+    /* aspect-[2/1] is maintained by its own classes */
+  }
+
+  .grid-container.list-view > div.group > .aspect-\[2\/1\] > div.bg-cover { /* The actual image div */
+    /* The group-hover:scale-110 for image zoom will still work */
+     @apply rounded-md; /* Ensure image is still rounded */
+  }
+
+  .grid-container.list-view > div.group > div:nth-child(2) { /* Text content container */
+    @apply mt-0 flex-grow; /* Remove top margin, allow it to grow */
+  }
+
+  .grid-container.list-view > div.group .line-clamp-3 {
+    @apply line-clamp-none; /* Show full description */
+  }
+
+  .grid-container.list-view > div.group .mt-auto { /* "Learn More" button's wrapper div */
+    @apply self-start pt-2; /* Align to start of text content, adjust padding */
+  }
+
+  .grid-container.list-view > div.group .mt-auto a {
+    @apply w-auto px-4 py-2; /* Button width auto, adjust padding if needed */
+  }
+</style>
+
+<script>
+  import { updatePricesBasedOnLocation } from '../utils/currency.js';
+
+  // View Toggle
+  const gridContainer = document.querySelector('.grid-container');
+  const viewToggles = document.querySelectorAll('.view-toggle');
+  const gridViewBtn = document.querySelector('.grid-view');
+  const listViewBtn = document.querySelector('.list-view');
+
+  gridViewBtn?.addEventListener('click', () => {
+    gridContainer?.classList.remove('list-view');
+    gridViewBtn.classList.add('bg-gray-100', 'text-gray-700');
+    gridViewBtn.classList.remove('hover:bg-gray-100', 'text-gray-500');
+    listViewBtn?.classList.remove('bg-gray-100', 'text-gray-700');
+    listViewBtn?.classList.add('hover:bg-gray-100', 'text-gray-500');
+  });
+
+  listViewBtn?.addEventListener('click', () => {
+    gridContainer?.classList.add('list-view');
+    listViewBtn.classList.add('bg-gray-100', 'text-gray-700');
+    listViewBtn.classList.remove('hover:bg-gray-100', 'text-gray-500');
+    gridViewBtn?.classList.remove('bg-gray-100', 'text-gray-700');
+    gridViewBtn?.classList.add('hover:bg-gray-100', 'text-gray-500');
+  });
+
+  // Search and Filter
+  const searchInput = document.getElementById('search');
+  const categoryFilters = document.querySelectorAll('.category-filter');
+  const programCards = document.querySelectorAll('.group');
+
+  searchInput?.addEventListener('input', filterPrograms);
+  categoryFilters.forEach(button => {
+    button.addEventListener('click', (e) => {
+      categoryFilters.forEach(btn => btn.classList.remove('active', 'bg-blue-600', 'text-white'));
+      button.classList.add('active', 'bg-blue-600', 'text-white');
+      filterPrograms();
+    });
+  });
+
+  function filterPrograms() {
+    const searchTerm = (searchInput as HTMLInputElement)?.value.toLowerCase();
+    const activeCategory = document.querySelector('.category-filter.active')?.textContent?.trim();
+
+    programCards.forEach(card => {
+      const title = card.querySelector('h3')?.textContent?.toLowerCase() || '';
+      const description = card.querySelector('p')?.textContent?.toLowerCase() || '';
+      const category = card.querySelector('.text-gray-500.bg-gray-100')?.textContent?.trim() || '';
+      
+      const matchesSearch = title.includes(searchTerm) || description.includes(searchTerm);
+      const matchesCategory = activeCategory === 'All' || category === activeCategory;
+
+      if (matchesSearch && matchesCategory) {
+        (card as HTMLElement).style.display = '';
+      } else {
+        (card as HTMLElement).style.display = 'none';
+      }
+    });
+  }
+
+  // Call the function when the page loads
+  updatePricesBasedOnLocation();
+</script>

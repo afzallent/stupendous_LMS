@@ -1,0 +1,98 @@
+---
+import Layout from '../../layouts/Layout.astro';
+const CLERK_SECRET_KEY = import.meta.env.CLERK_SECRET_KEY;
+const CLERK_TRAINER_ROLE = import.meta.env.CLERK_TRAINER_ROLE;
+
+// Handle delete POST
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const deleteId = formData.get('delete_id');
+  if (deleteId) {
+    const response = await fetch(`https://api.clerk.com/v1/users/${deleteId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
+      },
+    });
+    return Astro.redirect('/admin/trainers');
+  }
+}
+
+// Fetch trainers from Clerk
+let trainers = [];
+let debugError = '';
+try {
+  const response = await fetch('https://api.clerk.com/v1/users?limit=100', {
+    headers: {
+      'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
+    },
+  });
+  const data = await response.json();
+  // Clerk API returns users directly as an array, not in a standardized wrapper
+  if (Array.isArray(data)) {
+    if (data.length) {
+      trainers = data
+        .filter(user => user.public_metadata?.role === CLERK_TRAINER_ROLE)
+        .map(user => ({
+          id: user.id,
+          name: user.first_name || '',
+          email: user.email_addresses?.[0]?.email_address || '',
+          expertise: user.public_metadata?.expertise || '',
+        }));
+    } else {
+      debugError = 'No users found in Clerk.';
+      trainers = [];
+    }
+  } else {
+    // Handle error responses from Clerk
+    debugError = data.errors?.[0]?.long_message || data.message || `Clerk API error: ${response.status} ${response.statusText}`;
+    trainers = [];
+  }
+} catch (e) {
+  debugError = 'Fetch error: ' + e.message;
+  trainers = [];
+}
+export const prerender = false;
+---
+
+<Layout title="Manage Trainers">
+  <main class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold">Manage Trainers</h1>
+      <a href="/admin/add-trainer" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+        Add New Trainer
+      </a>
+    </div>
+
+    {debugError && <div class="mb-4 p-4 bg-red-100 border border-red-300 text-red-700 rounded">{debugError}</div>}
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <table class="min-w-full leading-normal">
+        <thead>
+          <tr>
+            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
+            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
+            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Expertise</th>
+            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {trainers.map(trainer => (
+            <tr>
+              <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">{trainer.name}</td>
+              <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">{trainer.email}</td>
+              <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">{trainer.expertise}</td>
+              <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                <a href={`/admin/add-trainer?id=${trainer.id}&edit=true`} class="text-blue-600 hover:text-blue-900 mr-2">Edit</a>
+                <form method="POST" style="display:inline">
+                  <input type="hidden" name="delete_id" value={trainer.id} />
+                  <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to delete this trainer?');">Remove</button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</Layout>

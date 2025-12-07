@@ -1,0 +1,137 @@
+---
+// @ts-ignore
+import { Icon } from "astro-icon/components";
+
+const features = [
+  {
+    title: "Design Thinking for Educators",
+    description:
+      "Master the design thinking process to create innovative solutions for classroom challenges.",
+    icon: "bx:bxs-bulb",
+    link: "/programs/design-thinking",
+  },
+  {
+    title: "Creating Engaging Classrooms",
+    description:
+      "Transform your classroom with modern technology integration and engagement techniques.",
+    icon: "bx:bxs-graduation",
+    link: "programs/engaging-classrooms",
+  },
+  {
+    title: "Teaching Strategies with AI",
+    description:
+      "Learn how to leverage AI tools to enhance learning outcomes and streamline tasks.",
+    icon: "bx:bxs-brain",
+    featured: true,
+    link: "programs/ai-teaching",
+  },
+  {
+    title: "School Innovation Ambassador",
+    description:
+      "Get guided preparation for the MoEd Government of India's School Innovation Ambassador program.",
+    icon: "bx:bxs-badge-check",
+    link: "/programs/innovation-ambassador",
+  },
+];
+
+const aiFeatures = [
+  "Learn to use AI tools for personalized learning experiences",
+  "Create engaging content using AI-powered platforms",
+  "Save time with automated grading and assessment tools",
+  "Design interactive activities that leverage AI capabilities",
+  "Stay ahead with the latest AI trends in education",
+];
+
+const courseDetails = [
+  {
+    label: "Course Duration",
+    value: "12 Hours"
+  },
+  {
+    label: "Difficulty Level",
+    value: "Beginner to Advanced"
+  },
+  {
+    label: "Certification",
+    value: "CPD Accredited"
+  }
+];
+---
+
+<div class="mt-16 md:mt-0 pt-24 px-6">
+  <h2 class="text-4xl lg:text-5xl font-bold lg:tracking-tight">
+    Specialized Training Programs for Modern Educators
+  </h2>
+  <p class="text-lg mt-4 text-slate-600">
+    Our training sessions are designed to equip educators with the skills and knowledge needed to excel in today's evolving educational landscape.
+  </p>
+</div>
+
+<div class="grid sm:grid-cols-2 md:grid-cols-2 mt-12 gap-6">
+  {
+    features.map((item) => (
+      <div class={`flex flex-col p-4 ${item.featured ? "bg-gray-50 rounded-xl border-2 border-gray-100" : ""}`}>
+        <div class="flex gap-3 items-start">
+          <div class={`mt-1 rounded-full p-2 w-8 h-8 shrink-0 ${item.featured ? "bg-gray-600" : "bg-black"}`}>
+            <Icon class="text-white" name={item.icon} />
+          </div>
+          <div>
+            <h3 class="font-semibold text-lg">{item.title}</h3>
+            <p class="text-slate-500 mt-1 leading-relaxed">{item.description}</p>
+          </div>
+        </div>
+        <a href={item.link} class="text-gray-600 hover:text-gray-800 mt-3 inline-flex items-center">
+          Learn more
+          <Icon name="bx:bx-right-arrow-alt" class="w-4 h-4 ml-1" />
+        </a>
+      </div>
+    ))
+  }
+</div>
+
+<div class="mt-12 flex justify-center">
+  <a href="/programs" class="inline-flex items-center mt-8 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+    Explore All Courses
+    <Icon name="bx:bx-diamond" class="w-5 h-5 ml-2" />
+  </a>
+</div>
+
+<div class="mt-24 bg-gray-50 rounded-2xl p-8 md:p-12">
+  <div class="grid md:grid-cols-2 gap-12">
+    <div>
+      <h3 class="text-2xl font-bold text-gray-800">AI for Educators</h3>
+      <h4 class="text-xl mt-2 text-blue-600 font-semibold">Transform Your Teaching with Artificial Intelligence</h4>
+
+      <ul class="mt-6 space-y-4">
+        {aiFeatures.map((feature) => (
+          <li class="flex items-center gap-3">
+            <Icon name="bx:bx-check-circle" class="w-5 h-5 text-blue-600" />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div>
+      <div class="bg-white p-6 rounded-xl shadow-sm">
+        <h4 class="text-xl font-semibold">Teaching Strategies with AI</h4>
+        <p class="mt-2 text-gray-600">
+          Our flagship AI course helps educators harness the power of artificial intelligence to create innovative learning experiences, automate routine tasks, and prepare students for a future where AI is integral to every industry.
+        </p>
+
+        <div class="mt-6 grid grid-cols-3 gap-4">
+          {courseDetails.map((detail) => (
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+              <p class="text-sm text-gray-600">{detail.label}</p>
+              <p class="font-semibold mt-1">{detail.value}</p>
+            </div>
+          ))}
+        </div>
+        <a href="/booking" class="inline-flex items-center mt-8 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          Register Now
+          <Icon name="bx:bx-log-in-circle" class="w-5 h-5 ml-2" />
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

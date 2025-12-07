@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "code": "SUMMER20",
+    "discount": "20%",
+    "discountType": "percentage",
+    "courseId": null,
+    "enabled": true,
+    "expiryDate": "2024-12-31"
+  },
+  {
+    "id": 2,
+    "code": "FALL10",
+    "discount": "10",
+    "discountType": "fixed",
+    "courseId": null,
+    "enabled": true,
+    "expiryDate": "2024-12-31"
+  },
+  {
+    "id": 3,
+    "code": "EXPIRED50",
+    "discount": "50%",
+    "discountType": "percentage",
+    "courseId": 2,
+    "enabled": false,
+    "expiryDate": "2023-12-31"
+  },
+  {
+    "id": 4,
+    "code": "COURSEONLY",
+    "discount": "15%",
+    "discountType": "percentage",
+    "courseId": 1,
+    "enabled": true,
+    "expiryDate": "2024-12-31"
+  }
+] 

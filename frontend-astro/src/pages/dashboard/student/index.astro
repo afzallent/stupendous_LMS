@@ -1,0 +1,266 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { Icon } from 'astro-icon/components';
+
+export const prerender = false;
+
+// Authentication is handled by middleware
+// Dashboard data will be loaded client-side
+---
+
+<DashboardLayout title="Student Dashboard - CourseCompass LMS" userType="student">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Welcome back, <span id="user-name">Student</span>!</h1>
+    <p class="text-gray-600">Here's an overview of your learning progress</p>
+  </div>
+  
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-blue-100 rounded-full">
+          <Icon name="mdi:book-open-variant" class="w-6 h-6 text-blue-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">Enrolled Courses</h3>
+          <p class="text-2xl font-bold" id="total-courses">-</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-green-100 rounded-full">
+          <Icon name="mdi:check-circle" class="w-6 h-6 text-green-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">Completed</h3>
+          <p class="text-2xl font-bold" id="completed-courses">-</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-yellow-100 rounded-full">
+          <Icon name="mdi:clock" class="w-6 h-6 text-yellow-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">In Progress</h3>
+          <p class="text-2xl font-bold" id="in-progress-courses">-</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-purple-100 rounded-full">
+          <Icon name="mdi:certificate" class="w-6 h-6 text-purple-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">Lessons Completed</h3>
+          <p class="text-2xl font-bold" id="total-lessons">-</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Continue Learning Section -->
+  <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-xl font-bold mb-4">Continue Learning</h2>
+    
+    <div class="border rounded-lg overflow-hidden">
+      <div class="flex flex-col md:flex-row">
+        <div class="w-full md:w-64 h-48 bg-gray-200">
+          <!-- Course Thumbnail Placeholder -->
+          <div class="w-full h-full flex items-center justify-center bg-gray-300">
+            <span class="text-gray-600">Course Thumbnail</span>
+          </div>
+        </div>
+        
+        <div class="flex-1 p-4">
+          <h3 class="text-lg font-bold">Introduction to Web Development</h3>
+          <p class="text-gray-600 mb-3">Learn the fundamentals of HTML, CSS, and JavaScript</p>
+          
+          <div class="mb-3">
+            <div class="flex items-center">
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 65%"></div>
+              </div>
+              <span class="ml-2 text-sm text-gray-600">65%</span>
+            </div>
+          </div>
+          
+          <div class="flex items-center text-sm text-gray-600 mb-4">
+            <Icon name="mdi:play-circle" class="w-5 h-5 mr-1" />
+            <span>Last viewed: Module 4 - CSS Flexbox</span>
+          </div>
+          
+          [1m<a href="/course-player?course_id=2&title=Introduction%20to%20Web%20Development" class="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">[0m
+            Continue Learning
+          [1m</a>[0m
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Recent Quiz/Assessment Activity -->
+  <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">My Recent Activity</h2> <span class="text-gray-500 text-sm">(Assessments)</span>
+      <a href="/dashboard/student/assessments" class="text-blue-600 hover:underline text-sm">View All</a>
+    </div>
+    <ul class="space-y-4">
+      <!-- Placeholder Item 1 -->
+      <li class="flex items-center justify-between p-3 border rounded-md hover:bg-gray-50">
+        <div>
+          <p class="font-semibold text-gray-700">Introduction to Web Development - Quiz 1</p>
+          <p class="text-sm text-gray-500">Attempted: Oct 28, 2023 - <span class="text-green-600 font-medium">Score: 90%</span></p>
+        </div>
+        <a href="#" class="text-blue-600 hover:underline text-sm">Review</a>
+      </li>
+      <!-- Placeholder Item 2 -->
+      <li class="flex items-center justify-between p-3 border rounded-md hover:bg-gray-50">
+        <div>
+          <p class="font-semibold text-gray-700">Advanced JavaScript - Module 2 Quiz</p>
+          <p class="text-sm text-gray-500">Attempted: Oct 25, 2023 - <span class="text-orange-500 font-medium">Score: 65% (Needs Improvement)</span></p>
+        </div>
+        <a href="#" class="text-blue-600 hover:underline text-sm">Retake</a>
+      </li>
+      <!-- Placeholder Item 3 -->
+      <li class="flex items-center justify-between p-3 border rounded-md hover:bg-gray-50">
+        <div>
+          <p class="font-semibold text-gray-700">Responsive Design - Final Assessment</p>
+          <p class="text-sm text-gray-500">Attempted: Oct 20, 2023 - <span class="text-green-600 font-medium">Score: 95%</span></p>
+        </div>
+        <a href="#" class="text-blue-600 hover:underline text-sm">Review</a>
+      </li>
+      {/* Add a message for no activity if needed */}
+    </ul>
+  </div>
+  
+  <!-- Recent Courses Section -->
+  <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">Your Courses</h2>
+      <a href="/dashboard/student/courses" class="text-blue-600 hover:underline text-sm">View All</a>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Course Card 1 -->
+      <div class="border rounded-lg overflow-hidden">
+        <div class="h-40 bg-gray-300 flex items-center justify-center">
+          <span class="text-gray-600">Course Thumbnail</span>
+        </div>
+        
+        <div class="p-4">
+          <h3 class="font-bold mb-1">Introduction to Web Development</h3>
+          <p class="text-sm text-gray-600 mb-3">15 modules • 10 hours</p>
+          
+          <div class="mb-3">
+            <div class="flex items-center">
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 65%"></div>
+              </div>
+              <span class="ml-2 text-sm text-gray-600">65%</span>
+            </div>
+          </div>
+          
+          [1m<a href="/course-player?course_id=3&title=Advanced%20JavaScript" class="text-blue-600 hover:underline text-sm">[0mContinue Course[1m</a>[0m
+        </div>
+      </div>
+      
+      <!-- Course Card 2 -->
+      <div class="border rounded-lg overflow-hidden">
+        <div class="h-40 bg-gray-300 flex items-center justify-center">
+          <span class="text-gray-600">Course Thumbnail</span>
+        </div>
+        
+        <div class="p-4">
+          <h3 class="font-bold mb-1">Advanced JavaScript</h3>
+          <p class="text-sm text-gray-600 mb-3">12 modules • 8 hours</p>
+          
+          <div class="mb-3">
+            <div class="flex items-center">
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 20%"></div>
+              </div>
+              <span class="ml-2 text-sm text-gray-600">20%</span>
+            </div>
+          </div>
+          
+          <a href="/course-player?course_id=5&title=Advanced%20JavaScript%20and%20TypeScript%20Mastery" class="text-blue-600 hover:underline text-sm">Continue Course</a>
+        </div>
+      </div>
+      
+      <!-- Course Card 3 -->
+      <div class="border rounded-lg overflow-hidden">
+        <div class="h-40 bg-gray-300 flex items-center justify-center">
+          <span class="text-gray-600">Course Thumbnail</span>
+        </div>
+        
+        <div class="p-4">
+          <h3 class="font-bold mb-1">Responsive Design with Tailwind CSS</h3>
+          <p class="text-sm text-gray-600 mb-3">8 modules • 5 hours</p>
+          
+          <div class="mb-3">
+            <div class="flex items-center">
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="bg-green-600 h-2.5 rounded-full" style="width: 100%"></div>
+              </div>
+              <span class="ml-2 text-sm text-gray-600">100%</span>
+            </div>
+          </div>
+          
+          <a href="/dashboard/student/certificates/1" class="text-green-600 hover:underline text-sm">View Certificate</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+
+<script>
+  import { djangoApi, API_ENDPOINTS, TokenManager } from '../../../config/django-api.config';
+  
+  async function loadDashboard() {
+    try {
+      // Get user info
+      const user = TokenManager.getUser();
+      if (user) {
+        const userName = document.getElementById('user-name');
+        if (userName) {
+          userName.textContent = user.first_name || user.username;
+        }
+      }
+      
+      // Fetch dashboard data
+      const response = await djangoApi.get(API_ENDPOINTS.dashboard.student);
+      
+      if (response.success) {
+        // Update stats
+        const totalCourses = document.getElementById('total-courses');
+        const completedCourses = document.getElementById('completed-courses');
+        const inProgressCourses = document.getElementById('in-progress-courses');
+        const totalLessons = document.getElementById('total-lessons');
+        
+        if (totalCourses) totalCourses.textContent = response.total_courses?.toString() || '0';
+        if (completedCourses) completedCourses.textContent = response.completed_courses?.toString() || '0';
+        if (inProgressCourses) inProgressCourses.textContent = response.in_progress_courses?.toString() || '0';
+        if (totalLessons) totalLessons.textContent = response.total_lessons_completed?.toString() || '0';
+      } else {
+        console.error('Failed to load dashboard:', response.error);
+        // Redirect to login if unauthorized
+        if (response.error?.includes('Authentication') || response.error?.includes('credentials')) {
+          TokenManager.clearTokens();
+          window.location.href = '/login/student';
+        }
+      }
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    }
+  }
+  
+  // Load dashboard on page load
+  document.addEventListener('astro:page-load', loadDashboard);
+</script>

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "quizzes",
     "certificates",
     "activity",
+    "media_config",
 ]
 
 AUTH_USER_MODEL = 'core.User'
@@ -89,33 +90,21 @@ WSGI_APPLICATION = "lms_project.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# Using SQLite for now - PostgreSQL connection issues with Supabase
-# To switch to PostgreSQL, ensure DB_ENGINE is set in .env and server is accessible
+# Using PostgreSQL ONLY - no SQLite fallback
 
-db_engine = config('DB_ENGINE', default='django.db.backends.sqlite3')
-
-if db_engine == 'django.db.backends.postgresql':
-    DATABASES = {
-        "default": {
-            "ENGINE": db_engine,
-            "NAME": config('DB_NAME'),
-            "USER": config('DB_USER'),
-            "PASSWORD": config('DB_PASSWORD'),
-            "HOST": config('DB_HOST'),
-            "PORT": config('DB_PORT'),
-            "OPTIONS": {
-                "sslmode": config('DB_SSL_MODE', default='disable'),
-            },
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": config('DB_ENGINE'),
+        "NAME": config('DB_NAME'),
+        "USER": config('DB_USER'),
+        "PASSWORD": config('DB_PASSWORD'),
+        "HOST": config('DB_HOST'),
+        "PORT": config('DB_PORT'),
+        "OPTIONS": {
+            "sslmode": config('DB_SSL_MODE', default='prefer'),
+        },
     }
-else:
-    # Default to SQLite
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+}
 
 
 # Password validation
@@ -194,7 +183,7 @@ SIMPLE_JWT = {
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000',
+    default='http://localhost:4321,http://localhost:4000,http://localhost:8000,http://127.0.0.1:4321,http://127.0.0.1:4000,http://127.0.0.1:8000',
     cast=Csv()
 )
 

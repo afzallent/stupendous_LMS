@@ -1,0 +1,29 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Admin Dashboard">
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-center mb-8">Admin Dashboard</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <a href="/admin/courses" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow-md text-center">
+        Manage Courses
+      </a>
+      <a href="/admin/students" class="bg-green-500 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg shadow-md text-center">
+        Manage Students
+      </a>
+      <a href="/admin/trainers" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg shadow-md text-center">
+        Manage Trainers
+      </a>
+      <a href="/admin/coupons" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-4 px-6 rounded-lg shadow-md text-center">
+        Manage Coupons
+      </a>
+      <a href="/admin/payments" class="bg-red-500 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-lg shadow-md text-center">
+        Manage Payments
+      </a>
+       <a href="/admin/settings" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg shadow-md text-center">
+        Admin Settings
+      </a>
+    </div>
+  </main>
+</Layout> 

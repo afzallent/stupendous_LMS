@@ -1,0 +1,300 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { Icon } from 'astro-icon/components';
+import UserInfoWrapped from '../../../components/dashboard/UserInfoWrapped.tsx';
+
+export const prerender = false;
+
+// Authentication is handled by middleware
+// Role-based access will be checked client-side
+---
+
+<DashboardLayout title="Trainer Dashboard - CourseCompass LMS" userType="trainer">
+  <!-- User Authentication Info -->
+  <UserInfoWrapped client:load />
+  
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Welcome back!</h1>
+    <p class="text-gray-600">Here's an overview of your courses and students</p>
+  </div>
+  
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-blue-100 rounded-full">
+          <Icon name="mdi:book-open-variant" class="w-6 h-6 text-blue-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">Published Courses</h3>
+          <p class="text-2xl font-bold">4</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-green-100 rounded-full">
+          <Icon name="mdi:account" class="w-6 h-6 text-green-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">Active Students</h3>
+          <p class="text-2xl font-bold">45</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-yellow-100 rounded-full">
+          <Icon name="mdi:message" class="w-6 h-6 text-yellow-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">New Messages</h3>
+          <p class="text-2xl font-bold">12</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 bg-purple-100 rounded-full">
+          <Icon name="mdi:certificate" class="w-6 h-6 text-purple-600" />
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-semibold text-gray-700">Certificates Issued</h3>
+          <p class="text-2xl font-bold">26</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Recent Activity Section -->
+  <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-xl font-bold mb-4">Recent Activity</h2>
+    
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+                <div class="ml-4">
+                  <div class="text-sm font-medium text-gray-900">John Doe</div>
+                  <div class="text-sm text-gray-500">john.doe@example.com</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Introduction to Web Development</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Completed Quiz 3</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              2 hours ago
+            </td>
+          </tr>
+          
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+                <div class="ml-4">
+                  <div class="text-sm font-medium text-gray-900">Sarah Johnson</div>
+                  <div class="text-sm text-gray-500">sarah.j@example.com</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Advanced JavaScript</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Started Module 4</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              5 hours ago
+            </td>
+          </tr>
+          
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+                <div class="ml-4">
+                  <div class="text-sm font-medium text-gray-900">Michael Brown</div>
+                  <div class="text-sm text-gray-500">m.brown@example.com</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Responsive Design with Tailwind CSS</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Completed Course</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              1 day ago
+            </td>
+          </tr>
+          
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+                <div class="ml-4">
+                  <div class="text-sm font-medium text-gray-900">Emma Wilson</div>
+                  <div class="text-sm text-gray-500">emma.w@example.com</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Introduction to Web Development</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">Asked a Question</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              1 day ago
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="mt-4 text-right">
+      <a href="/dashboard/trainer/activity" class="text-blue-600 hover:underline text-sm">View All Activity</a>
+    </div>
+  </div>
+  
+  <!-- Your Courses Section -->
+  <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">Your Courses</h2>
+      <a href="/dashboard/trainer/courses" class="text-blue-600 hover:underline text-sm">View All</a>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Course Card 1 -->
+      <div class="border rounded-lg overflow-hidden">
+        <div class="h-40 bg-gray-300 flex items-center justify-center">
+          <span class="text-gray-600">Course Thumbnail</span>
+        </div>
+        
+        <div class="p-4">
+          <h3 class="font-bold mb-1">Introduction to Web Development</h3>
+          <div class="flex justify-between items-center mb-3">
+            <p class="text-sm text-gray-600">24 students enrolled</p>
+            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+          </div>
+          
+          <a href="/dashboard/trainer/courses/1" class="text-blue-600 hover:underline text-sm">Manage Course</a>
+        </div>
+      </div>
+      
+      <!-- Course Card 2 -->
+      <div class="border rounded-lg overflow-hidden">
+        <div class="h-40 bg-gray-300 flex items-center justify-center">
+          <span class="text-gray-600">Course Thumbnail</span>
+        </div>
+        
+        <div class="p-4">
+          <h3 class="font-bold mb-1">Advanced JavaScript</h3>
+          <div class="flex justify-between items-center mb-3">
+            <p class="text-sm text-gray-600">18 students enrolled</p>
+            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+          </div>
+          
+          <a href="/dashboard/trainer/courses/2" class="text-blue-600 hover:underline text-sm">Manage Course</a>
+        </div>
+      </div>
+      
+      <!-- Course Card 3 -->
+      <div class="border rounded-lg overflow-hidden">
+        <div class="h-40 bg-gray-300 flex items-center justify-center">
+          <span class="text-gray-600">Course Thumbnail</span>
+        </div>
+        
+        <div class="p-4">
+          <h3 class="font-bold mb-1">Responsive Design with Tailwind CSS</h3>
+          <div class="flex justify-between items-center mb-3">
+            <p class="text-sm text-gray-600">15 students enrolled</p>
+            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+          </div>
+          
+          <a href="/dashboard/trainer/courses/3" class="text-blue-600 hover:underline text-sm">Manage Course</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Quick Actions Section -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-bold mb-4">Quick Actions</h2>
+      
+      <div class="space-y-3">
+        <a href="/dashboard/trainer/courses/new" class="flex items-center p-3 border rounded-md hover:bg-gray-50">
+          <div class="p-2 bg-blue-100 rounded-full mr-3">
+            <Icon name="mdi:plus" class="w-5 h-5 text-blue-600" />
+          </div>
+          <span>Create New Course</span>
+        </a>
+        
+        <a href="/dashboard/trainer/assessments/new" class="flex items-center p-3 border rounded-md hover:bg-gray-50">
+          <div class="p-2 bg-purple-100 rounded-full mr-3">
+            <Icon name="mdi:clipboard" class="w-5 h-5 text-purple-600" />
+          </div>
+          <span>Create New Assessment</span>
+        </a>
+        
+        <a href="/dashboard/trainer/discussions" class="flex items-center p-3 border rounded-md hover:bg-gray-50">
+          <div class="p-2 bg-yellow-100 rounded-full mr-3">
+            <Icon name="mdi:message-text" class="w-5 h-5 text-yellow-600" />
+          </div>
+          <span>View Discussion Forums</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-bold mb-4">Notifications</h2>
+      
+      <div class="space-y-4">
+        <div class="border-b pb-3">
+          <p class="text-sm font-medium">New question in "Introduction to Web Development"</p>
+          <p class="text-xs text-gray-500 mt-1">Emma Wilson â€¢ 4 hours ago</p>
+        </div>
+        
+        <div class="border-b pb-3">
+          <p class="text-sm font-medium">Assessment submitted for review in "Advanced JavaScript"</p>
+          <p class="text-xs text-gray-500 mt-1">John Doe â€¢ 1 day ago</p>
+        </div>
+        
+        <div class="border-b pb-3">
+          <p class="text-sm font-medium">5 new students enrolled in your courses this week</p>
+          <p class="text-xs text-gray-500 mt-1">System â€¢ 2 days ago</p>
+        </div>
+        
+        <div class="text-right">
+          <a href="/dashboard/trainer/notifications" class="text-blue-600 hover:underline text-sm">View All</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  // Clerk-based authentication will be handled by the ClerkProviderWrapper
+  // and middleware. The dashboard pages are protected by Clerk.
+</script>
+

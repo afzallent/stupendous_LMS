@@ -1,0 +1,25 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ClerkProviderWrapper from '../components/ClerkProviderWrapper.tsx';
+import LogoutButton from '../components/auth/LogoutButton.tsx';
+
+export const prerender = false;
+---
+
+<Layout title="Logging out...">
+  <main class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <ClerkProviderWrapper>
+      <LogoutButton client:only="react" />
+    </ClerkProviderWrapper>
+  </main>
+</Layout>
+
+<script>
+  // Fallback redirect if Clerk doesn't sign out properly
+  setTimeout(() => {
+    // Check if we're still on the logout page
+    if (window.location.pathname === '/logout') {
+      window.location.href = '/login';
+    }
+  }, 3000);
+</script>

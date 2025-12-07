@@ -1,0 +1,87 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { Icon } from 'astro-icon/components';
+import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
+
+export const prerender = false;
+
+// Authentication is handled by middleware
+const showNoCertificatesMessage = false; // Set to true to display the "No Certificates" message
+---
+
+<ClerkProviderWrapper>
+<DashboardLayout title="My Certificates - CourseCompass LMS" userType="student">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">My Certificates</h1>
+    <p class="text-gray-600">View and manage your earned certificates.</p>
+  </div>
+
+  <div class="space-y-6">
+    <!-- Certificate Item 1: Placeholder -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="p-6">
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div>
+            <h3 class="text-xl font-bold text-blue-600">Certificate of Completion: Introduction to Web Development</h3>
+            <p class="text-gray-600 mb-1">Issued on: October 26, 2023</p>
+            <p class="text-gray-500 text-sm mb-4">Granted for successfully completing all modules and assessments for the course "Introduction to Web Development".</p>
+          </div>
+          <div class="flex-shrink-0 mt-4 md:mt-0">
+            <Icon name="mdi:ribbon" class="w-24 h-24 text-yellow-500" />
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3">
+          <a href="#" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center">
+            <Icon name="mdi:download" class="w-4 h-4 mr-2" />
+            Download PDF
+          </a>
+          <button type="button" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm flex items-center justify-center">
+            <Icon name="mdi:share-variant" class="w-4 h-4 mr-2" />
+            Share
+          </button>
+          <!-- Add social media share options here if desired, e.g. Twitter, LinkedIn -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Certificate Item 2: Placeholder -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="p-6">
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div>
+            <h3 class="text-xl font-bold text-blue-600">Certificate of Achievement: Advanced JavaScript</h3>
+            <p class="text-gray-600 mb-1">Issued on: November 15, 2023</p>
+            <p class="text-gray-500 text-sm mb-4">Awarded for demonstrating excellence in the "Advanced JavaScript" course and final project.</p>
+          </div>
+          <div class="flex-shrink-0 mt-4 md:mt-0">
+            <Icon name="mdi:seal-variant" class="w-24 h-24 text-blue-500" />
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3">
+          <a href="#" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center">
+            <Icon name="mdi:download" class="w-4 h-4 mr-2" />
+            Download PDF
+          </a>
+          <button type="button" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm flex items-center justify-center">
+            <Icon name="mdi:share-variant" class="w-4 h-4 mr-2" />
+            Share
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Add more certificate items as needed -->
+
+    {showNoCertificatesMessage && (
+      <div class="text-center py-6"> 
+          <Icon name="mdi:certificate-outline" class="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 class="text-xl font-semibold text-gray-700">No Certificates Yet</h3>
+          <p class="text-gray-500">Complete courses to earn certificates. They will appear here.</p>
+      </div>
+    )}
+  </div>
+</DashboardLayout>
+</ClerkProviderWrapper> 
+
+
+

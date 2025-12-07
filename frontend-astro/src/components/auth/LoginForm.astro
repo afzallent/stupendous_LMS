@@ -1,0 +1,202 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  userType: 'student' | 'trainer';
+}
+
+const { userType } = Astro.props;
+---
+
+<div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-8">
+  <div class="text-center mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">
+      {userType === 'student' ? 'Student Login' : 'Trainer Login'}
+    </h1>
+    <p class="text-gray-600 mt-2">
+      Access your {userType} dashboard
+    </p>
+  </div>
+
+  <form id="login-form" class="space-y-6" data-user-type={userType}>
+    <div>
+      <label for="email" class="block text-sm font-medium text-gray-700">Username or Email</label>
+      <div class="mt-1 relative rounded-md shadow-sm">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Icon name="mdi:account-outline" class="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          id="email"
+          name="email"
+          required
+          class="py-2 pl-10 block w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          placeholder={userType === 'student' ? 'student@example.com' : 'trainer@example.com'}
+        />
+      </div>
+    </div>
+
+    <div>
+      <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+      <div class="mt-1 relative rounded-md shadow-sm">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Icon name="mdi:lock-outline" class="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+          class="py-2 pl-10 block w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          placeholder="••••••••"
+        />
+      </div>
+    </div>
+
+    <div id="login-error" class="text-red-500 text-sm hidden"></div>
+
+    <!-- Demo Credentials Info -->
+    <div class="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+      <div class="flex">
+        <Icon name="mdi:information-outline" class="h-5 w-5 text-blue-400 mr-2 mt-0.5" />
+        <div class="text-sm">
+          <p class="text-blue-700 font-medium">Demo Credentials:</p>
+          <p class="text-blue-600">
+            {userType === 'student' ? (
+              <>Email: <code class="bg-blue-100 px-1 rounded">student@example.com</code><br/>Password: <code class="bg-blue-100 px-1 rounded">password123</code></>
+            ) : (
+              <>Email: <code class="bg-blue-100 px-1 rounded">trainer@example.com</code><br/>Password: <code class="bg-blue-100 px-1 rounded">password123</code></>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <button
+        type="submit"
+        id="login-button"
+        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+      >
+        Sign in
+      </button>
+    </div>
+  </form>
+
+  <script src="/src/utils/api-client.js"></script>
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Get form elements
+      const form = document.getElementById('login-form');
+      const loginButton = document.getElementById('login-button');
+      const errorDiv = document.getElementById('login-error');
+      
+      if (!form || !loginButton || !errorDiv) {
+        console.error('Required form elements not found');
+        return;
+      }
+      
+      // Get userType from data attribute
+      const userType = form.dataset.userType;
+      if (!userType) {
+        console.error('User type not specified');
+        showError('Configuration error. Please contact support.');
+        return;
+      }
+      
+      // Function to show error messages
+      function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+      }
+      
+      // Function to hide error messages
+      function hideError() {
+        errorDiv.textContent = '';
+        errorDiv.classList.add('hidden');
+      }
+      
+      // Function to handle login
+      async function handleLogin(email, password) {
+        try {
+          // Disable button and show loading state
+          loginButton.disabled = true;
+          loginButton.textContent = 'Signing in...';
+          hideError();
+          
+          // Use the new API client for login
+          console.log('Attempting login with v2 endpoint');
+          
+          const result = await window.apiCall(window.API_ENDPOINTS.auth.login, {
+            method: 'POST',
+            body: JSON.stringify({ 
+              email: email,
+              password: password,
+              role: userType
+            })
+          });
+          
+          // Handle error responses
+          if (!result.success) {
+            console.error('Login failed:', result.error);
+            throw new Error(result.error || 'Login failed. Please check your credentials.');
+          }
+          
+          // Login successful
+          console.log('Login successful', result);
+          const data = result.data || {};
+          
+          // Store user data in local storage
+          localStorage.setItem('token', data.token || '');
+          localStorage.setItem('user_id', data.user?.id || '');
+          localStorage.setItem('user_name', data.user?.name || '');
+          localStorage.setItem('user_role', data.user?.role || userType);
+          
+          // Store auth method if available (v2 endpoint provides this)
+          if (data.auth_method) {
+            localStorage.setItem('auth_method', data.auth_method);
+          }
+          
+          // Determine redirect path based on user role
+          const role = data.user?.role || userType;
+          const dashboardPath = (role === 'trainer') 
+            ? '/dashboard/trainer' 
+            : '/dashboard/student';
+          
+          // Redirect to dashboard
+          window.location.href = dashboardPath;
+        } catch (error) {
+          console.error('Login error:', error);
+          showError(error.message);
+        } finally {
+          // Reset button state
+          loginButton.disabled = false;
+          loginButton.textContent = 'Sign in';
+        }
+      }
+      
+      // Form submission handler
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const email = form.email.value.trim();
+        const password = form.password.value;
+        
+        // Basic validation
+        if (!email) {
+          showError('Please enter your username or email address');
+          return;
+        }
+        
+        if (!password) {
+          showError('Please enter your password');
+          return;
+        }
+        
+        // Attempt login
+        handleLogin(email, password);
+      });
+    });
+  </script>
+</div>

@@ -1,0 +1,120 @@
+---
+import { SEO } from "astro-seo";
+import Footer from "@components/footer.astro";
+import Navbar from "@components/navbar/navbar.astro";
+import '@fontsource-variable/bricolage-grotesque';
+import "@fontsource-variable/inter/index.css";
+import { ViewTransitions } from 'astro:transitions';
+
+
+export interface Props {
+  title: string;
+   description?: string;
+}
+
+// Add type declarations for Google Analytics
+interface Window {
+  dataLayer: any[];
+  gtag: (...args: any[]) => void;
+}
+
+declare var window: Window;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString();
+
+const resolvedImageWithDomain = new URL(
+  "/opengraph.jpg",
+  Astro.site
+).toString();
+
+const { title, description = "Tech in Teach is an academy for upskilling educators." } = Astro.props;
+
+const makeTitle = title
+  ? title + " | " + "Tech in Teach"
+  : "Where educators upskill for the future";
+---
+
+<!DOCTYPE html>
+<html lang="en" class="antialiased">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <ViewTransitions />
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-H9LLG66QBY"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-H9LLG66QBY');
+    </script>
+    <!-- End Google Analytics -->
+
+    <style>
+      /* Debug styles */
+      * {
+        color: black !important;
+        text-shadow: 0 0 1px rgba(0,0,0,0.5);
+      }
+      h1, h2, h3, p, span, a {
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+    </style>
+
+    <!-- <link rel="preload" as="image" href={src} alt="Hero" /> -->
+    <SEO
+      title={makeTitle}
+      description={description}
+      canonical={canonicalURL}
+      twitter={{
+        card: "summary_large_image",
+      }}
+      openGraph={{
+        basic: {
+          url: canonicalURL,
+          type: "website",
+          title: `Tech in Teach`,
+          image: resolvedImageWithDomain,
+        },
+        image: {
+          alt: "Tech in Teach Homepage Screenshot",
+        },
+      }}
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="generator" content={Astro.generator} />
+    {title && <meta property="og:title" content={title} />}
+    {description && <meta property="og:description" content={description} />}
+    {title && <meta property="twitter:title" content={title} />}
+    {description && <meta property="twitter:description" content={description} />}
+  </head>
+  <body class="min-h-screen bg-white text-gray-800">
+    <div class="relative z-0">
+      <Navbar />
+      <main class="relative z-10">
+        <slot />
+      </main>
+      <Footer />
+    </div>
+    <style is:global>
+      /* Improve Page speed */
+      /* https://css-tricks.com/almanac/properties/c/content-visibility/ */
+      img {
+        content-visibility: auto;
+      }
+      html {
+        color-scheme: light;
+      }
+      body {
+        color: #1a1a1a;
+      }
+      ::selection {
+        background: rgba(0,0,0,0.1);
+      }
+    </style>
+  </body>
+</html>

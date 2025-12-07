@@ -1,0 +1,536 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import Container from '../../components/container.astro';
+import { Icon } from 'astro-icon/components';
+
+// Get the slug from URL params
+const { slug } = Astro.params;
+
+// Define mock courses with slug-based mapping
+const mockCourses = {
+  'web-development': {
+    slug: 'web-development',
+    title: 'Introduction to Web Development',
+    price: 49.99,
+    duration: '10 hours',
+    level: 'Beginner',
+    instructor: 'Sarah Johnson',
+    instructor_name: 'Sarah Johnson',
+    description: 'Learn the fundamentals of HTML, CSS, and JavaScript to build modern websites from scratch.',
+    longDescription: `<p>This comprehensive course covers everything you need to know to get started with web development. Whether you're a complete beginner or looking to refresh your skills, this course provides a solid foundation in the core technologies of the web.</p>
+    <p>You'll learn how to structure web content with HTML, style it with CSS, and add interactivity with JavaScript. By the end of the course, you'll have built several projects including a personal portfolio website.</p>`,
+    coverImage: 'https://placehold.co/1200x600/e2e8f0/1e40af?text=Web+Development',
+    thumbnail: 'https://placehold.co/1200x600/e2e8f0/1e40af?text=Web+Development',
+    topics: [
+      'HTML5 structure and semantics',
+      'CSS3 styling and layouts',
+      'JavaScript fundamentals',
+      'Responsive design principles',
+      'Web accessibility best practices',
+      'Version control with Git',
+      'Deploying your first website'
+    ],
+    features: [
+      'Lifetime access to course materials',
+      '10 hours of high-quality video content',
+      '15 practical exercises',
+      '5 complete projects',
+      'Downloadable resources and cheat sheets',
+      'Certificate of completion'
+    ],
+    ratings: {
+      average: 4.5,
+      count: 256
+    }
+  },
+  'advanced-javascript': {
+    slug: 'advanced-javascript',
+    title: 'Advanced JavaScript',
+    price: 69.99,
+    duration: '8 hours',
+    level: 'Intermediate',
+    instructor: 'Michael Chen',
+    instructor_name: 'Michael Chen',
+    description: 'Master advanced JavaScript concepts like closures, prototypes, and asynchronous programming.',
+    longDescription: `<p>Take your JavaScript skills to the next level with this advanced course. Designed for developers who already have a basic understanding of JavaScript, this course dives deep into the language's more complex features.</p>
+    <p>You'll explore closures, prototypes, the event loop, and asynchronous programming patterns. Through practical examples and real-world applications, you'll gain a thorough understanding of JavaScript's inner workings.</p>`,
+    coverImage: 'https://placehold.co/1200x600/e2e8f0/1e3a8a?text=JavaScript',
+    thumbnail: 'https://placehold.co/1200x600/e2e8f0/1e3a8a?text=JavaScript',
+    topics: [
+      'Closures and scope',
+      'Prototypal inheritance',
+      'ES6+ features and syntax',
+      'Asynchronous patterns',
+      'Promises and async/await',
+      'Functional programming concepts',
+      'Performance optimization'
+    ],
+    features: [
+      'Lifetime access to course materials',
+      '8 hours of in-depth video lessons',
+      '12 challenging coding exercises',
+      '3 advanced projects',
+      'Code reviews and best practices',
+      'Certificate of completion'
+    ],
+    ratings: {
+      average: 5.0,
+      count: 128
+    }
+  },
+  'tailwind-css': {
+    slug: 'tailwind-css',
+    title: 'Responsive Design with Tailwind CSS',
+    price: 39.99,
+    duration: '5 hours',
+    level: 'Beginner',
+    instructor: 'Emily Rodriguez',
+    instructor_name: 'Emily Rodriguez',
+    description: 'Learn to build responsive user interfaces quickly with the Tailwind CSS utility-first framework.',
+    longDescription: `<p>Discover the power of utility-first CSS with Tailwind CSS. This course teaches you how to rapidly build modern, responsive interfaces without writing custom CSS.</p>
+    <p>You'll learn how Tailwind's approach differs from traditional CSS frameworks, how to configure and customize Tailwind for your projects, and best practices for creating maintainable UI components.</p>`,
+    coverImage: 'https://placehold.co/1200x600/e2e8f0/0f766e?text=Tailwind+CSS',
+    thumbnail: 'https://placehold.co/1200x600/e2e8f0/0f766e?text=Tailwind+CSS',
+    topics: [
+      'Utility-first CSS philosophy',
+      'Tailwind configuration and setup',
+      'Responsive design principles',
+      'Custom component extraction',
+      'Dark mode implementation',
+      'Animation and transitions',
+      'Optimizing for production'
+    ],
+    features: [
+      'Lifetime access to course materials',
+      '5 hours of practical video tutorials',
+      '8 UI component exercises',
+      'Complete website project',
+      'Tailwind configuration templates',
+      'Certificate of completion'
+    ],
+    ratings: {
+      average: 4.7,
+      count: 96
+    }
+  }
+};
+
+// Initialize course variable
+let course = null;
+
+// First, try to get course from mock data
+if (slug && mockCourses[slug]) {
+  course = mockCourses[slug];
+} else if (slug) {
+  // If not in mock data, try to fetch from API
+  const API_URL = import.meta.env.PUBLIC_API_URL;
+  if (!API_URL) {
+    throw new Error('PUBLIC_API_URL environment variable is not set');
+  }
+  
+  try {
+    // Try to find course by slug (assuming slug is used as course ID or we need to fetch all and filter)
+    const response = await fetch(`${API_URL}/courses.php`);
+    if (response.ok) {
+      const data = await response.json();
+      let courses = [];
+      // Handle standardized API response format
+      if (data.success === true && data.data) {
+        courses = Array.isArray(data.data) ? data.data : [];
+      } else {
+        // Fallback for direct array response
+        courses = Array.isArray(data) ? data : [];
+      }
+      // Look for course by slug or id
+      course = courses.find(c => c.slug === slug || c.id === slug || c.title?.toLowerCase().replace(/\s+/g, '-') === slug);
+      
+      // Transform API course data to match our expected format
+      if (course) {
+        course = {
+          ...course,
+          slug: course.slug || slug,
+          coverImage: course.thumbnail || `https://placehold.co/1200x600/e2e8f0/1e40af?text=${encodeURIComponent(course.title || 'Course')}`,
+          longDescription: course.long_description || course.description || '<p>Course details coming soon.</p>',
+          topics: course.topics || ['Course content details coming soon'],
+          features: course.features || ['Lifetime access', 'Certificate of completion'],
+          ratings: course.ratings || { average: 4.5, count: 0 },
+          level: course.level || 'All Levels',
+          instructor: course.instructor_name || course.instructor || 'TBD'
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching course from API:', error);
+  }
+}
+
+// Handle case where course is not found
+if (!course) {
+  return Astro.redirect('/404');
+}
+---
+
+<Layout title={`${course?.title || 'Course Not Found'} - CourseCompass LMS`}>
+  <Container>
+    <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+
+      {/* Page Header */}
+      <div class="mb-8 text-center">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-3">{course.title}</h1>
+        <p class="text-xl text-gray-600">{course.description}</p>
+        <p class="text-md text-gray-500 mt-2">Taught by: <span class="font-semibold text-blue-600">{course.instructor_name || course.instructor}</span></p>
+      </div>
+
+      {/* Main Content - Potentially Two Column Layout */}
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Left Column (or Main Content for single column) - Video, Description, What you'll learn, Features */}
+        <div class="lg:col-span-2 space-y-8">
+          
+          {/* Course Preview Video */}
+          <div class="bg-white rounded-lg shadow-xl overflow-hidden">
+            <div class="aspect-w-16 aspect-h-9 bg-gray-200">
+              {/* Placeholder for video player - Replace with your video embed code */}
+              <div class="flex items-center justify-center h-full">
+                <Icon name="mdi:play-circle-outline" class="w-24 h-24 text-gray-400" />
+              </div>
+              {/* Example of an iframe for a YouTube video:
+              <iframe 
+                src="https://www.youtube.com/embed/your-video-id" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen
+                class="w-full h-full"
+              ></iframe> 
+              */}
+            </div>
+            <div class="p-6">
+              <h2 class="text-2xl font-bold text-gray-800 mb-3">Course Preview</h2>
+              <p class="text-gray-600">Watch this short video to get a glimpse of what you'll learn in {course.title}.</p>
+            </div>
+          </div>
+
+          {/* Course Details Tabs or Accordion (Optional - for now, keeping as sections) */}
+          
+          {/* About This Course */}
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">About This Course</h2>
+            <div class="prose prose-lg max-w-none text-gray-700" set:html={course.longDescription} />
+          </div>
+          
+          {/* What You'll Learn */}
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">What You'll Learn</h2>
+            <ul class="list-none space-y-3">
+              {course.topics.map(topic => (
+                <li class="flex items-start">
+                  <Icon name="mdi:check-circle" class="w-6 h-6 text-green-500 mt-1 mr-3 flex-shrink-0" />
+                  <span class="text-gray-700">{topic}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          
+          {/* This Course Includes */}
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">This Course Includes</h2>
+            <ul class="list-none space-y-3">
+              {course.features.map(feature => (
+                <li class="flex items-start">
+                  <Icon name="mdi:check-decagram" class="w-6 h-6 text-blue-500 mt-1 mr-3 flex-shrink-0" />
+                  <span class="text-gray-700">{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Testimonials Section */}
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Student Feedback</h2>
+            <div class="space-y-6">
+              {/* Placeholder Testimonial 1 */}
+              <div class="border-l-4 border-blue-500 pl-4">
+                <p class="text-gray-700 italic">"This course was fantastic! I learned so much and the instructor was very knowledgeable. Highly recommended!"</p>
+                <p class="text-gray-500 text-sm mt-2">- Alex P.</p>
+              </div>
+              {/* Placeholder Testimonial 2 */}
+              <div class="border-l-4 border-blue-500 pl-4">
+                <p class="text-gray-700 italic">"I was a complete beginner, and now I feel confident in my web development skills. The projects were very practical."</p>
+                <p class="text-gray-500 text-sm mt-2">- Jamie L.</p>
+              </div>
+              {/* Add more testimonials or a system to load them dynamically */}
+            </div>
+          </div>
+
+        </div>
+        
+        {/* Right Sidebar - Purchase Info, Instructor, Stats */}
+        <aside class="lg:col-span-1 space-y-6">
+          {/* Purchase Card */}
+          <div class="bg-white rounded-lg shadow-xl p-6 sticky top-8">
+            <img src={course.coverImage} alt={`${course.title} cover`} class="w-full h-auto rounded-md mb-4 object-cover max-h-60" />
+            
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-4xl font-bold text-gray-900">${Number(course.price).toFixed(2)}</div>
+              <div class="flex items-center">
+                {[...Array(5)].map((_, i) => {
+                  const avgRating = Number(course.ratings?.average) || 0;
+                  return (
+                    <Icon 
+                      name={i < Math.floor(avgRating) ? "mdi:star" : 
+                           i === Math.floor(avgRating) && avgRating % 1 >= 0.5 ? "mdi:star-half" : "mdi:star-outline"}
+                      class="w-5 h-5 text-yellow-400" 
+                    />
+                  );
+                })}
+                <span class="ml-2 text-sm text-gray-600">{course.ratings?.average ? Number(course.ratings.average).toFixed(1) : 'N/A'} ({course.ratings?.count || 0} reviews)</span>
+              </div>
+            </div>
+
+            <button 
+              id="addToCartBtn" 
+              data-course={JSON.stringify({
+                id: course.slug,
+                title: course.title,
+                price: Number(course.price),
+                image: course.coverImage // Ensure image is used if cart needs it
+              })}
+              class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors duration-150 text-lg"
+            >
+              Add to Cart
+            </button>
+            
+            <div class="mt-6 space-y-3 text-sm text-gray-600">
+              <div class="flex items-center">
+                <Icon name="mdi:account-group-outline" class="w-5 h-5 mr-2 text-blue-500" />
+                <span>{course.ratings.count * 3 + 17} students enrolled (example)</span> {/* Placeholder for student count */}
+              </div>
+              <div class="flex items-center">
+                <Icon name="mdi:clock-outline" class="w-5 h-5 mr-2 text-blue-500" />
+                <span>{course.duration} of content</span>
+              </div>
+              <div class="flex items-center">
+                <Icon name="mdi:school-outline" class="w-5 h-5 mr-2 text-blue-500" />
+                <span>{course.level} level</span>
+              </div>
+              <div class="flex items-center">
+                <Icon name="mdi:certificate-outline" class="w-5 h-5 mr-2 text-blue-500" />
+                <span>Certificate of completion</span>
+              </div>
+              <div class="flex items-center">
+                <Icon name="mdi:cellphone-arrow-down" class="w-5 h-5 mr-2 text-blue-500" />
+                <span>Downloadable resources</span>
+              </div>
+               <div class="flex items-center">
+                <Icon name="mdi:update" class="w-5 h-5 mr-2 text-blue-500" />
+                <span>Lifetime access</span>
+              </div>
+            </div>
+            
+            {/* Second Add to Cart Button - Optional, can be removed if redundant */}
+            <div class="mt-6 border-t pt-6">
+                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Ready to start learning?</h3>
+                 <p class="text-gray-600 mb-4 text-sm">Enroll now and begin your journey today!</p>
+                 <button 
+                    class="add-to-cart-btn w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors duration-150 text-lg"
+                    data-course={JSON.stringify({
+                    id: course.slug,
+                    title: course.title,
+                    price: Number(course.price),
+                    image: course.coverImage
+                    })}
+                >
+                    Enroll Now
+                </button>
+            </div>
+
+          </div>
+        </aside>
+      </div>
+
+      {/* Course Navigation - Moved to the bottom, centered */}
+      <div class="mt-12 pt-8 border-t border-gray-200 flex justify-center">
+        <a href="/courses" class="text-blue-600 hover:text-blue-800 flex items-center">
+          <Icon name="mdi:arrow-left" class="w-5 h-5 mr-2" />
+          Back to Course Catalog
+        </a>
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<script>
+  // Define cart item interface
+  interface CartItem {
+    id: string;
+    title: string;
+    price: number;
+    image: string;
+  }
+
+  function isCourseInCart(courseId: string, currentCart: CartItem[]): boolean {
+    return currentCart.some(item => item.id === courseId);
+  }
+
+  function updateButtonState(button: HTMLButtonElement, course: CartItem, inCart: boolean) {
+    if (inCart) {
+      button.textContent = 'View Cart';
+      button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+      button.classList.add('bg-green-600', 'hover:bg-green-700');
+      // For the [slug].astro page, there are multiple buttons with data-course, 
+      // but the one with id="addToCartBtn" is the primary one in the header section.
+      // Other buttons might exist (e.g. a second CTA at bottom of page).
+      // We will make this generic for any button passed.
+      button.onclick = () => window.location.href = '/cart';
+    } else {
+      button.textContent = 'Add to Cart';
+      button.classList.remove('bg-green-600', 'hover:bg-green-700');
+      button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+      button.onclick = () => {
+        const courseData = JSON.parse(button.getAttribute('data-course') || '{}');
+        addToCart(courseData, button);
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-md shadow-lg z-50 animate-fade-in-out';
+        messageDiv.textContent = `${courseData.title} added to cart!`;
+        messageDiv.innerHTML += '<div class="mt-2 text-sm">Go to <a href="/cart" class="underline font-bold">cart</a> to checkout</div>';
+        document.body.appendChild(messageDiv);
+        
+        setTimeout(() => {
+          messageDiv.remove();
+        }, 3000);
+      };
+    }
+  }
+
+  function setupCartButtons() {
+    // On this page, all buttons with 'data-course' are effectively 'add to cart' for the current course.
+    const cartButtons = document.querySelectorAll<HTMLButtonElement>('[data-course]');
+    const rawCartData = window.localStorage.getItem('courseCart');
+    let currentGlobalCart: CartItem[] = [];
+    if (rawCartData) {
+      try {
+        const parsed = JSON.parse(rawCartData);
+        if (Array.isArray(parsed)) {
+          currentGlobalCart = parsed;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    
+    cartButtons.forEach(button => {
+      const courseDataString = button.getAttribute('data-course');
+      if (courseDataString) {
+        try {
+          const courseData = JSON.parse(courseDataString); // This should be the current page's course
+          const inCart = isCourseInCart(courseData.id, currentGlobalCart);
+          updateButtonState(button, courseData, inCart);
+        } catch (e) {
+          console.error("Failed to parse course data from button on [slug] page:", e);
+          updateButtonState(button, {} as CartItem, false);
+        }
+      }
+    });
+  }
+  
+  function addToCart(course: CartItem, buttonElement?: HTMLButtonElement) {
+    try {
+      const rawCartData = window.localStorage.getItem('courseCart');
+      let cart: CartItem[] = [];
+      
+      if (rawCartData) {
+        try {
+          const parsed = JSON.parse(rawCartData);
+          if (Array.isArray(parsed)) {
+            cart = parsed;
+          } else {
+            console.error('Cart data is not an array, resetting');
+          }
+        } catch (e) {
+          console.error('Error parsing cart JSON:', e);
+        }
+      }
+      
+      const existingItem = cart.find(item => item.id === course.id);
+      if (!existingItem) {
+        cart.push(course);
+        const jsonString = JSON.stringify(cart);
+        window.localStorage.setItem('courseCart', jsonString);
+        updateCartCount();
+        
+        // On this page, all relevant buttons are for the same course.
+        // So, we should update all of them.
+        const allCourseButtons = document.querySelectorAll<HTMLButtonElement>(`[data-course]`);
+        allCourseButtons.forEach(btn => {
+            const btnCourseDataString = btn.getAttribute('data-course');
+            if(btnCourseDataString) {
+                try {
+                    const btnCourseData = JSON.parse(btnCourseDataString);
+                    if(btnCourseData.id === course.id) { // Ensure it's a button for *this* course
+                        updateButtonState(btn, course, true);
+                    }
+                } catch (e) { /* ignore malformed button data */ }
+            }
+        });
+
+        try {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'courseCart',
+            newValue: jsonString
+          }));
+        } catch (e) {
+          console.error('Error dispatching storage event:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error in addToCart:', error);
+    }
+  }
+  
+  function updateCartCount() {
+    let cart: CartItem[] = [];
+    try {
+      const rawCartData = window.localStorage.getItem('courseCart');
+      if (rawCartData) {
+        const parsed = JSON.parse(rawCartData);
+        if (Array.isArray(parsed)) {
+          cart = parsed;
+        } else {
+          console.error('Cart data is not an array when updating count');
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing cart data for count update:', e);
+    }
+    
+    const headerCartCount = document.querySelector('.header-cart-count');
+    if (headerCartCount) {
+      headerCartCount.textContent = String(cart.length);
+      if (cart.length > 0) {
+        headerCartCount.classList.remove('hidden');
+      } else {
+        headerCartCount.classList.add('hidden');
+      }
+    }
+  }
+  
+  // Initialize
+  document.addEventListener('astro:page-load', () => {
+    setupCartButtons();
+    updateCartCount();
+  });
+</script>
+
+<style>
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    80% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+  }
+  
+  .animate-fade-in-out {
+    animation: fadeInOut 3s ease-in-out forwards;
+  }
+</style> 

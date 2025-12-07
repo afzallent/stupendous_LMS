@@ -1,0 +1,119 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Container from '../components/container.astro';
+import SectionHead from '../components/sectionhead.astro';
+import { Icon } from 'astro-icon/components';
+---
+
+<Layout title="Sitemap - CourseCompass LMS">
+  <Container>
+    <SectionHead>
+      <Fragment slot="title">Sitemap</Fragment>
+      <Fragment slot="desc">Find your way around our website with ease</Fragment>
+    </SectionHead>
+    
+    <div class="mt-10 space-y-8 mb-20">
+      <!-- Landing Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Main Pages</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:home" class="w-5 h-5 mr-2" /><span>Home</span></a></li>
+          <li><a href="/about" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:information" class="w-5 h-5 mr-2" /><span>About</span></a></li>
+          <li><a href="/courses" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:book" class="w-5 h-5 mr-2" /><span>Courses</span></a></li>
+          <li><a href="/programs" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:school" class="w-5 h-5 mr-2" /><span>Programs</span></a></li>
+          <li><a href="/articles" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:newspaper-variant-multiple" class="w-5 h-5 mr-2" /><span>Articles</span></a></li>
+          <li><a href="/coaching" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:teach" class="w-5 h-5 mr-2" /><span>Coaching</span></a></li>
+          <li><a href="/contact" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:email" class="w-5 h-5 mr-2" /><span>Contact</span></a></li>
+          <li><a href="/cart" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:cart" class="w-5 h-5 mr-2" /><span>Cart</span></a></li>
+          <li><a href="/checkout" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:credit-card-check-outline" class="w-5 h-5 mr-2" /><span>Checkout</span></a></li>
+          <li><a href="/booking" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:calendar-check" class="w-5 h-5 mr-2" /><span>Booking</span></a></li>
+        </ul>
+      </div>
+      
+      <!-- Course & Enrollment Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Course & Enrollment</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/courses/enroll" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-plus" class="w-5 h-5 mr-2" /><span>Course Enrollment</span></a></li>
+          <li><a href="/course-player?course_id=2" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:play-circle" class="w-5 h-5 mr-2" /><span>Course Player</span></a></li>
+        </ul>
+      </div>
+      
+      <!-- Authentication Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Authentication</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/login" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:login" class="w-5 h-5 mr-2" /><span>Login</span></a></li>
+          <li><a href="/login/student" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-school" class="w-5 h-5 mr-2" /><span>Student Login</span></a></li>
+          <li><a href="/login/trainer" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-tie" class="w-5 h-5 mr-2" /><span>Trainer Login</span></a></li>
+        </ul>
+      </div>
+      
+      <!-- Student Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Student Dashboard</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/dashboard/student/" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:view-dashboard" class="w-5 h-5 mr-2" /><span>Dashboard</span></a></li>
+          <li><a href="/dashboard/student/courses" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:book-open-variant" class="w-5 h-5 mr-2" /><span>My Courses</span></a></li>
+          <li><a href="/dashboard/student/assessments" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:clipboard-text-clock" class="w-5 h-5 mr-2" /><span>My Assessments</span></a></li>
+          <li><a href="/dashboard/student/certificates" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:certificate" class="w-5 h-5 mr-2" /><span>Certificates</span></a></li>
+          <li><a href="/dashboard/student/discussions" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:forum" class="w-5 h-5 mr-2" /><span>Discussions</span></a></li>
+          <li><a href="/dashboard/student/settings" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:cog" class="w-5 h-5 mr-2" /><span>Settings</span></a></li>
+        </ul>
+      </div>
+      
+
+      <!-- Trainer Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Trainer Dashboard</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/dashboard/trainer/" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:view-dashboard" class="w-5 h-5 mr-2" /><span>Dashboard</span></a></li>
+          <li><a href="/dashboard/trainer/courses" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:book-open-variant" class="w-5 h-5 mr-2" /><span>Manage Courses</span></a></li>
+          <li><a href="/dashboard/trainer/courses/new" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:plus-circle" class="w-5 h-5 mr-2" /><span>Create New Course</span></a></li>
+          <li><a href="/dashboard/trainer/students" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-group" class="w-5 h-5 mr-2" /><span>Manage Students</span></a></li>
+          <li><a href="/dashboard/trainer/assessments" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:clipboard-check" class="w-5 h-5 mr-2" /><span>Manage Assessments</span></a></li>
+          <li><a href="/dashboard/trainer/assessments/new" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:clipboard-plus" class="w-5 h-5 mr-2" /><span>Create Assessment</span></a></li>
+          <li><a href="/dashboard/trainer/analytics" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:chart-bar" class="w-5 h-5 mr-2" /><span>Analytics</span></a></li>
+          <li><a href="/dashboard/trainer/discussions" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:forum-outline" class="w-5 h-5 mr-2" /><span>Discussions</span></a></li>
+          <li><a href="/dashboard/trainer/settings" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:cog" class="w-5 h-5 mr-2" /><span>Settings</span></a></li>
+        </ul>
+      </div>
+      
+      <!-- Admin Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Admin Dashboard</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/admin/dashboard" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:shield-crown" class="w-5 h-5 mr-2" /><span>Admin Dashboard</span></a></li>
+          <li><a href="/admin/courses" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:book-cog" class="w-5 h-5 mr-2" /><span>Manage Courses</span></a></li>
+          <li><a href="/admin/add-course" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:book-plus" class="w-5 h-5 mr-2" /><span>Add Course</span></a></li>
+          <li><a href="/admin/students" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-multiple-outline" class="w-5 h-5 mr-2" /><span>Manage Students</span></a></li>
+          <li><a href="/admin/add-student" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-plus-outline" class="w-5 h-5 mr-2" /><span>Add Student</span></a></li>
+          <li><a href="/admin/trainers" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-tie" class="w-5 h-5 mr-2" /><span>Manage Trainers</span></a></li>
+          <li><a href="/admin/add-trainer" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:account-tie-hat" class="w-5 h-5 mr-2" /><span>Add Trainer</span></a></li>
+          <li><a href="/admin/coupons" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:ticket-percent" class="w-5 h-5 mr-2" /><span>Manage Coupons</span></a></li>
+          <li><a href="/admin/payments" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:credit-card-settings-outline" class="w-5 h-5 mr-2" /><span>Manage Payments</span></a></li>
+          <li><a href="/admin/settings" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:cogs" class="w-5 h-5 mr-2" /><span>Admin Settings</span></a></li>
+        </ul>
+      </div>
+      
+      <!-- Development & Testing Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Development & Testing</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/api-test" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:api" class="w-5 h-5 mr-2" /><span>API Test Page</span></a></li>
+          <li><a href="/debug-courses" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:bug" class="w-5 h-5 mr-2" /><span>Debug Courses</span></a></li>
+        </ul>
+      </div>
+      
+      <!-- Legal & Info Pages -->
+      <div>
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Legal & Info</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <li><a href="/privacy" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:shield" class="w-5 h-5 mr-2" /><span>Privacy Policy</span></a></li>
+          <li><a href="/sitemap" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:map" class="w-5 h-5 mr-2" /><span>Sitemap</span></a></li>
+          <li><a href="/404" class="flex items-center text-blue-600 hover:underline"><Icon name="mdi:alert-circle-outline" class="w-5 h-5 mr-2" /><span>404 Page</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </Container>
+</Layout> 

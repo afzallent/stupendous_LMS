@@ -1,0 +1,245 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { Icon } from 'astro-icon/components';
+import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
+
+export const prerender = false;
+
+// Authentication is handled by middleware
+const showNoStudentsMessage = false; // Set to true if no students are enrolled
+
+// Client-side script to fetch student data
+const fetchStudents = async () => {
+  try {
+    console.log('Fetching students from:', `${window.API_BASE_URL}enrollment.php?trainer_id=1`);
+    const response = await fetch(`${window.API_BASE_URL}enrollment.php?trainer_id=1`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    if (!response.ok) throw new Error('Failed to fetch students');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    return [];
+  }
+};
+
+const fetchStudentProgress = async (studentId) => {
+  try {
+    console.log('Fetching progress for student:', studentId, 'from:', `${window.API_BASE_URL}progress.php?student_id=${studentId}`);
+    const response = await fetch(`${window.API_BASE_URL}progress.php?student_id=${studentId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    if (!response.ok) throw new Error('Failed to fetch progress');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching progress:', error);
+    return null;
+  }
+};
+---
+
+<ClerkProviderWrapper>
+<DashboardLayout title="Students - Trainer - CourseCompass LMS" userType="trainer">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Manage Students</h1>
+    <p class="text-gray-600">View student progress, enrolled courses, and assessment details.</p>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-xl font-semibold text-gray-700 mb-4">Enrolled Students</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrolled Courses</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overall Progress</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assessments Taken</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Assessment</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200" id="students-table-body">
+          <tr id="loading-row">
+            <td colspan="6" class="px-6 py-4 text-center">
+              <div class="flex justify-center items-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <span class="ml-3">Loading students...</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    {showNoStudentsMessage && (
+      <div class="text-center py-10">
+        <Icon name="mdi:account-group-outline" class="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 class="text-xl font-semibold text-gray-700">No Students Enrolled</h3>
+        <p class="text-gray-500">When students enroll in your courses, they will appear here.</p>
+      </div>
+    )}
+  </div>
+</DashboardLayout>
+</ClerkProviderWrapper>
+
+<script src="/src/utils/api-client.js"></script>
+<script is:inline>
+// Function to get Clerk token
+async function getClerkToken() {
+  if (window.Clerk && window.Clerk.session) {
+    try {
+      const token = await window.Clerk.session.getToken();
+      return token;
+    } catch (error) {
+      console.error('Error getting Clerk token:', error);
+      return null;
+    }
+  }
+  return null;
+}
+
+// API fetch functions
+const fetchStudents = async () => {
+  try {
+    // First try to get Clerk token
+    let token = await getClerkToken();
+    
+    // If no Clerk token, fall back to localStorage (for development)
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+
+    const headers = await window.getAuthHeaders();
+    const response = await fetch(window.getApiUrl(`${window.API_ENDPOINTS.enrollment}?trainer_id=1`), {
+      headers
+    });
+    
+    if (!response.ok) throw new Error('Failed to fetch students');
+    const data = await response.json();
+    // Handle standardized API response format
+    if (data.success === true && data.data) {
+      return Array.isArray(data.data) ? data.data : [];
+    } else {
+      // Fallback for direct array response
+      return Array.isArray(data) ? data : [];
+    }
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    return [];
+  }
+};
+
+const fetchStudentProgress = async (studentId) => {
+  try {
+    // First try to get Clerk token
+    let token = await getClerkToken();
+    
+    // If no Clerk token, fall back to localStorage (for development)
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+
+    const headers = await window.getAuthHeaders();
+    const response = await fetch(window.getApiUrl(`${window.API_ENDPOINTS.progress}?student_id=${studentId}`), {
+      headers
+    });
+    
+    if (!response.ok) throw new Error('Failed to fetch progress');
+    const data = await response.json();
+    // Handle standardized API response format
+    if (data.success === true && data.data) {
+      return data.data;
+    } else {
+      // Fallback for direct response
+      return data;
+    }
+  } catch (error) {
+    console.error('Error fetching progress:', error);
+    return null;
+  }
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const tableBody = document.getElementById('students-table-body');
+  const loadingRow = document.getElementById('loading-row');
+  
+  try {
+    // Fetch students and their progress
+    const students = await fetchStudents();
+    
+    if (students.length === 0) {
+      loadingRow.innerHTML = `
+        <td colspan="6" class="px-6 py-4 text-center">
+          <div class="flex flex-col items-center">
+            <Icon name="mdi:account-group-outline" class="w-16 h-16 text-gray-400 mb-4" />
+            <h3 class="text-xl font-semibold text-gray-700">No Students Enrolled</h3>
+            <p class="text-gray-500">When students enroll in your courses, they will appear here.</p>
+          </div>
+        </td>
+      `;
+      return;
+    }
+
+    // Remove loading row
+    loadingRow.remove();
+
+    // Render each student
+    for (const student of students) {
+      const progress = await fetchStudentProgress(student.id);
+      
+      const row = document.createElement('tr');
+      row.className = 'hover:bg-gray-50';
+      row.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="flex items-center">
+            <div class="h-10 w-10 rounded-full bg-gray-300 flex-shrink-0"></div>
+            <div class="ml-4">
+              <div class="text-sm font-medium text-gray-900">${student.name}</div>
+              <div class="text-sm text-gray-500">${student.email}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          ${student.courses_count} Course${student.courses_count !== 1 ? 's' : ''}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="flex items-center">
+            <div class="w-24 bg-gray-200 rounded-full h-2.5">
+              <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progress?.overall_progress || 0}%"></div>
+            </div>
+            <span class="ml-2 text-xs text-gray-500">${progress?.overall_progress || 0}%</span>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+          ${progress?.assessments_taken || 0}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          ${progress?.last_assessment ? 
+            `${progress.last_assessment.name}: <span class="font-medium ${progress.last_assessment.score >= 70 ? 'text-green-600' : 'text-red-600'}">${progress.last_assessment.score}%</span>` : 
+            'N/A'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+          <a href="/dashboard/trainer/students/${student.id}" class="text-blue-600 hover:text-blue-900">View Details</a>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    }
+  } catch (error) {
+    loadingRow.innerHTML = `
+      <td colspan="6" class="px-6 py-4 text-center text-red-600">
+        Error loading students: ${error.message}
+      </td>
+    `;
+  }
+});
+</script>
+
+
+

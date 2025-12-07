@@ -1,0 +1,359 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Container from "@components/container.astro";
+import Sectionhead from "@components/sectionhead.astro";
+
+// Import articles data
+const articlesData = await import("../../public/data/articlesCache.json");
+const allArticles = articlesData.posts;
+const categories = articlesData.categories;
+
+// Get the current page number and category from URL params
+const url = new URL(Astro.request.url);
+const page = Number(url.searchParams.get('page')) || 1;
+const selectedCategory = url.searchParams.get('category') || '';
+
+// Filter articles by category if selected
+const filteredArticles = selectedCategory 
+  ? allArticles.filter(article => article.category === selectedCategory)
+  : allArticles;
+
+// Sort articles by date
+filteredArticles.sort((a, b) => new Date(b.date).valueOf() - new Date(a.date).valueOf());
+
+// Pagination
+const articlesPerPage = 5;
+const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+const articles = filteredArticles.slice((page - 1) * articlesPerPage, page * articlesPerPage);
+
+// Helper function to generate page URL
+const getPageUrl = (pageNum: number, cat: string = '') => {
+  const params = new URLSearchParams();
+  if (pageNum > 1) params.set('page', pageNum.toString());
+  if (cat) params.set('category', cat);
+  return `/articles${params.toString() ? `?${params.toString()}` : ''}`;
+};
+---
+
+<Layout title="Articles">
+  <Container>
+    <Sectionhead>
+      <Fragment slot="title">Our Articles</Fragment>
+      <Fragment slot="desc">
+        Latest insights and thoughts on education technology and teaching methods.
+      </Fragment>
+    </Sectionhead>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-5 md:gap-10 mt-8 md:mt-16">
+      {/* Sidebar */}
+      <div class="col-span-1">
+        <h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4">Categories</h3>
+        <ul class="space-y-2" id="categoryList">
+          <li>
+            <a 
+              href="/articles" 
+              data-category=""
+              class={`block text-gray-600 hover:text-primary transition ${!selectedCategory ? 'font-semibold text-primary' : ''}`}>
+              All Categories
+            </a>
+          </li>
+          {categories.map(category => (
+            <li>
+              <a
+                href={getPageUrl(1, category.name)}
+                data-category={category.name}
+                class={`block text-gray-600 hover:text-primary transition ${selectedCategory === category.name ? 'font-semibold text-primary' : ''}`}>
+                {category.name} ({category.count})
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Main Content */}
+      <div 
+        class="col-span-1 md:col-span-3" 
+        id="articlesList"
+        data-articles={JSON.stringify(allArticles)}
+      >
+        <ul class="space-y-8 md:space-y-16">
+          {articles.map((article) => (
+            <li>
+              <a href={`https://techinteach.com/en/article/${article.slug}`} target="_blank" rel="noopener">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10 items-start md:items-center">
+                  <img
+                    src={article.imageUrl}
+                    alt={article.title}
+                    class="w-full rounded-md object-cover object-center bg-white h-48"
+                  />
+                  <div>
+                    <span class="text-blue-400 uppercase tracking-wider text-xs md:text-sm font-medium">
+                      {article.category}
+                    </span>
+
+                    <h2 class="text-xl md:text-3xl font-semibold leading-snug tracking-tight mt-1">
+                      {article.title}
+                    </h2>
+
+                    <div class="flex gap-2 mt-2 md:mt-3">
+                      <time class="text-gray-400 text-sm md:text-base">{article.date}</time>
+                    </div>
+
+                    <p class="text-gray-500 mt-2 md:mt-3 text-sm md:text-base line-clamp-3">{article.excerpt}</p>
+                    <div class="mt-2">
+                      <a href={`https://techinteach.com/en/article/${article.slug}`} class="text-blue-500 hover:underline text-sm md:text-base">Read more</a>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div class="flex flex-wrap justify-center gap-2 mt-8 md:mt-16 px-4" id="pagination">
+            {/* Previous button */}
+            {page > 1 && (
+              <a
+                href={getPageUrl(page - 1, selectedCategory)}
+                data-page={page - 1}
+                class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                <span class="sr-only">Previous</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </a>
+            )}
+
+            {/* Page numbers */}
+            {(() => {
+              const visiblePages = 5;
+              let startPage = Math.max(1, page - Math.floor(visiblePages / 2));
+              let endPage = Math.min(totalPages, startPage + visiblePages - 1);
+              
+              if (endPage - startPage + 1 < visiblePages) {
+                startPage = Math.max(1, endPage - visiblePages + 1);
+              }
+
+              return Array.from(
+                { length: endPage - startPage + 1 },
+                (_, i) => startPage + i
+              ).map((pageNum) => (
+                <a
+                  href={getPageUrl(pageNum, selectedCategory)}
+                  data-page={pageNum}
+                  class={`px-3 py-2 text-sm font-medium rounded-md min-w-[2.5rem] text-center ${
+                    page === pageNum
+                      ? 'bg-primary text-white'
+                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                  }`}>
+                  {pageNum}
+                </a>
+              ));
+            })()}
+
+            {/* Next button */}
+            {page < totalPages && (
+              <a
+                href={getPageUrl(page + 1, selectedCategory)}
+                data-page={page + 1}
+                class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                <span class="sr-only">Next</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<script>
+  // Store the full articles data
+  const articlesList = document.getElementById('articlesList');
+  const articlesData = {
+    posts: JSON.parse(articlesList?.getAttribute('data-articles') || '[]'),
+    categories: JSON.parse(document.getElementById('categoryList')?.getAttribute('data-categories') || '[]')
+  };
+
+  // Function to update the URL without refreshing
+  function updateURL(params: Record<string, string>) {
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries(params)) {
+      if (value) {
+        url.searchParams.set(key, value);
+      } else {
+        url.searchParams.delete(key);
+      }
+    }
+    window.history.pushState({}, '', url.toString());
+  }
+
+  // Function to update the articles list
+  function updateArticles(page: number, category: string) {
+    // Update URL
+    updateURL({ page: page > 1 ? page.toString() : '', category });
+    
+    // Filter articles
+    let filteredArticles = category 
+      ? articlesData.posts.filter(article => article.category === category)
+      : articlesData.posts;
+
+    // Sort by date
+    filteredArticles.sort((a, b) => new Date(b.date).valueOf() - new Date(a.date).valueOf());
+
+    // Paginate
+    const articlesPerPage = 5;
+    const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+    const startIndex = (page - 1) * articlesPerPage;
+    const endIndex = startIndex + articlesPerPage;
+    const currentArticles = filteredArticles.slice(startIndex, endIndex);
+
+    // Update articles list
+    const articlesListContainer = document.querySelector('#articlesList ul');
+    if (!articlesListContainer) return;
+    
+    articlesListContainer.innerHTML = currentArticles.map(article => `
+      <li>
+        <a href="https://techinteach.com/en/article/${article.slug}" target="_blank" rel="noopener">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10 items-start md:items-center">
+            <img
+              src="${article.imageUrl}"
+              alt="${article.title}"
+              class="w-full rounded-md object-cover object-center bg-white h-48"
+            />
+            <div>
+              <span class="text-blue-400 uppercase tracking-wider text-xs md:text-sm font-medium">
+                ${article.category}
+              </span>
+
+              <h2 class="text-xl md:text-3xl font-semibold leading-snug tracking-tight mt-1">
+                ${article.title}
+              </h2>
+
+              <div class="flex gap-2 mt-2 md:mt-3">
+                <time class="text-gray-400 text-sm md:text-base">${article.date}</time>
+              </div>
+
+              <p class="text-gray-500 mt-2 md:mt-3 text-sm md:text-base line-clamp-3">${article.excerpt}</p>
+            </div>
+          </div>
+        </a>
+      </li>
+    `).join('');
+
+    // Update pagination
+    const pagination = document.getElementById('pagination');
+    if (!pagination) return;
+
+    if (totalPages > 1) {
+      pagination.innerHTML = `
+        ${page > 1 ? `
+          <a
+            href="#"
+            data-page="${page - 1}"
+            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            <span class="sr-only">Previous</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+        ` : ''}
+        ${(() => {
+          const visiblePages = 5;
+          let startPage = Math.max(1, page - Math.floor(visiblePages / 2));
+          let endPage = Math.min(totalPages, startPage + visiblePages - 1);
+          
+          if (endPage - startPage + 1 < visiblePages) {
+            startPage = Math.max(1, endPage - visiblePages + 1);
+          }
+
+          return Array.from(
+            { length: endPage - startPage + 1 },
+            (_, i) => startPage + i
+          ).map(pageNum => `
+            <a
+              href="#"
+              data-page="${pageNum}"
+              class="px-3 py-2 text-sm font-medium rounded-md min-w-[2.5rem] text-center ${
+                page === pageNum
+                  ? 'bg-primary text-blue-500 border border-blue-300 hover:bg-blue-50'
+                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+              }">
+              ${pageNum}
+            </a>
+          `).join('');
+        })()}
+        ${page < totalPages ? `
+          <a
+            href="#"
+            data-page="${page + 1}"
+            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            <span class="sr-only">Next</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+        ` : ''}
+      `;
+
+      // Re-attach event listeners to new pagination links
+      document.querySelectorAll('#pagination a').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const target = e.target as HTMLAnchorElement;
+          const newPage = Number(target.getAttribute('data-page'));
+          updateArticles(newPage, category);
+        });
+      });
+    } else {
+      pagination.innerHTML = '';
+    }
+
+    // Update category highlighting
+    document.querySelectorAll('#categoryList a').forEach(link => {
+      const linkCategory = link.getAttribute('data-category') || '';
+      if ((linkCategory === '' && !category) || linkCategory === category) {
+        link.classList.add('font-semibold', 'text-primary');
+      } else {
+        link.classList.remove('font-semibold', 'text-primary');
+      }
+    });
+  }
+
+  // Add event listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    // Handle category clicks
+    document.querySelectorAll('#categoryList a').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = e.target as HTMLAnchorElement;
+        const category = target.getAttribute('data-category') || '';
+        updateArticles(1, category);
+      });
+    });
+
+    // Handle pagination clicks
+    document.querySelectorAll('#pagination').forEach(pagination => {
+      pagination.addEventListener('click', (e: Event) => {
+        e.preventDefault();
+        // Check if target is an Element before using closest
+        if (!(e.target instanceof Element)) return;
+        
+        const link = e.target.closest('a');
+        if (!link) return;
+        
+        const page = Number(link.getAttribute('data-page'));
+        if (!page) return;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const category = urlParams.get('category') || '';
+        updateArticles(page, category);
+      });
+    });
+  });
+</script>

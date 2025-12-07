@@ -1,0 +1,141 @@
+---
+import Container from "@components/container.astro";
+import Link from "@components/ui/link.astro";
+import { Astronav, MenuItems, MenuIcon } from "astro-navbar";
+import Button from "@components/ui/button.astro";
+import { Picture } from 'astro:assets';
+import TIT_logo from '/public/tit-800.svg';
+import { Icon } from 'astro-icon/components';
+import { SignedIn, SignOutButton } from '@clerk/astro/components';
+
+const menuitems = [
+  {
+    title: "Home",
+    path: "/",
+  },
+  {
+    title: "Group Training",
+    path: "/programs",
+  },
+  {
+    title: "Personal Mentoring",
+    path: "/coaching",
+  },
+  {
+    title: "Articles",
+    path: "/articles",
+  },
+  {
+    title: "Register",
+    path: "/booking",
+  },
+  {
+    title: "Contact",
+    path: "/contact",
+  },
+];
+---
+
+<Container>
+  <header class="flex flex-col lg:flex-row justify-between items-center my-5">
+    <Astronav>
+      <div class="flex w-full lg:w-auto items-center justify-between">
+        <a href="/" class="text-lg">
+          <TIT_logo width={170} height={70} fill="currentColor" />
+        </a>
+        <div class="flex items-center gap-4">
+          <div class="block lg:hidden">
+            <MenuIcon class="w-4 h-4 text-gray-800" />
+          </div>
+        </div>
+      </div>
+      <MenuItems class="hidden w-full lg:w-auto mt-2 lg:flex lg:mt-0">
+        <ul class="flex flex-col lg:flex-row lg:gap-3 lg:items-center">
+          {
+            menuitems.map((item) => (
+              <li>
+                <a
+                  href={item.path}
+                  class="flex lg:px-3 py-2 items-center text-gray-600 hover:text-gray-900">
+                  <span>{item.title}</span>
+                </a>
+              </li>
+            ))
+          }
+          <li class="hidden lg:block">
+            <a href="/cart" class="relative text-gray-600 hover:text-gray-900 flex lg:px-3 py-2 items-center">
+              <Icon name="mdi:cart" class="w-6 h-6" />
+              <span class="header-cart-count absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+            </a>
+          </li>
+          <li class="lg:ml-3 self-start lg:self-center lg:mt-0 sm:mt-10">
+            <Button size="md" href="/booking">
+              Book Now
+            </Button>
+          </li>
+          <SignedIn>
+            <li class="lg:ml-3 self-start lg:self-center lg:mt-0 sm:mt-10">
+              <SignOutButton>
+                <Button size="md">Sign Out</Button>
+              </SignOutButton>
+            </li>
+          </SignedIn>
+        </ul>
+      </MenuItems>
+    </Astronav>
+  </header>
+</Container>
+
+<script>
+  // Define cart item interface
+  interface CartItem {
+    id: string;
+    title: string;
+    price: number;
+    image: string;
+  }
+
+  // Update cart count in navbar
+  function updateCartCount() {
+    let cart: CartItem[] = [];
+    
+    try {
+      const rawCartData = window.localStorage.getItem('courseCart');
+      if (rawCartData) {
+        const parsed = JSON.parse(rawCartData);
+        if (Array.isArray(parsed)) {
+          cart = parsed;
+        } else {
+          console.error('Navbar: cart data is not an array');
+        }
+      }
+    } catch (e) {
+      console.error('Navbar: error parsing cart data', e);
+    }
+    
+    const cartCountElements = document.querySelectorAll('.header-cart-count');
+    
+    cartCountElements.forEach(element => {
+      element.textContent = String(cart.length);
+      if (cart.length > 0) {
+        element.classList.remove('hidden');
+      } else {
+        element.classList.add('hidden');
+      }
+    });
+  }
+  
+  const handleNavbarStorageEvent = (e) => {
+    if (e.key === 'courseCart') {
+      updateCartCount();
+    }
+  };
+  
+  function initializeNavbarCart() {
+    updateCartCount();
+    window.removeEventListener('storage', handleNavbarStorageEvent);
+    window.addEventListener('storage', handleNavbarStorageEvent);
+  }
+  
+  document.addEventListener('astro:page-load', initializeNavbarCart);
+</script>

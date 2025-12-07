@@ -1,0 +1,319 @@
+{
+  "google-certified": {
+    "title": "Google Certified Educator Preparation",
+    "category": "Certification",
+    "featured": true,
+    "description": "Comprehensive preparation for Google's Level 1 and Level 2 Educator certifications, including hands-on practice with Google Workspace tools.",
+    "duration": "4 days (16 hours)",
+    "mode": [
+      "Live virtual training",
+      "Self-paced online course with live support"
+    ],
+    "outcomes": [
+      "Master all competencies required for Google Level 1 and Level 2 certifications",
+      "Implement Google Workspace tools effectively in educational contexts",
+      "Create collaborative learning environments using Google's ecosystem",
+      "Design and share innovative Google-based lesson plans and activities"
+    ],
+    "whyTake": "Google Certified Educator credentials are internationally recognized and demonstrate your proficiency with digital tools that are increasingly standard in modern education. Our program has a 95% pass rate for participants who complete all modules.",
+    "fee": "9999",
+    "fee-USD": "479",
+    "fee-AED": "1999",
+    "institutionalDiscount": "Yes, 20% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1548092372-0d1bd40894a3?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "microsoft-educator": {
+    "title": "Microsoft Educator",
+    "category": "Certification",
+    "featured": "",
+    "description": "Expert training to help you become a Microsoft Certified Educator and leverage Microsoft tools to enhance teaching and learning.",
+    "duration": "2 days (8 hours)",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training"
+    ],
+    "outcomes": [
+      "Achieve Microsoft Certified Educator status with confidence",
+      "Implement Microsoft 365 tools effectively in educational settings",
+      "Create inclusive classroom experiences using Microsoft accessibility features",
+      "Develop advanced skills in Teams, OneNote, and other Microsoft educational tools"
+    ],
+    "whyTake": "Microsoft tools are among the most widely used in educational institutions worldwide. This certification demonstrates your ability to leverage these tools to create modern, collaborative learning environments that prepare students for the workplace.",
+    "fee": "4999",
+    "fee-USD": "239",
+    "fee-AED": "999",
+    "institutionalDiscount": "Yes, 18% discount for groups of 6 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "digital-citizenship": {
+    "title": "Digital Citizenship and Cyber Safety",
+    "category": "Certification",
+    "featured": "",
+    "description": "Equipping teachers to model and teach responsible and safe online behavior, from digital footprints to cyberbullying response.",
+    "duration": "3 hours",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training",
+      "Self-paced online course"
+    ],
+    "outcomes": [
+      "Teach students about managing digital footprints and online reputation",
+      "Identify and effectively respond to cyberbullying situations",
+      "Implement online safety and security best practices in educational settings",
+      "Develop critical evaluation skills for identifying fake news and misinformation",
+      "Create integrated digital citizenship curriculum across subjects"
+    ],
+    "whyTake": "As students spend more time online, educators must equip them with skills to navigate digital spaces responsibly and safely. This program provides practical strategies to help students become ethical, informed digital citizens while protecting them from online risks.",
+    "fee": "2499",
+    "fee-USD": "119",
+    "fee-AED": "349",
+    "institutionalDiscount": "Yes, 15% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1563206767-5b18f218e8de?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "design-thinking": {
+    "title": "Design Thinking for Educators",
+    "category": "Development",
+    "featured": true,
+    "description": "Master the design thinking process to create innovative solutions for classroom challenges and student-centered learning experiences.",
+    "duration": "1 day (4 hours)",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training"
+    ],
+    "outcomes": [
+      "Apply design thinking methodology to solve educational challenges",
+      "Create user-centered learning experiences for students",
+      "Implement prototyping and testing techniques in classroom projects",
+      "Foster a culture of innovation and creative problem-solving"
+    ],
+    "whyTake": "Design thinking transforms how you approach problems in education. This methodology helps you create solutions that truly address student needs and improves learning outcomes through iterative testing and refinement.",
+    "fee": "3,499",
+    "fee-USD": "199",
+    "fee-AED": "499",
+    "institutionalDiscount": "Yes, 15% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=1740",
+    "icon": "Brain"
+  },
+  "presentation-skills": {
+    "title": "Presentation Skills for Educators",
+    "category": "Development",
+    "featured": "",
+    "description": "Equipping educators with techniques to deliver engaging, confident, and memorable presentations that capture audience attention.",
+    "duration": "2 hours",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training"
+    ],
+    "outcomes": [
+      "Structure presentations for maximum impact with strong openings and memorable conclusions",
+      "Master vocal variety and body language techniques for confident delivery",
+      "Design visually engaging presentation slides beyond standard bullet points",
+      "Implement interactive techniques and storytelling to maintain audience engagement",
+      "Confidently manage presentation anxiety and handle Q&A sessions effectively"
+    ],
+    "whyTake": "Effective presentation skills are essential for educators in classrooms, staff meetings, and professional development. This program provides practical techniques to transform your presentations from ordinary to compelling, helping you better engage students and colleagues.",
+    "fee": "2499",
+    "fee-USD": "119",
+    "fee-AED": "399",
+    "institutionalDiscount": "Yes, 15% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "engaging-classrooms": {
+    "title": "Creating Engaging Classrooms",
+    "category": "Development",
+    "featured": "",
+    "description": "Transform your classroom with modern technology integration and engagement techniques that capture student attention and improve learning outcomes.",
+    "duration": "3 hours",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training",
+      "Self-paced online course"
+    ],
+    "outcomes": [
+      "Design interactive lesson plans using digital tools",
+      "Implement gamification strategies to increase student engagement",
+      "Create multimedia learning materials that appeal to diverse learning styles",
+      "Measure and analyze student engagement with assessment tools"
+    ],
+    "whyTake": "In the digital age, traditional teaching methods often fail to capture student attention. This program equips you with proven strategies to create classroom experiences that excite and motivate students while enhancing learning outcomes.",
+    "fee": "2499",
+    "fee-USD": "119",
+    "fee-AED": "349",
+    "institutionalDiscount": "Yes, 20% discount for groups of 8 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=1742",
+    "icon": "Classroom"
+  },
+  "ai-teaching": {
+    "title": "Teaching Strategies with AI",
+    "category": "Development",
+    "featured": "",
+    "description": "Learn how to leverage AI tools to enhance learning outcomes, streamline administrative tasks, and prepare students for an AI-powered future.",
+    "duration": "2 days (8 hours)",
+    "mode": [
+      "Live virtual training",
+      "Self-paced online course with mentorship"
+    ],
+    "outcomes": [
+      "Integrate AI tools into your teaching practice ethically and effectively",
+      "Create personalized learning experiences using AI-driven analytics",
+      "Automate routine tasks to focus more on teaching and student interaction",
+      "Prepare students with AI literacy skills for future careers"
+    ],
+    "whyTake": "AI is transforming education at an unprecedented pace. This program provides practical knowledge on how to harness AI tools to enhance your teaching while maintaining the human connection that makes great education possible.",
+    "fee": "5999",
+    "fee-USD": "319",
+    "fee-AED": "999",
+    "institutionalDiscount": "Yes, 15% discount for groups of 6 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1600456899121-68eda5705257?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "assessment-tools": {
+    "title": "Assessment Tools and Techniques",
+    "category": "Innovation",
+    "featured": "",
+    "description": "Leveraging technology for more efficient, effective, and insightful assessment through digital tools and platforms.",
+    "duration": "1 day (4 hours)",
+    "mode": [
+      "Live virtual training",
+      "Self-paced online course with mentorship"
+    ],
+    "outcomes": [
+      "Use online platforms for efficient formative and summative assessment",
+      "Create and manage effective digital student portfolios",
+      "Implement digital rubrics and feedback tools to streamline evaluation",
+      "Facilitate meaningful peer and self-assessment using technology",
+      "Analyze assessment data to inform instructional decisions"
+    ],
+    "whyTake": "Digital assessment tools can save time, provide faster feedback to students, and generate valuable data to inform teaching. This program equips you with practical skills to transform your assessment practice using accessible technology.",
+    "fee": "2999",
+    "fee-USD": "159",
+    "fee-AED": "499",
+    "institutionalDiscount": "Yes, 15% discount for groups of 6 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "digital-literacy": {
+    "title": "Digital Literacy for Educators",
+    "category": "Innovation",
+    "featured": "",
+    "description": "Empower educators with essential digital skills to navigate technology in the classroom and enhance student learning.",
+    "duration": "2 days (8 hours)",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training"
+    ],
+    "outcomes": [
+      "Develop a strong foundation in digital literacy concepts",
+      "Utilize various digital tools and platforms for teaching and learning",
+      "Create and manage online learning environments effectively",
+      "Implement best practices for online communication and collaboration"
+    ],
+    "whyTake": "Digital literacy is crucial for modern educators. This program equips you with the skills needed to effectively integrate technology into your teaching, enhancing both your professional development and student learning experiences.",
+    "fee": "5999",
+    "fee-USD": "319",
+    "fee-AED": "999",
+    "institutionalDiscount": "Yes, 15% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "innovation-ambassador": {
+    "title": "School Innovation Ambassador",
+    "category": "Innovation",
+    "featured": true,
+    "description": "Get guided preparation for the MoEd Government of India's School Innovation Ambassador program with mentorship and practical exercises.",
+    "duration": "5 days (20 hours)",
+    "mode": [
+      "Blended learning (3 days in-person + 2 days virtual)"
+    ],
+    "outcomes": [
+      "Master the curriculum requirements for the School Innovation Ambassador program",
+      "Develop leadership skills to drive innovation in educational institutions",
+      "Create and implement innovation policies for schools",
+      "Design sustainable innovation ecosystems within educational environments"
+    ],
+    "whyTake": "The Government of India's School Innovation Ambassador program is a prestigious certification that positions you as an innovation leader in education. Our preparation program significantly increases your chances of success and provides networking opportunities with like-minded educators.",
+    "fee": "11999",
+    "fee-USD": "599",
+    "fee-AED": "1999",
+    "institutionalDiscount": "Yes, 25% discount for groups of 4 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "online-safety": {
+    "title": "Online Safety and Cybersecurity",
+    "category": "Innovation",
+    "featured": "",
+    "description": "Equipping educators with the knowledge and skills to ensure online safety for themselves and their students in a digital world.",
+    "duration": "1 day (4 hours)",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training"
+    ],
+    "outcomes": [
+      "Identify common online threats and risks in educational settings",
+      "Implement best practices for online safety and cybersecurity",
+      "Create a culture of digital responsibility among students",
+      "Develop policies and guidelines for online safety in schools"
+    ],
+    "whyTake": "As technology becomes more integrated into education, ensuring online safety is paramount. This program provides practical strategies to protect yourself and your students from online threats while fostering a culture of digital responsibility.",
+    "fee": "2999",
+    "fee-USD": "159",
+    "fee-AED": "499",
+    "institutionalDiscount": "Yes, 15% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "edtech-tools": {
+    "title": "EdTech Tools for Educators",
+    "category": "Innovation",
+    "featured": "",
+    "description": "Exploring a variety of educational technology tools to enhance teaching and learning experiences, from productivity to creativity.",
+    "duration": "2 days (8hours)",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training"
+    ],
+    "outcomes": [
+      "Identify and evaluate various EdTech tools for classroom use",
+      "Implement productivity tools to streamline lesson planning and grading",
+      "Create engaging multimedia content using digital creation tools",
+      "Utilize collaboration platforms to enhance student interaction",
+      "Integrate assessment tools for real-time feedback and data analysis"
+    ],
+    "whyTake": "The right EdTech tools can significantly enhance your teaching practice. This program provides hands-on experience with a range of tools that can improve productivity, creativity, and student engagement in the classroom.",
+    "fee": "5999",
+    "fee-USD": "319",
+    "fee-AED": "999",
+    "institutionalDiscount": "Yes, 15% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  },
+  "flipped-classroom": {
+    "title": "Flipped Classroom Strategies",
+    "category": "Pedagogy",
+    "featured": true,
+    "description": "Transforming traditional teaching methods by flipping the classroom to enhance student engagement and learning outcomes.",
+    "duration": "1 day (4 hours)",
+    "mode": [
+      "In-person workshop",
+      "Live virtual training"
+    ],
+    "outcomes": [
+      "Design effective flipped classroom models for various subjects",
+      "Create engaging pre-class and in-class activities using technology",
+      "Implement assessment strategies to measure student learning in flipped environments",
+      "Foster a culture of active learning and collaboration in the classroom"
+    ],
+    "whyTake": "Flipped classrooms can significantly enhance student engagement and learning outcomes. This program provides practical strategies to implement this innovative approach effectively, transforming your teaching practice.",
+    "fee": "2999",
+    "fee-USD": "159",
+    "fee-AED": "499",
+    "institutionalDiscount": "Yes, 15% discount for groups of 5 or more from the same institution",
+    "image": "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?auto=format&fit=crop&q=80&w=1740",
+    "icon": ""
+  }
+}

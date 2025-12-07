@@ -1,0 +1,231 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Container from "../../components/container.astro";
+import { Icon } from "astro-icon/components";
+
+interface Program {
+  title: string;
+  category: string;
+  featured?: boolean;
+  description: string;
+  duration: string;
+  mode: string[];
+  outcomes: string[];
+  whyTake: string;
+  fee: string;
+  "fee-USD": string;
+  "fee-AED": string;
+  institutionalDiscount: string;
+  image: string;
+  icon?: string;
+}
+
+// Enable prerendering for this dynamic page
+export const prerender = true;
+
+// Define getStaticPaths to generate all program pages
+export async function getStaticPaths() {
+  const programsData = await import("../../../public/data/programs.json");
+  const programs = programsData.default as unknown as Record<string, Program>;
+  
+  return Object.entries(programs).map(([slug, program]) => ({
+    params: { slug },
+    props: { program },
+  }));
+}
+
+// Get the program from props instead of fetching
+const { program } = Astro.props;
+---
+
+<Layout title={`${program.title} - Program Details`}>
+  <Container>
+    <div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div class="mb-8">
+        <a href="/programs" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm">
+          <Icon name="mdi:arrow-left" class="w-5 h-5" />
+          Back to Programs
+        </a>
+      </div>
+
+      {/* Program Header Section */}
+      <header class="mb-10">
+        <div class="relative aspect-[16/6] md:aspect-[16/5] mb-6 rounded-lg overflow-hidden shadow-lg">
+          <img
+            src={program.image}
+            alt={program.title}
+            class="w-full h-full object-cover"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+          <div class="absolute bottom-0 left-0 p-6 md:p-8">
+            <span class="bg-blue-600 text-white text-xs sm:text-sm font-medium px-3 py-1 rounded-full mb-2 inline-block">
+              {program.category}
+            </span>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight">{program.title}</h1>
+          </div>
+        </div>
+        <p class="text-lg md:text-xl text-gray-600 mt-4">{program.description}</p>
+        {program.featured && (
+          <div class="mt-3">
+            <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">
+              <Icon name="mdi:star-circle" class="w-5 h-5" />
+              Featured Program
+            </span>
+          </div>
+        )}
+      </header>
+
+      {/* Main Content Sections as Cards */}
+      <div class="space-y-8">
+        
+        {/* Program Details Card: Fee, Duration, Mode */}
+        <section class="bg-white p-6 sm:p-8 rounded-lg shadow-xl">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-6">Program Overview</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
+            <div>
+              <h3 class="text-base sm:text-lg font-semibold text-gray-700 mb-1 sm:mb-2 flex items-center">
+                <Icon name="mdi:cash-multiple" class="w-5 h-5 mr-2 text-blue-500" />
+                Program Fee
+              </h3>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900">
+                <span class="currency-symbol">₹</span>
+                <span class="program-fee" 
+                  data-fee={program.fee} 
+                  data-fee-usd={program["fee-USD"]} 
+                  data-fee-aed={program["fee-AED"]}>
+                  {program.fee}
+                </span>
+              </p>
+              {program.institutionalDiscount && (
+                <p class="text-xs sm:text-sm text-gray-500 mt-1">{program.institutionalDiscount}</p>
+              )}
+            </div>
+            <div>
+              <h3 class="text-base sm:text-lg font-semibold text-gray-700 mb-1 sm:mb-2 flex items-center">
+                <Icon name="mdi:clock-outline" class="w-5 h-5 mr-2 text-blue-500" />
+                Duration
+              </h3>
+              <p class="text-gray-700 text-base sm:text-lg">{program.duration}</p>
+            </div>
+            <div>
+              <h3 class="text-base sm:text-lg font-semibold text-gray-700 mb-1 sm:mb-2 flex items-center">
+                <Icon name="mdi:laptop-chromebook" class="w-5 h-5 mr-2 text-blue-500" />
+                Mode of Delivery
+              </h3>
+              <ul class="text-gray-700 space-y-1 text-base sm:text-lg">
+                {program.mode.map((modeItem) => (
+                  <li>{modeItem}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          
+          {/* Additional Register Button */}
+          <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+            <a href={`/booking?program=${encodeURIComponent(program.title)}`} 
+               class="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+              Register for this Program
+              <Icon name="mdi:arrow-right-thin" class="w-5 h-5 ml-2" />
+            </a>
+          </div>
+        </section>
+
+        {/* Learning Outcomes Card */}
+        <section class="bg-white p-6 sm:p-8 rounded-lg shadow-xl">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-6">Learning Outcomes</h2>
+          <ul class="space-y-3">
+            {program.outcomes.map((outcome) => (
+              <li class="flex items-start gap-3">
+                <Icon name="mdi:check-circle-outline" class="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
+                <span class="text-gray-700 text-base sm:text-lg">{outcome}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Why Take This Program Card */}
+        <section class="bg-white p-6 sm:p-8 rounded-lg shadow-xl">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-6">Why Take This Program</h2>
+          <div class="prose prose-lg max-w-none text-gray-700 space-y-4">
+             <p>{program.whyTake}</p> {/* Assuming whyTake is plain text. If HTML, use set:html={program.whyTake} */}
+             {/* If you have specific bullet points for benefits, you can add them here, for example:
+             <ul class="list-disc pl-5 space-y-2">
+                <li>Benefit 1 explained.</li>
+                <li>Benefit 2 explained.</li>
+                <li>Benefit 3 explained.</li>
+             </ul>
+             */}
+          </div>
+        </section>
+
+        {/* Student Testimonials Card */}
+        <section class="bg-white p-6 sm:p-8 rounded-lg shadow-xl">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-6">What Our Students Say</h2>
+          <div class="space-y-6">
+            {/* Placeholder Testimonial 1 */}
+            <div class="border-l-4 border-blue-500 pl-4 py-2">
+              <p class="text-gray-700 italic">"This program completely changed my career trajectory. The instructors were top-notch, and the curriculum was very relevant to industry needs. Highly recommend!"</p>
+              <p class="text-gray-600 text-sm font-medium mt-2">- Jordan M., Program Graduate</p>
+            </div>
+            {/* Placeholder Testimonial 2 */}
+            <div class="border-l-4 border-blue-500 pl-4 py-2">
+              <p class="text-gray-700 italic">"I was able to apply what I learned directly to my job. The practical approach and supportive community made all the difference."</p>
+              <p class="text-gray-600 text-sm font-medium mt-2">- Priya S., Class of 2023</p>
+            </div>
+            {/* Add more testimonials here or fetch dynamically */}
+          </div>
+        </section>
+
+        {/* FAQ Section Card */}
+        <section class="bg-white p-6 sm:p-8 rounded-lg shadow-xl">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-6">Frequently Asked Questions</h2>
+          <div class="space-y-6">
+            <div>
+              <h3 class="font-semibold text-gray-800 text-lg">What are the prerequisites for this program?</h3>
+              <p class="text-gray-700 mt-1">While specific prerequisites vary, a general background in [relevant field] is helpful. Please check the detailed admission criteria or contact our admissions team.</p>
+            </div>
+            <div>
+              <h3 class="font-semibold text-gray-800 text-lg">Is there any financial aid or scholarship available?</h3>
+              <p class="text-gray-700 mt-1">We offer a range of financial aid options and scholarships for eligible candidates. Visit our financial aid page or speak to an advisor for more details.</p>
+            </div>
+            <div>
+              <h3 class="font-semibold text-gray-800 text-lg">What kind of career support is offered?</h3>
+              <p class="text-gray-700 mt-1">Our program includes career counseling, resume workshops, and networking opportunities to help you achieve your career goals post-completion.</p>
+            </div>
+            {/* Add more FAQs as needed */}
+          </div>
+        </section>
+
+        {/* Call to Action Section */}
+        <section class="mt-10 py-8 text-center bg-gray-50 rounded-lg shadow-inner">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-3">Ready to Advance Your Career?</h2>
+          <p class="text-gray-600 mb-6 max-w-xl mx-auto">Take the next step and invest in your future. Register for this program today.</p>
+          <a href={`/booking?program=${encodeURIComponent(program.title)}`} 
+             class="inline-flex items-center justify-center px-8 py-3 sm:px-10 sm:py-4 text-base sm:text-lg font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            Register for this Program
+            <Icon name="mdi:arrow-right-thin" class="w-6 h-6 ml-2" />
+          </a>
+        </section>
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<script>
+  import { updatePricesBasedOnLocation } from '../../utils/currency.js';
+
+  // Call the function when the page loads
+  document.addEventListener('astro:page-load', () => {
+    updatePricesBasedOnLocation();
+  });
+</script>
+
+<style is:global>
+  /* Add any global styles here if necessary, or component-specific styles */
+  .prose ul > li::before {
+    /* Ensuring prose styles don't conflict with icon list styling */
+    content: "" !important; 
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+  }
+</style>

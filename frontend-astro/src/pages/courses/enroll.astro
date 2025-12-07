@@ -1,0 +1,19 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Container from '../../components/container.astro';
+import SectionHead from '../../components/sectionhead.astro';
+import EnrollmentPage from '../../components/EnrollmentPage';
+---
+
+<Layout title="Enroll in Course - CourseCompass LMS">
+  <Container>
+    <SectionHead>
+      <Fragment slot="title">Course Enrollment</Fragment>
+      <Fragment slot="desc">Complete your enrollment to start learning</Fragment>
+    </SectionHead>
+    
+    <div class="max-w-4xl mx-auto py-8">
+      <EnrollmentPage client:load />
+    </div>
+  </Container>
+</Layout> 

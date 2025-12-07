@@ -1,0 +1,337 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Container from '../components/container.astro';
+import SectionHead from '../components/sectionhead.astro';
+import { Icon } from 'astro-icon/components';
+import { djangoApiServer, API_ENDPOINTS } from '../utils/django-api-server';
+
+// Fetch courses from Django API
+let courses = [];
+let fetchError = null;
+
+try {
+  const response = await djangoApiServer.get(API_ENDPOINTS.courses.list);
+  
+  if (response.success && response.results) {
+    // Django returns paginated results
+    courses = response.results;
+    console.log(`Fetched ${courses.length} courses from Django API`);
+  } else if (response.success && Array.isArray(response.data)) {
+    courses = response.data;
+  } else {
+    throw new Error(response.error || 'Failed to fetch courses');
+  }
+} catch (error) {
+  console.error("Failed to fetch courses:", error);
+  fetchError = error.message;
+}
+
+const getStatusClass = (status) => {
+  if (!status) return 'bg-gray-100 text-gray-800';
+  switch (status.toLowerCase()) {
+    case 'published':
+      return 'bg-green-100 text-green-800';
+    case 'draft':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'archived':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+// Format price for display
+const formatPrice = (price) => {
+  const numPrice = parseFloat(price);
+  return numPrice === 0 ? 'Free' : `$${numPrice.toFixed(2)}`;
+};
+---
+
+<Layout title="Course Catalog - CourseCompass LMS">
+  <Container>
+    <SectionHead>
+      <Fragment slot="title">Course Catalog</Fragment>
+      <Fragment slot="desc">Explore our wide range of courses to enhance your skills</Fragment>
+    </SectionHead>
+    
+    <!-- Search and Filter Section -->
+    <div class="mb-10 mt-8">
+      <div class="flex flex-col md:flex-row gap-4">
+        <div class="relative flex-1">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Icon name="mdi:magnify" class="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search for courses..."
+            class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-4">
+          <select class="block w-full sm:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">All Categories</option>
+            <option value="web-development">Web Development</option>
+            <option value="programming">Programming</option>
+            <option value="design">Design</option>
+            <option value="data-science">Data Science</option>
+          </select>
+          
+          <select class="block w-full sm:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">All Levels</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+          
+          <select class="block w-full sm:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="popular">Most Popular</option>
+            <option value="newest">Newest</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- All Courses Section -->
+    <div>
+      <h2 class="text-2xl font-bold mb-6">All Courses</h2>
+      
+      {courses.length > 0 ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {courses.map(course => (
+            <div class="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105">
+              <div class="h-48 bg-gray-200 relative">
+                {course.is_free ? (
+                  <div class="absolute top-0 right-0 bg-green-600 text-white px-3 py-1 m-2 rounded text-sm font-medium">Free</div>
+                ) : null}
+                <img src={course.thumbnail || `https://placehold.co/400x200/e2e8f0/1e40af?text=${encodeURIComponent(course.title)}`} alt={`Thumbnail for ${course.title}`} class="w-full h-full object-cover" />
+              </div>
+              
+              <div class="p-5">
+                <div class="flex justify-between items-start mb-2">
+                  <h3 class="text-lg font-bold leading-tight">{course.title}</h3>
+                  <span class:list={['text-xs font-medium px-2.5 py-0.5 rounded-full', getStatusClass(course.status)]}>{course.status}</span>
+                </div>
+                
+                <p class="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
+                
+                <div class="flex items-center text-sm text-gray-500 mb-4">
+                  <Icon name="mdi:account" class="w-4 h-4 mr-1" />
+                  <span>{course.instructor.username}</span>
+                  <span class="mx-2">•</span>
+                  <Icon name="mdi:book" class="w-4 h-4 mr-1" />
+                  <span>{course.total_lessons} lessons</span>
+                </div>
+                
+                <div class="flex items-center text-sm text-gray-500 mb-4">
+                  <Icon name="mdi:account-group" class="w-4 h-4 mr-1" />
+                  <span>{course.total_enrollments} students enrolled</span>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                  <span class="text-xl font-bold">{formatPrice(course.price)}</span>
+                  <div class="flex space-x-2">
+                    <a href={`/courses/${course.id}`} class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                      View Details
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div class="text-center py-12">
+          <p class="text-lg text-gray-500">No courses found. Please check back later.</p>
+        </div>
+      )}
+      
+      <!-- Pagination (can be made dynamic later) -->
+      <div class="mt-12 flex justify-center">
+        <nav class="inline-flex rounded-md shadow">
+          <a href="#" class="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50">
+            Previous
+          </a>
+          <a href="#" class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border-t border-b border-gray-300">
+            1
+          </a>
+          <a href="#" class="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-50">
+            2
+          </a>
+          <a href="#" class="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-50">
+            3
+          </a>
+          <a href="#" class="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50">
+            Next
+          </a>
+        </nav>
+      </div>
+    </div>
+  </Container>
+</Layout>
+
+<script>
+  // Define cart item interface
+  interface CartItem {
+    id: string;
+    title: string;
+    price: number;
+    image: string;
+  }
+
+  function isCourseInCart(courseId: string, currentCart: CartItem[]): boolean {
+    return currentCart.some(item => item.id === courseId);
+  }
+
+  function updateButtonState(button: HTMLButtonElement, course: CartItem, inCart: boolean) {
+    if (inCart) {
+      button.textContent = 'View Cart';
+      button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+      button.classList.add('bg-green-600', 'hover:bg-green-700');
+      button.onclick = () => window.location.href = '/cart';
+    } else {
+      button.textContent = 'Add to Cart';
+      button.classList.remove('bg-green-600', 'hover:bg-green-700');
+      button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+      button.onclick = () => {
+        const courseData = JSON.parse(button.getAttribute('data-course') || '{}');
+        addToCart(courseData, button);
+        
+        // Show success message (original logic)
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-md shadow-lg z-50 animate-fade-in-out';
+        messageDiv.textContent = `${courseData.title} added to cart!`;
+        // The toast message now serves as a confirmation, but primary CTA is the button change.
+        // Optionally, remove the "Go to cart" link from toast if it feels redundant.
+        messageDiv.innerHTML += '<div class="mt-2 text-sm">Go to <a href="/cart" class="underline font-bold">cart</a> to checkout</div>';
+        document.body.appendChild(messageDiv);
+        
+        setTimeout(() => {
+          messageDiv.remove();
+        }, 3000);
+      };
+    }
+  }
+
+  function setupCartButtons() {
+    const cartButtons = document.querySelectorAll<HTMLButtonElement>('.add-to-cart-btn');
+    const rawCartData = window.localStorage.getItem('courseCart');
+    let currentGlobalCart: CartItem[] = [];
+    if (rawCartData) {
+      try {
+        const parsed = JSON.parse(rawCartData);
+        if (Array.isArray(parsed)) {
+          currentGlobalCart = parsed;
+        }
+      } catch (e) { /* ignore parsing error, cart remains empty */ }
+    }
+    
+    cartButtons.forEach(button => {
+      const courseDataString = button.getAttribute('data-course');
+      if (courseDataString) {
+        try {
+          const courseData = JSON.parse(courseDataString);
+          const inCart = isCourseInCart(courseData.id, currentGlobalCart);
+          updateButtonState(button, courseData, inCart);
+        } catch (e) {
+          console.error("Failed to parse course data from button:", e);
+          // Fallback to default Add to Cart state
+          updateButtonState(button, {} as CartItem, false);
+        }
+      }
+    });
+  }
+  
+  function addToCart(course: CartItem, buttonElement?: HTMLButtonElement) {
+    try {
+      const rawCartData = window.localStorage.getItem('courseCart');
+      let cart: CartItem[] = [];
+      
+      if (rawCartData) {
+        try {
+          const parsed = JSON.parse(rawCartData);
+          if (Array.isArray(parsed)) {
+            cart = parsed;
+          } else {
+            console.error('Cart data is not an array, resetting');
+          }
+        } catch (e) {
+          console.error('Error parsing cart JSON:', e);
+        }
+      }
+      
+      const existingItem = cart.find(item => item.id === course.id);
+      if (!existingItem) {
+        cart.push(course);
+        const jsonString = JSON.stringify(cart);
+        window.localStorage.setItem('courseCart', jsonString);
+        updateCartCount(); // Updates navbar
+        
+        if (buttonElement) {
+          updateButtonState(buttonElement, course, true); // Update this specific button
+        } else {
+          // If called without a specific button, re-run setup to update all relevant buttons
+          // This might happen if cart is updated by other means and we want to refresh UI
+          setupCartButtons();
+        }
+
+        try {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'courseCart',
+            newValue: jsonString
+          }));
+        } catch (e) {
+          console.error('Error dispatching storage event:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error in addToCart:', error);
+    }
+  }
+  
+  function updateCartCount() {
+    let cart: CartItem[] = [];
+    try {
+      const rawCartData = window.localStorage.getItem('courseCart');
+      if (rawCartData) {
+        const parsed = JSON.parse(rawCartData);
+        if (Array.isArray(parsed)) {
+          cart = parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading cart for count update:', e);
+    }
+    
+    const headerCartCount = document.querySelector('.header-cart-count');
+    if (headerCartCount) {
+      headerCartCount.textContent = String(cart.length);
+      if (cart.length > 0) {
+        headerCartCount.classList.remove('hidden');
+      } else {
+        headerCartCount.classList.add('hidden');
+      }
+    }
+  }
+  
+  // Initialize
+  document.addEventListener('astro:page-load', () => {
+    setupCartButtons();
+    updateCartCount();
+  });
+</script>
+
+<style>
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    80% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+  }
+  
+  .animate-fade-in-out {
+    animation: fadeInOut 3s ease-in-out forwards;
+  }
+</style> 

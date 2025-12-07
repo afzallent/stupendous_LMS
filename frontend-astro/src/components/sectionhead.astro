@@ -1,0 +1,12 @@
+---
+const { align = "center" } = Astro.props;
+---
+
+<div class={`text-${align} max-w-3xl mx-auto`}>
+  <h1 class="text-2xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-8">
+    <slot name="title">Title</slot>
+  </h1>
+  <p class="text-sm md:text-lg text-gray-600">
+    <slot name="desc">Some description goes here</slot>
+  </p>
+</div>

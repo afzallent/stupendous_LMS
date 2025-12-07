@@ -1,0 +1,154 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+
+const API_URL = import.meta.env.PUBLIC_API_URL;
+
+const url = new URL(Astro.request.url);
+const courseId = url.searchParams.get('id');
+const isEditMode = !!courseId;
+
+let course = {
+  title: '',
+  description: '',
+  instructor_id: '',
+  price: '',
+  duration: '',
+  thumbnail: '',
+  is_frozen: false,
+};
+let trainers = [];
+let errorMessage = '';
+
+// Fetch trainers for the dropdown
+try {
+  const trainersRes = await fetch(`${API_URL}/courses.php/trainers`);
+  if (!trainersRes.ok) throw new Error('Failed to fetch trainers');
+  const response = await trainersRes.json();
+  // Handle standardized response format
+  if (response.success && response.data) {
+    trainers = response.data;
+  } else if (Array.isArray(response)) {
+    trainers = response;
+  } else {
+    throw new Error('Invalid response format');
+  }
+} catch (error) {
+  errorMessage = error.message;
+  trainers = []; // Ensure trainers is always an array
+}
+
+// If in edit mode, fetch the course data
+if (isEditMode) {
+  try {
+    const courseRes = await fetch(`${API_URL}/courses.php/${courseId}`);
+    if (!courseRes.ok) throw new Error('Failed to fetch course data');
+    const response = await courseRes.json();
+    // Handle standardized response format
+    if (response.success && response.data) {
+      course = response.data;
+    } else if (response.id) {
+      course = response;
+    } else {
+      throw new Error('Invalid course data format');
+    }
+  } catch (error) {
+    errorMessage = error.message;
+  }
+}
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    if (isEditMode) {
+      formData.append('_method', 'PUT');
+    }
+
+    const response = await fetch(`${API_URL}/courses.php${isEditMode ? `/${courseId}` : ''}`,
+    {
+        method: 'POST', // Always POST because of multipart/form-data
+        body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Form submission failed: ${errorText}`);
+    }
+    
+    return Astro.redirect('/admin/courses');
+
+  } catch (error) {
+    errorMessage = error.message;
+  }
+}
+---
+
+<Layout title={isEditMode ? 'Edit Course' : 'Add New Course'}>
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">{isEditMode ? 'Edit Course' : 'Add New Course'}</h1>
+
+    {errorMessage && <div class="mb-4 p-4 bg-red-100 border border-red-300 text-red-700 rounded">{errorMessage}</div>}
+
+    <form method="POST" enctype="multipart/form-data" class="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-bold mb-2" for="title">Title</label>
+        <input type="text" id="title" name="title" value={course.title} class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" required>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-bold mb-2" for="description">Description</label>
+        <textarea id="description" name="description" rows="4" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">{course.description}</textarea>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-bold mb-2" for="instructor_id">Instructor</label>
+        <select id="instructor_id" name="instructor_id" class="shadow border rounded w-full py-2 px-3 text-gray-700" required>
+          <option value="">Select a Trainer</option>
+          {trainers && trainers.length > 0 ? trainers.map(trainer => (
+            <option value={trainer.id} selected={trainer.id == course.instructor_id}>{trainer.name}</option>
+          )) : (
+            <option value="" disabled>No trainers available</option>
+          )}
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="price">Price</label>
+          <input type="number" id="price" name="price" value={course.price} class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" required step="0.01">
+        </div>
+        <div>
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="duration">Duration (e.g., 8 hours)</label>
+          <input type="text" id="duration" name="duration" value={course.duration} class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-bold mb-2" for="thumbnail">Thumbnail Image</label>
+        {isEditMode && course.thumbnail && (
+          <div class="mb-2">
+            <img src={course.thumbnail} alt="Current thumbnail" class="h-24 w-auto rounded"/>
+            <input type="hidden" name="existing_thumbnail" value={course.thumbnail} />
+          </div>
+        )}
+        <input type="file" id="thumbnail" name="thumbnail" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-gray-700 text-sm font-bold mb-2">
+          <input type="checkbox" id="is_frozen" name="is_frozen" checked={course.is_frozen} class="mr-2 leading-tight">
+          <span class="text-sm">Freeze (Hide) this course</span>
+        </label>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+          {isEditMode ? 'Update Course' : 'Create Course'}
+        </button>
+        <a href="/admin/courses" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </main>
+</Layout>
