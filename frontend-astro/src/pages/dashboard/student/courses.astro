@@ -1,7 +1,6 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { Icon } from 'astro-icon/components';
-import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
 
 export const prerender = false;
 
@@ -29,7 +28,6 @@ try {
 }
 ---
 
-<ClerkProviderWrapper>
 <DashboardLayout title="My Courses - CourseCompass LMS" userType="student">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800">My Courses</h1>
@@ -186,7 +184,6 @@ try {
     </div>
   </div>
 </DashboardLayout>
-</ClerkProviderWrapper>
 
 
 

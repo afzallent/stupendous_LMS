@@ -44,6 +44,6 @@
   },
   "devDependencies": {
     "@tailwindcss/aspect-ratio": "^0.4.2",
-    "astro": "^5.7.2"
+    "astro": "^5.16.4"
   }
 }

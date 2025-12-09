@@ -1,7 +1,6 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { Icon } from 'astro-icon/components';
-import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
 
 export const prerender = false;
 
@@ -9,7 +8,6 @@ export const prerender = false;
 const showNoCertificatesMessage = false; // Set to true to display the "No Certificates" message
 ---
 
-<ClerkProviderWrapper>
 <DashboardLayout title="My Certificates - CourseCompass LMS" userType="student">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800">My Certificates</h1>
@@ -80,8 +78,7 @@ const showNoCertificatesMessage = false; // Set to true to display the "No Certi
       </div>
     )}
   </div>
-</DashboardLayout>
-</ClerkProviderWrapper> 
+</DashboardLayout> 
 
 
 
