@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { djangoApi } from '@/lib/django-api-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -25,11 +26,17 @@ import {
   BookOpen
 } from 'lucide-react'
 
+interface QuestionOption {
+  id: string
+  option_text: string
+}
+
 interface Question {
   id: string
   question: string
   type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'MULTIPLE_ANSWER'
   options: string[] | null
+  optionsWithIds?: QuestionOption[] // Store full option data with IDs
   points: number
   order: number
 }
@@ -83,35 +90,68 @@ export default function QuizTakingPage() {
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
-        const response = await fetch(`/api/student/quiz/${params.quizId}`)
-        if (!response.ok) throw new Error('Failed to fetch quiz')
-
-        const data = await response.json()
-        setQuiz(data.quiz)
-        setPreviousAttempts(data.previousAttempts || [])
-        setAttemptCount(data.attemptCount || 0)
-
-        // Check if student can retake
-        if (data.quiz.metadata?.allowRetakes === false && data.attemptCount > 0) {
-          setCanRetake(false)
-        } else if (data.quiz.metadata?.maxRetakes && data.attemptCount >= data.quiz.metadata.maxRetakes) {
-          setCanRetake(false)
+        // Fetch quiz details
+        const quizData = await djangoApi.get<any>(`/api/quizzes/${params.quizId}/`)
+        
+        // Fetch user's previous attempts
+        const attemptsData = await djangoApi.get<any>('/api/quizzes/my_attempts/')
+        const quizAttempts = attemptsData.filter((a: any) => a.quiz === parseInt(params.quizId as string))
+        
+        // Transform backend data to frontend format
+        const transformedQuiz: Quiz = {
+          id: quizData.id.toString(),
+          title: quizData.title,
+          description: quizData.description,
+          passingScore: quizData.passing_score,
+          questions: quizData.questions.map((q: any) => ({
+            id: q.id.toString(),
+            question: q.question_text,
+            type: q.question_type === 'multiple_choice' ? 'MULTIPLE_CHOICE' :
+                  q.question_type === 'true_false' ? 'TRUE_FALSE' : 'FILL_IN_THE_BLANK',
+            options: q.options?.map((o: any) => o.option_text) || null,
+            optionsWithIds: q.options?.map((o: any) => ({
+              id: o.id.toString(),
+              option_text: o.option_text
+            })) || [],
+            points: q.points,
+            order: q.order
+          })),
+          metadata: {
+            timeLimit: quizData.time_limit,
+            randomizeQuestions: false, // Not in backend model yet
+            showExplanations: true, // Default
+            allowRetakes: true, // Default
+            maxRetakes: quizData.max_attempts
+          }
         }
 
-        // Randomize questions if enabled
-        if (data.quiz.metadata?.randomizeQuestions) {
-          const shuffled = [...data.quiz.questions].sort(() => Math.random() - 0.5)
-          setQuiz({ ...data.quiz, questions: shuffled })
+        setQuiz(transformedQuiz)
+        
+        // Transform attempts
+        const transformedAttempts: QuizAttempt[] = quizAttempts.map((a: any) => ({
+          id: a.id.toString(),
+          score: parseFloat(a.score || 0),
+          maxScore: a.max_score,
+          passed: a.passed,
+          completedAt: a.completed_at
+        }))
+        
+        setPreviousAttempts(transformedAttempts)
+        setAttemptCount(quizAttempts.length)
+
+        // Check if student can retake
+        if (quizAttempts.length >= quizData.max_attempts) {
+          setCanRetake(false)
         }
 
         // Set timer if time limit exists
-        if (data.quiz.metadata?.timeLimit) {
-          setTimeRemaining(data.quiz.metadata.timeLimit * 60) // Convert to seconds
+        if (quizData.time_limit) {
+          setTimeRemaining(quizData.time_limit * 60) // Convert to seconds
         }
-      } catch (error) {
+      } catch (error: any) {
         toast({
           title: 'Error',
-          description: 'Failed to load quiz',
+          description: error?.message || 'Failed to load quiz',
           variant: 'destructive'
         })
       } finally {
@@ -174,25 +214,69 @@ export default function QuizTakingPage() {
     setIsSubmitting(true)
 
     try {
-      // Quiz feature not implemented in Django yet
-      alert('Quiz submission is not yet implemented. This feature is coming soon!')
+      // Transform answers to backend format
+      const submissionAnswers = quiz.questions.map(question => {
+        const answer = answers[question.id]
+        if (!answer) return null
+        
+        // Find the option ID for the selected answer
+        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
+          // Find the option ID that matches the selected answer text
+          const selectedOption = question.optionsWithIds?.find(
+            opt => opt.option_text === answer
+          )
+          
+          if (selectedOption) {
+            return {
+              question_id: parseInt(question.id),
+              selected_option_id: parseInt(selectedOption.id)
+            }
+          }
+        } else if (question.type === 'FILL_IN_THE_BLANK') {
+          return {
+            question_id: parseInt(question.id),
+            text_answer: answer as string
+          }
+        } else {
+          // MULTIPLE_ANSWER - for now use text answer
+          return {
+            question_id: parseInt(question.id),
+            text_answer: Array.isArray(answer) ? answer.join(', ') : answer
+          }
+        }
+        
+        return null
+      }).filter(a => a !== null) // Only include answered questions
+
+      // Submit to backend
+      const result = await djangoApi.post<any>(`/api/quizzes/${params.quizId}/submit/`, {
+        answers: submissionAnswers
+      })
+
+      // Set result and show results page
+      const quizResult: QuizAttempt = {
+        id: result.id.toString(),
+        score: parseFloat(result.score),
+        maxScore: result.max_score,
+        passed: result.passed,
+        completedAt: result.completed_at
+      }
       
-      // For demo, redirect back to course
-      router.push(`/learn/${courseId}`)
-    } catch (error) {
-      console.error('Quiz submission error:', error)
+      setQuizResult(quizResult)
+      setShowResults(true)
 
       toast({
-        title: result.attempt.passed ? 'Congratulations!' : 'Quiz Completed',
-        description: result.attempt.passed
-          ? `You passed with ${result.attempt.score}/${result.attempt.maxScore} points!`
-          : `You scored ${result.attempt.score}/${result.attempt.maxScore} points. Keep practicing!`,
-        variant: result.attempt.passed ? 'default' : 'destructive'
+        title: result.passed ? 'Congratulations!' : 'Quiz Completed',
+        description: result.passed
+          ? `You passed with ${result.score}/${result.max_score} points!`
+          : `You scored ${result.score}/${result.max_score} points. Keep practicing!`,
+        variant: result.passed ? 'default' : 'destructive'
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Quiz submission error:', error)
       toast({
         title: 'Error',
-        description: 'Failed to submit quiz',
+        description: error?.message || 'Failed to submit quiz',
         variant: 'destructive'
       })
     } finally {

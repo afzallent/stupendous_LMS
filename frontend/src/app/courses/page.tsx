@@ -479,8 +479,20 @@ export default function CoursesPage() {
                 {courses.map((course) => (
                   <Card key={course.id} className="overflow-hidden hover:shadow-2xl transition-all duration-300 group border-0 shadow-lg">
                     <div className="relative">
-                      <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                        <Play className="h-16 w-16 text-blue-600/50 group-hover:text-blue-600 transition-colors" />
+                      <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                        {course.thumbnail ? (
+                          <img 
+                            src={course.thumbnail.startsWith('http') ? course.thumbnail : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${course.thumbnail}`}
+                            alt={course.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center')
+                            }}
+                          />
+                        ) : (
+                          <Play className="h-16 w-16 text-blue-600/50 group-hover:text-blue-600 transition-colors" />
+                        )}
                       </div>
                       <Badge className="absolute top-3 left-3 bg-blue-600 text-white border-0">
                         {course.level}
@@ -577,8 +589,20 @@ export default function CoursesPage() {
                     <CardContent className="p-6">
                       <div className="flex gap-6">
                         <div className="flex-shrink-0">
-                          <div className="w-48 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
-                            <Play className="h-12 w-12 text-blue-600/50" />
+                          <div className="w-48 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center overflow-hidden">
+                            {course.thumbnail ? (
+                              <img 
+                                src={course.thumbnail.startsWith('http') ? course.thumbnail : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${course.thumbnail}`}
+                                alt={course.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center')
+                                }}
+                              />
+                            ) : (
+                              <Play className="h-12 w-12 text-blue-600/50" />
+                            )}
                           </div>
                         </div>
                         <div className="flex-1 space-y-3">

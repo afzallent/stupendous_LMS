@@ -145,19 +145,14 @@ function CheckoutSuccessContent() {
           // Clear cart after successful enrollment
           localStorage.removeItem('cart')
           
-          console.log('Enrollment successful, cart cleared. Enrollments created:', enrollmentData.data?.enrollments?.length || 0)
-        } else {
-          const errorData = await enrollmentResponse.text()
-          console.error('Failed to create enrollments', {
-            status: enrollmentResponse.status,
-            statusText: enrollmentResponse.statusText,
-            errorData
-          })
+          console.log('Enrollment successful, cart cleared')
+        } catch (error) {
+          console.error('Failed to create enrollments', error)
           
           // Show error to user
-          alert(`Enrollment failed: ${enrollmentResponse.status} - ${enrollmentResponse.statusText}. Please contact support.`)
+          alert('Enrollment failed. Please contact support.')
           
-          // Still show success page with mock data for better UX
+          // Still show success page with cart data for better UX
           createMockOrder()
         }
       } catch (error) {
@@ -172,29 +167,40 @@ function CheckoutSuccessContent() {
     }
 
     const createMockOrder = () => {
-      // Fallback mock order data
-      const mockOrder: OrderDetails = {
-        id: `ORD-${Date.now()}`,
-        paymentMethod: method,
-        amount: method === 'upi' ? 7470 : 89.99,
-        currency: method === 'upi' ? 'INR' : 'USD',
-        status: 'completed',
-        courses: [
-          {
-            id: "1",
-            title: "Complete Web Development Bootcamp",
-            instructor: "Dr. Sarah Chen",
-            thumbnail: "/api/placeholder/200/120",
-            duration: "52h 30m",
-            lectures: 320,
-            level: "Beginner",
-            rating: 4.8
+      // Fallback to cart data if available
+      const storedCart = localStorage.getItem('cart')
+      if (storedCart) {
+        try {
+          const cartData = JSON.parse(storedCart)
+          const mockOrder: OrderDetails = {
+            id: `ORD-${Date.now()}`,
+            paymentMethod: method,
+            amount: method === 'upi' 
+              ? cartData.items.reduce((sum: number, item: any) => sum + (item.price * 83), 0)
+              : cartData.items.reduce((sum: number, item: any) => sum + item.price, 0),
+            currency: method === 'upi' ? 'INR' : 'USD',
+            status: 'completed',
+            courses: cartData.items.map((item: any) => ({
+              id: item.id,
+              title: item.title,
+              instructor: item.instructor,
+              thumbnail: item.thumbnail || "/api/placeholder/200/120",
+              duration: item.duration || "0h 0m",
+              lectures: item.lectures || 0,
+              level: item.level || "Beginner",
+              rating: item.rating || 4.5
+            })),
+            purchaseDate: new Date().toISOString(),
+            receipt: sessionId || paymentId || undefined
           }
-        ],
-        purchaseDate: new Date().toISOString(),
-        receipt: sessionId || paymentId || undefined
+          setOrderDetails(mockOrder)
+        } catch (error) {
+          console.error('Error parsing cart data:', error)
+          setOrderDetails(null)
+        }
+      } else {
+        setOrderDetails(null)
       }
-      setOrderDetails(mockOrder)
     }
 
     processEnrollment()

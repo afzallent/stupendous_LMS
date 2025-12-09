@@ -6,10 +6,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  eslint: {
-    // 构建时忽略ESLint错误
-    ignoreDuringBuilds: true,
-  },
+  // Note: eslint configuration is no longer supported in Next.js 16
+  // Use .eslintrc.json or eslint.config.js instead
+  
   // Enable proper static file serving
   // Remove the webpack configuration that was disabling hot reloading
   // This will allow Next.js to properly serve static assets

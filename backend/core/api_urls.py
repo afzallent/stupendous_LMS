@@ -12,6 +12,9 @@ router.register(r'auth', views.AuthViewSet, basename='auth')
 router.register(r'user', views.UserProfileViewSet, basename='user')
 
 urlpatterns = [
+    # Health check endpoint
+    path('health/', views.health_check, name='health-check'),
+    
     # Router endpoints
     path('', include(router.urls)),
     

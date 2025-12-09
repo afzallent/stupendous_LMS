@@ -2,10 +2,11 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 from django.views.generic import TemplateView
+from django.http import JsonResponse
 from .forms import CustomUserCreationForm
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -22,6 +23,16 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Simple health check endpoint for frontend connectivity testing"""
+    return Response({
+        'status': 'ok',
+        'message': 'Backend is running'
+    }, status=status.HTTP_200_OK)
 
 
 def register(request):

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { djangoApi } from '@/lib/django-api-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -211,10 +212,10 @@ export default function CreateQuizPage() {
       return
     }
 
-    if (!lessonId) {
+    if (!courseId) {
       toast({
         title: 'Error',
-        description: 'Lesson ID is missing',
+        description: 'Course ID is missing',
         variant: 'destructive'
       })
       return
@@ -223,21 +224,83 @@ export default function CreateQuizPage() {
     setIsSaving(true)
 
     try {
-      // Quiz feature not implemented in Django yet
+      // Step 1: Create the quiz
+      const quizPayload = {
+        course: parseInt(courseId),
+        lesson: lessonId ? parseInt(lessonId) : null,
+        title: quizData.title,
+        description: quizData.description,
+        passing_score: quizData.passingScore,
+        time_limit: quizData.timeLimit || null,
+        max_attempts: quizData.maxRetakes || 3,
+        is_active: true
+      }
+
+      const createdQuiz = await djangoApi.post<any>('/api/quizzes/', quizPayload)
+
+      // Step 2: Create questions for the quiz
+      for (const question of quizData.questions) {
+        // Map frontend question type to backend format
+        const questionType = question.type === 'MULTIPLE_CHOICE' ? 'multiple_choice' :
+                            question.type === 'TRUE_FALSE' ? 'true_false' : 'short_answer'
+
+        const questionPayload = {
+          quiz: createdQuiz.id,
+          question_text: question.question,
+          question_type: questionType,
+          points: question.points,
+          order: question.order,
+          explanation: question.explanation || ''
+        }
+
+        const createdQuestion = await djangoApi.post<any>('/api/questions/', questionPayload)
+
+        // Step 3: Create options for multiple choice and true/false questions
+        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'MULTIPLE_ANSWER') {
+          for (let i = 0; i < question.options.length; i++) {
+            const option = question.options[i]
+            if (option.trim()) {
+              const isCorrect = Array.isArray(question.correctAnswer)
+                ? question.correctAnswer.includes(option)
+                : question.correctAnswer === option
+
+              await djangoApi.post('/api/questions/' + createdQuestion.id + '/options/', {
+                question: createdQuestion.id,
+                option_text: option,
+                is_correct: isCorrect,
+                order: i
+              })
+            }
+          }
+        } else if (question.type === 'TRUE_FALSE') {
+          // Create True and False options
+          await djangoApi.post('/api/questions/' + createdQuestion.id + '/options/', {
+            question: createdQuestion.id,
+            option_text: 'True',
+            is_correct: question.correctAnswer === 'True',
+            order: 0
+          })
+          await djangoApi.post('/api/questions/' + createdQuestion.id + '/options/', {
+            question: createdQuestion.id,
+            option_text: 'False',
+            is_correct: question.correctAnswer === 'False',
+            order: 1
+          })
+        }
+      }
+
       toast({
-        title: 'Coming Soon',
-        description: 'Quiz creation feature is not yet implemented. Focus on creating great course content for now!',
-        variant: 'default'
+        title: 'Success!',
+        description: `Quiz "${quizData.title}" created with ${quizData.questions.length} questions`,
       })
 
       // Redirect back to course
-      setTimeout(() => {
-        router.push(`/instructor/courses/${courseId}`)
-      }, 2000)
-    } catch (error) {
+      router.push(`/instructor/courses/${courseId}`)
+    } catch (error: any) {
+      console.error('Quiz creation error:', error)
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create quiz',
+        description: error?.message || 'Failed to create quiz',
         variant: 'destructive'
       })
     } finally {

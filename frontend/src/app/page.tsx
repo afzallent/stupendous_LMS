@@ -91,17 +91,28 @@ export default function Home() {
           courses: cat.course_count || 0
         })) || []
 
-        // Mock stats for now
-        const mockStats = [
-          { icon: 'Users', label: 'Active Students', value: '50K+', color: 'text-blue-500' },
-          { icon: 'BookOpen', label: 'Total Courses', value: '1,000+', color: 'text-purple-500' },
-          { icon: 'Award', label: 'Certificates', value: '25K+', color: 'text-green-500' },
-          { icon: 'TrendingUp', label: 'Success Rate', value: '95%', color: 'text-yellow-500' }
-        ]
+        // Fetch platform stats from Django API
+        try {
+          const statsResponse = await fetch(`${API_BASE_URL}/api/platform-stats/`)
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json()
+            const platformStats = [
+              { icon: 'Users', label: 'Active Students', value: statsData.total_students?.toString() || '0', color: 'text-blue-500' },
+              { icon: 'BookOpen', label: 'Total Courses', value: statsData.total_courses?.toString() || '0', color: 'text-purple-500' },
+              { icon: 'Award', label: 'Certificates', value: statsData.total_certificates?.toString() || '0', color: 'text-green-500' },
+              { icon: 'TrendingUp', label: 'Success Rate', value: statsData.success_rate?.toString() || '0%', color: 'text-yellow-500' }
+            ]
+            setStats(platformStats)
+          } else {
+            setStats([])
+          }
+        } catch (error) {
+          console.error('Error fetching platform stats:', error)
+          setStats([])
+        }
 
         setFeaturedCourses(mappedCourses)
         setCategories(mappedCategories)
-        setStats(mockStats)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {

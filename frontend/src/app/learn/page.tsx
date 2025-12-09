@@ -144,18 +144,21 @@ export default function StudentDashboard() {
             totalEnrolled: data.total_courses || 0,
             totalCompleted: data.completed_courses || 0,
             totalHours: data.total_lessons_completed || 0,
-            currentStreak: 0 // Django doesn't track this yet
+            currentStreak: data.current_streak || 0
           }
           
-          // Mock achievements for now
-          const mockAchievements = [
-            { id: '1', title: 'First Course', description: 'Enrolled in your first course', icon: '🎓', earnedAt: new Date().toISOString() },
-            { id: '2', title: 'Quick Learner', description: 'Completed 5 lessons in one day', icon: '⚡', earnedAt: new Date().toISOString() }
-          ]
+          // Map achievements from Django API
+          const mappedAchievements = data.achievements?.map((achievement: any) => ({
+            id: achievement.id,
+            title: achievement.title,
+            description: achievement.description,
+            icon: achievement.icon || '🏆',
+            earnedAt: achievement.earned_at
+          })) || []
           
           setEnrolledCourses(mappedCourses)
           setStats(mappedStats)
-          setAchievements(mockAchievements)
+          setAchievements(mappedAchievements)
         } else {
           const errorText = await response.text()
           console.error('❌ Failed to fetch dashboard data:', { status: response.status, error: errorText })

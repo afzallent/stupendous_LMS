@@ -42,6 +42,7 @@ function AuthPageContent() {
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<any>({})
   const [activeTab, setActiveTab] = useState("login")
+  const [backendAvailable, setBackendAvailable] = useState(true)
   const router = useRouter()
   const searchParams = useSearchParams()
   const [redirectPath, setRedirectPath] = useState<string>('/')
@@ -70,7 +71,48 @@ function AuthPageContent() {
     // SSO providers are not implemented in Django backend yet
     // Keeping the UI but providers will be empty for now
     setProviders({})
+    
+    // Check backend connectivity
+    checkBackendConnectivity()
   }, [searchParams])
+
+  const checkBackendConnectivity = async () => {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000)
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/health/`, {
+        signal: controller.signal,
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }).catch(() => null)
+      
+      clearTimeout(timeoutId)
+      
+      if (!response || !response.ok) {
+        setBackendAvailable(false)
+        toast({
+          title: "Service Temporarily Unavailable",
+          description: "We're experiencing connectivity issues. Please try again in a moment.",
+          variant: "destructive",
+          duration: 5000,
+        })
+      } else {
+        setBackendAvailable(true)
+      }
+    } catch (error) {
+      // Silently handle errors to prevent Turbopack issues
+      setBackendAvailable(false)
+      toast({
+        title: "Service Temporarily Unavailable",
+        description: "We're experiencing connectivity issues. Please try again in a moment.",
+        variant: "destructive",
+        duration: 5000,
+      })
+    }
+  }
 
   const handleSocialSignIn = async (providerId: string) => {
     try {
@@ -99,6 +141,15 @@ function AuthPageContent() {
       toast({
         title: "Validation Error",
         description: "Please fill in all fields",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!backendAvailable) {
+      toast({
+        title: "Service Unavailable",
+        description: "Unable to connect to our services. Please check your connection and try again.",
         variant: "destructive"
       })
       return
@@ -147,13 +198,27 @@ function AuthPageContent() {
         })
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'An unexpected error occurred'
+      // Gracefully handle network errors to prevent Turbopack crashes
+      const errorMsg = error instanceof Error ? error.message : 'Unable to connect to our services'
       console.error('Login error:', errorMsg, error)
+      
+      // Check if it's a network error
+      const isNetworkError = errorMsg.includes('fetch') || 
+                            errorMsg.includes('network') || 
+                            errorMsg.includes('ECONNREFUSED') ||
+                            errorMsg.includes('Failed to fetch')
+      
       toast({
-        title: "Login Failed",
-        description: errorMsg,
+        title: isNetworkError ? "Connection Issue" : "Login Failed",
+        description: isNetworkError 
+          ? "We're having trouble connecting. Please ensure the service is running and try again."
+          : errorMsg,
         variant: "destructive"
       })
+      
+      if (isNetworkError) {
+        setBackendAvailable(false)
+      }
     } finally {
       setLoading(false)
     }
@@ -189,6 +254,15 @@ function AuthPageContent() {
       return
     }
 
+    if (!backendAvailable) {
+      toast({
+        title: "Service Unavailable",
+        description: "Unable to connect to our services. Please check your connection and try again.",
+        variant: "destructive"
+      })
+      return
+    }
+
     try {
       setLoading(true)
       
@@ -218,12 +292,27 @@ function AuthPageContent() {
         })
       }
     } catch (error) {
-      console.error('Signup error:', error)
+      // Gracefully handle network errors to prevent Turbopack crashes
+      const errorMsg = error instanceof Error ? error.message : 'Unable to connect to our services'
+      console.error('Signup error:', errorMsg, error)
+      
+      // Check if it's a network error
+      const isNetworkError = errorMsg.includes('fetch') || 
+                            errorMsg.includes('network') || 
+                            errorMsg.includes('ECONNREFUSED') ||
+                            errorMsg.includes('Failed to fetch')
+      
       toast({
-        title: "Signup Failed",
-        description: "An unexpected error occurred",
+        title: isNetworkError ? "Connection Issue" : "Signup Failed",
+        description: isNetworkError 
+          ? "We're having trouble connecting. Please ensure the service is running and try again."
+          : "An unexpected error occurred. Please try again.",
         variant: "destructive"
       })
+      
+      if (isNetworkError) {
+        setBackendAvailable(false)
+      }
     } finally {
       setLoading(false)
     }

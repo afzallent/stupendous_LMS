@@ -22,13 +22,107 @@ import {
   TrendingUp,
   Lock,
   AlertTriangle,
-  Loader2
+  Loader2,
+  FileQuestion
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
+
+// Quizzes Tab Component
+function QuizzesTab({ courseId }: { courseId: string }) {
+  const router = useRouter()
+  const [quizzes, setQuizzes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchQuizzes = async () => {
+      try {
+        const data = await djangoApi.get<any>('/api/quizzes/', { course: courseId })
+        setQuizzes(data.results || data || [])
+      } catch (error) {
+        console.error('Error fetching quizzes:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchQuizzes()
+  }, [courseId])
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading quizzes...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (quizzes.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Course Quizzes</CardTitle>
+          <CardDescription>Test your knowledge</CardDescription>
+        </CardHeader>
+        <CardContent className="py-12 text-center">
+          <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No quizzes available yet</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Your instructor hasn't added any quizzes to this course
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Course Quizzes</CardTitle>
+        <CardDescription>Test your knowledge and track your progress</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {quizzes.map((quiz) => (
+            <div key={quiz.id} className="border rounded-lg p-4 hover:bg-muted/20 transition-colors">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{quiz.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">{quiz.description}</p>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="h-4 w-4" />
+                      {quiz.question_count} questions
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Target className="h-4 w-4" />
+                      {quiz.passing_score}% to pass
+                    </span>
+                    {quiz.time_limit && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {quiz.time_limit} minutes
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Button onClick={() => router.push(`/learn/${courseId}/quiz/${quiz.id}`)}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Quiz
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 interface User {
   id: string
@@ -394,6 +488,7 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
         <Tabs defaultValue="curriculum" className="space-y-6">
           <TabsList>
             <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
+            <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="reviews">Reviews</TabsTrigger>
           </TabsList>
@@ -454,6 +549,10 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="quizzes" className="space-y-6">
+            <QuizzesTab courseId={courseId} />
           </TabsContent>
 
           <TabsContent value="overview" className="space-y-6">

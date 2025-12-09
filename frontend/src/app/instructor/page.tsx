@@ -46,6 +46,14 @@ export default function InstructorDashboard() {
   const [courses, setCourses] = useState<any[]>([])
   const [stats, setStats] = useState<any>({})
   const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [atRiskStudents, setAtRiskStudents] = useState<any[]>([])
+  const [topPerformers, setTopPerformers] = useState<any[]>([])
+  const [progressDistribution, setProgressDistribution] = useState<any>({
+    '0-25': 0,
+    '26-50': 0,
+    '51-75': 0,
+    '76-100': 0
+  })
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
@@ -174,8 +182,6 @@ export default function InstructorDashboard() {
           setRecentActivity([])
         }
 
-        // Note: Revenue, engagement, and student performance analytics
-        // will be implemented when backend endpoints are ready
       } catch (error) {
         console.error('Error fetching instructor data:', error)
       } finally {
@@ -185,6 +191,174 @@ export default function InstructorDashboard() {
 
     fetchInstructorData()
   }, [user, router])
+
+  // Separate effect to fetch enrollments and calculate analytics after courses are loaded
+  useEffect(() => {
+    const fetchEnrollmentAnalytics = async () => {
+      if (courses.length === 0) return
+
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const accessToken = localStorage.getItem('access_token')
+        
+        if (!accessToken) return
+
+        const headers = {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+
+        let allEnrollments: any[] = []
+        
+        // Fetch enrollments for each course
+        for (const course of courses) {
+            try {
+              console.log(`🔍 Fetching enrollments for course ${course.id}: ${course.title}`)
+              const enrollmentsResponse = await fetch(`${API_BASE_URL}/api/enrollments/?course=${course.id}`, { headers })
+              console.log(`📡 Enrollments response status for ${course.id}:`, enrollmentsResponse.status)
+              
+              if (enrollmentsResponse.ok) {
+                const enrollmentsData = await enrollmentsResponse.json()
+                console.log(`📦 Enrollments data for ${course.title}:`, enrollmentsData)
+                
+                const courseEnrollments = (enrollmentsData.results || enrollmentsData || []).map((e: any) => ({
+                  ...e,
+                  course: course.id,
+                  course_title: course.title
+                }))
+                console.log(`✅ Mapped ${courseEnrollments.length} enrollments for ${course.title}`)
+                allEnrollments = [...allEnrollments, ...courseEnrollments]
+              } else {
+                const errorText = await enrollmentsResponse.text()
+                console.error(`❌ Failed to fetch enrollments for ${course.id}:`, enrollmentsResponse.status, errorText)
+              }
+            } catch (error) {
+              console.error(`❌ Error fetching enrollments for course ${course.id}:`, error)
+            }
+          }
+          
+          console.log('📊 All enrollments fetched:', allEnrollments.length, allEnrollments)
+          
+          // Update courses with calculated completion rates and average progress
+          const updatedCourses = courses.map(course => {
+            const courseEnrollments = allEnrollments.filter(e => e.course === course.id || e.course_title === course.title)
+            
+            console.log(`📈 Course "${course.title}" (ID: ${course.id}):`, {
+              totalEnrollments: courseEnrollments.length,
+              enrollments: courseEnrollments
+            })
+            
+            if (courseEnrollments.length === 0) {
+              console.log(`⚠️ No enrollments found for course ${course.id}`)
+              return course
+            }
+            
+            // Calculate average progress for this course
+            const totalProgress = courseEnrollments.reduce((sum, e) => sum + (e.progress_percentage || 0), 0)
+            const averageProgress = Math.round(totalProgress / courseEnrollments.length)
+            
+            // Calculate completion rate (students with 100% progress)
+            const completedCount = courseEnrollments.filter(e => (e.progress_percentage || 0) >= 100).length
+            const completionRate = Math.round((completedCount / courseEnrollments.length) * 100)
+            
+            console.log(`✨ Calculated for "${course.title}":`, {
+              averageProgress,
+              completionRate,
+              completedCount,
+              totalEnrollments: courseEnrollments.length
+            })
+            
+            return {
+              ...course,
+              averageProgress,
+              completionRate
+            }
+          })
+          
+          console.log('🔄 Updating courses state with:', updatedCourses)
+          setCourses(updatedCourses)
+          
+          // Calculate progress distribution
+          if (allEnrollments.length > 0) {
+            const distribution = {
+              '0-25': 0,
+              '26-50': 0,
+              '51-75': 0,
+              '76-100': 0
+            }
+            
+            allEnrollments.forEach((enrollment: any) => {
+              const progress = enrollment.progress_percentage || 0
+              if (progress <= 25) distribution['0-25']++
+              else if (progress <= 50) distribution['26-50']++
+              else if (progress <= 75) distribution['51-75']++
+              else distribution['76-100']++
+            })
+            
+            // Convert to percentages
+            const total = allEnrollments.length
+            setProgressDistribution({
+              '0-25': Math.round((distribution['0-25'] / total) * 100),
+              '26-50': Math.round((distribution['26-50'] / total) * 100),
+              '51-75': Math.round((distribution['51-75'] / total) * 100),
+              '76-100': Math.round((distribution['76-100'] / total) * 100)
+            })
+          } else {
+            setProgressDistribution({ '0-25': 0, '26-50': 0, '51-75': 0, '76-100': 0 })
+          }
+          
+          // Identify at-risk students (low progress, inactive)
+          const atRisk = allEnrollments
+            .filter((e: any) => {
+              const progress = e.progress_percentage || 0
+              const enrolledDate = new Date(e.enrolled_at)
+              const daysSinceEnrollment = Math.floor((Date.now() - enrolledDate.getTime()) / (1000 * 60 * 60 * 24))
+              // At risk if: enrolled for more than 7 days but less than 25% progress
+              return daysSinceEnrollment > 7 && progress < 25
+            })
+            .slice(0, 10)
+            .map((e: any) => ({
+              id: e.id,
+              name: e.student?.name || e.student?.email || 'Unknown Student',
+              course: e.course_title,
+              progress: e.progress_percentage || 0,
+              lastActive: e.last_activity || e.enrolled_at
+            }))
+          
+          setAtRiskStudents(atRisk)
+          
+          // Identify top performers (high progress or completed)
+          const topPerf = allEnrollments
+            .filter((e: any) => (e.progress_percentage || 0) >= 75)
+            .sort((a: any, b: any) => (b.progress_percentage || 0) - (a.progress_percentage || 0))
+            .slice(0, 10)
+            .map((e: any) => {
+              const enrolledDate = new Date(e.enrolled_at)
+              const completedDate = e.completed_at ? new Date(e.completed_at) : null
+              const completionTime = completedDate 
+                ? Math.floor((completedDate.getTime() - enrolledDate.getTime()) / (1000 * 60 * 60 * 24))
+                : null
+              
+              return {
+                id: e.id,
+                name: e.student?.name || e.student?.email || 'Unknown Student',
+                course: e.course_title,
+                progress: e.progress_percentage || 0,
+                completionTime: completionTime
+              }
+            })
+          
+          setTopPerformers(topPerf)
+      } catch (error) {
+        console.log('Error calculating student analytics:', error)
+        setAtRiskStudents([])
+        setTopPerformers([])
+        setProgressDistribution({ '0-25': 0, '26-50': 0, '51-75': 0, '76-100': 0 })
+      }
+    }
+
+    fetchEnrollmentAnalytics()
+  }, [courses])
 
   const handleLogout = async () => {
     console.log('Instructor logout clicked')
@@ -539,15 +713,26 @@ export default function InstructorDashboard() {
                               Analytics
                             </Button>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="default" 
-                            className="w-full"
-                            onClick={() => router.push(`/instructor/courses/${course.id}/students`)}
-                          >
-                            <Users className="h-3 w-3 mr-1" />
-                            View Students
-                          </Button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="default" 
+                              className="w-full"
+                              onClick={() => router.push(`/instructor/courses/${course.id}/students`)}
+                            >
+                              <Users className="h-3 w-3 mr-1" />
+                              Students
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="w-full"
+                              onClick={() => router.push(`/instructor/quiz/create?courseId=${course.id}`)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Quiz
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -593,30 +778,30 @@ export default function InstructorDashboard() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm">0-25% Complete</span>
-                        <span className="text-sm text-muted-foreground">23%</span>
+                        <span className="text-sm text-muted-foreground">{progressDistribution['0-25']}%</span>
                       </div>
-                      <Progress value={23} className="h-2" />
+                      <Progress value={progressDistribution['0-25']} className="h-2" />
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm">26-50% Complete</span>
-                        <span className="text-sm text-muted-foreground">31%</span>
+                        <span className="text-sm text-muted-foreground">{progressDistribution['26-50']}%</span>
                       </div>
-                      <Progress value={31} className="h-2" />
+                      <Progress value={progressDistribution['26-50']} className="h-2" />
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm">51-75% Complete</span>
-                        <span className="text-sm text-muted-foreground">28%</span>
+                        <span className="text-sm text-muted-foreground">{progressDistribution['51-75']}%</span>
                       </div>
-                      <Progress value={28} className="h-2" />
+                      <Progress value={progressDistribution['51-75']} className="h-2" />
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm">76-100% Complete</span>
-                        <span className="text-sm text-muted-foreground">18%</span>
+                        <span className="text-sm text-muted-foreground">{progressDistribution['76-100']}%</span>
                       </div>
-                      <Progress value={18} className="h-2" />
+                      <Progress value={progressDistribution['76-100']} className="h-2" />
                     </div>
                   </div>
                 </CardContent>

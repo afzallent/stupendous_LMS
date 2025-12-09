@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, use } from "react"
+import { useState, use, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -38,110 +38,97 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
   const router = useRouter()
   const { addToCart, isInCart, getCartItemCount } = useCart()
   const [expandedChapters, setExpandedChapters] = useState<string[]>([])
+  const [course, setCourse] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   
   // Unwrap the params Promise using React.use()
   const { id } = use(params)
   
-  // Mock course data
-  const course = {
-    id: id,
-    title: "Complete Web Development Bootcamp",
-    description: "Learn HTML, CSS, JavaScript, React, Node.js and more in this comprehensive course. Build real-world projects and launch your career as a full-stack developer.",
-    instructor: {
-      name: "Dr. Sarah Chen",
-      bio: "Senior Software Engineer with 15+ years of experience. Worked at Google, Microsoft, and founded two startups. Passionate about teaching and making coding accessible to everyone.",
-      avatar: "/api/placeholder/100/100",
-      rating: 4.8,
-      students: 15420,
-      courses: 12
-    },
-    price: 89.99,
-    originalPrice: 199.99,
-    rating: 4.8,
-    reviewCount: 3240,
-    students: 15420,
-    duration: "52 hours",
-    lectures: 320,
-    level: "Beginner",
-    category: "Web Development",
-    language: "English",
-    lastUpdated: "November 2024",
-    thumbnail: "/api/placeholder/800/450",
-    enrolled: false,
-    progress: 0,
-    learningOutcomes: [
-      "Build responsive websites with HTML5, CSS3, and modern JavaScript",
-      "Master React and build single-page applications",
-      "Create backend APIs with Node.js and Express",
-      "Work with databases and implement authentication",
-      "Deploy full-stack applications to the cloud",
-      "Understand version control with Git and GitHub"
-    ],
-    requirements: [
-      "No programming experience needed - I'll teach you everything you need to know",
-      "A computer with access to the internet",
-      "No paid software required - I'll teach you how to use free tools"
-    ],
-    chapters: [
-      {
-        id: "1",
-        title: "Getting Started with Web Development",
-        order: 1,
-        lessons: [
-          { id: "1-1", title: "Course Introduction and Roadmap", duration: "12:45", isPreview: true, completed: false },
-          { id: "1-2", title: "Setting Up Your Development Environment", duration: "18:30", isPreview: false, completed: false },
-          { id: "1-3", title: "Web Development Basics: HTML, CSS, JavaScript", duration: "25:15", isPreview: false, completed: false }
-        ]
-      },
-      {
-        id: "2",
-        title: "HTML5 Fundamentals",
-        order: 2,
-        lessons: [
-          { id: "2-1", title: "HTML Document Structure", duration: "15:20", isPreview: false, completed: false },
-          { id: "2-2", title: "Text and Semantic Elements", duration: "22:10", isPreview: false, completed: false },
-          { id: "2-3", title: "Forms and Input Validation", duration: "28:45", isPreview: false, completed: false },
-          { id: "2-4", title: "HTML5 Best Practices", duration: "16:30", isPreview: false, completed: false }
-        ]
-      },
-      {
-        id: "3",
-        title: "CSS3 and Responsive Design",
-        order: 3,
-        lessons: [
-          { id: "3-1", title: "CSS Selectors and Properties", duration: "20:15", isPreview: false, completed: false },
-          { id: "3-2", title: "Flexbox Layout", duration: "24:40", isPreview: false, completed: false },
-          { id: "3-3", title: "CSS Grid", duration: "26:55", isPreview: false, completed: false },
-          { id: "3-4", title: "Media Queries and Responsive Design", duration: "30:20", isPreview: false, completed: false }
-        ]
+  // Fetch course data from Django API
+  useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const response = await fetch(`${API_BASE_URL}/api/courses/${id}/`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          
+          // Map Django response to frontend format
+          const mappedCourse = {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            instructor: {
+              name: data.instructor?.username || 'Unknown',
+              bio: data.instructor?.bio || '',
+              avatar: data.instructor?.avatar || '/api/placeholder/100/100',
+              rating: 4.8, // Default rating
+              students: data.enrolled_count || 0,
+              courses: 1 // Would need separate API call
+            },
+            price: data.price || 49.99,
+            originalPrice: data.original_price || (data.price ? data.price * 1.2 : 59.99),
+            rating: data.rating || 4.5,
+            reviewCount: data.review_count || 0,
+            students: data.enrolled_count || 0,
+            duration: data.duration || '0h 0m',
+            lectures: data.lesson_count || 0,
+            level: data.level || 'Beginner',
+            category: data.category?.name || 'General',
+            language: data.language || 'English',
+            lastUpdated: data.updated_at ? new Date(data.updated_at).toLocaleDateString() : 'N/A',
+            thumbnail: data.thumbnail || '/api/placeholder/800/450',
+            enrolled: data.is_enrolled || false,
+            progress: data.progress_percentage || 0,
+            learningOutcomes: data.learning_outcomes || [],
+            requirements: data.requirements || [],
+            chapters: data.chapters || [],
+            reviews: data.reviews || []
+          }
+          
+          setCourse(mappedCourse)
+        } else {
+          console.error('Failed to fetch course:', response.status)
+          setCourse(null)
+        }
+      } catch (error) {
+        console.error('Error fetching course data:', error)
+        setCourse(null)
+      } finally {
+        setLoading(false)
       }
-    ],
-    reviews: [
-      {
-        id: "1",
-        user: "John Doe",
-        rating: 5,
-        comment: "Excellent course! The instructor explains everything clearly and the projects are very practical.",
-        date: "2024-10-15",
-        avatar: "/api/placeholder/50/50"
-      },
-      {
-        id: "2",
-        user: "Jane Smith",
-        rating: 4,
-        comment: "Great content and well-structured. Some sections could use more examples.",
-        date: "2024-10-10",
-        avatar: "/api/placeholder/50/50"
-      },
-      {
-        id: "3",
-        user: "Mike Johnson",
-        rating: 5,
-        comment: "This course helped me land my first web development job. Highly recommended!",
-        date: "2024-10-05",
-        avatar: "/api/placeholder/50/50"
-      }
-    ]
+    }
+    
+    fetchCourseData()
+  }, [id])
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading course details...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  if (!course) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+        <Card className="max-w-md border-0 shadow-lg">
+          <CardContent className="p-8 text-center">
+            <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Course Not Found</h2>
+            <p className="text-gray-600 mb-4">The course you're looking for doesn't exist.</p>
+            <Button onClick={() => router.push('/courses')}>
+              Browse Courses
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   const toggleChapter = (chapterId: string) => {

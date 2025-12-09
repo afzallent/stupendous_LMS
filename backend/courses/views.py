@@ -556,8 +556,23 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        """Filter enrollments by current user"""
-        return Enrollment.objects.filter(student=self.request.user)
+        """Filter enrollments by current user or by course for instructors"""
+        user = self.request.user
+        queryset = Enrollment.objects.all()
+        
+        # Check if filtering by course (for instructors)
+        course_id = self.request.query_params.get('course')
+        if course_id:
+            # Verify user is instructor of the course
+            try:
+                course = Course.objects.get(id=course_id)
+                if user.role == 'TRAINER' and course.instructor == user:
+                    return queryset.filter(course_id=course_id).select_related('student', 'course')
+            except Course.DoesNotExist:
+                pass
+        
+        # Default: return user's own enrollments (for students)
+        return queryset.filter(student=user)
 
     def create(self, request, *args, **kwargs):
         """Create enrollment for current user with duplicate check"""
