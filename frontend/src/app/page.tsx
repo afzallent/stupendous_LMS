@@ -75,10 +75,10 @@ export default function Home() {
           instructorAvatar: course.instructor?.avatar,
           rating: 4.5, // Default rating (Django doesn't have this yet)
           students: course.enrolled_count || 0,
-          price: 49.99, // Default price (Django doesn't have this yet)
+          price: course.is_free ? 0 : parseFloat(course.price || '0'),
           thumbnail: course.thumbnail,
-          level: 'Beginner', // Default level
-          duration: '10h 30m', // Default duration
+          level: course.level || 'Beginner',
+          duration: course.duration || '10h 30m',
           category: course.category?.name || 'General',
           featured: true
         })) || []
@@ -300,8 +300,20 @@ export default function Home() {
               <Link key={course.id} href={`/courses/${course.id}`} className="block">
                 <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group border-0 shadow-lg">
                   <div className="relative">
-                    <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                      <Play className="h-16 w-16 text-blue-600/50 group-hover:text-blue-600 transition-colors" />
+                    <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                      {course.thumbnail ? (
+                        <img 
+                          src={course.thumbnail.startsWith('http') ? course.thumbnail : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${course.thumbnail}`}
+                          alt={course.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center')
+                          }}
+                        />
+                      ) : (
+                        <Play className="h-16 w-16 text-blue-600/50 group-hover:text-blue-600 transition-colors" />
+                      )}
                     </div>
                     <Badge className="absolute top-3 left-3 bg-blue-600 text-white border-0">
                       {course.level}
