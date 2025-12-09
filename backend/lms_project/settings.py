@@ -183,11 +183,12 @@ SIMPLE_JWT = {
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:4321,http://localhost:4000,http://localhost:8000,http://127.0.0.1:4321,http://127.0.0.1:4000,http://127.0.0.1:8000',
+    default='http://localhost:4321,http://localhost:4322,http://localhost:4000,http://localhost:3000,http://localhost:8000,http://127.0.0.1:4321,http://127.0.0.1:4322,http://127.0.0.1:4000,http://127.0.0.1:3000,http://127.0.0.1:8000',
     cast=Csv()
 )
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False  # Explicitly set to False for security
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -207,6 +208,7 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+CORS_PREFLIGHT_MAX_AGE = 86400  # Cache preflight requests for 24 hours
 
 # drf-spectacular Configuration
 SPECTACULAR_SETTINGS = {
