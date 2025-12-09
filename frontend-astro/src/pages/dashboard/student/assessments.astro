@@ -1,14 +1,12 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import QuizPage from '../../../components/QuizPage'; // This component might need renaming to AssessmentPage later
-import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
 
 export const prerender = false;
 
 // Authentication is handled by middleware
 ---
 
-<ClerkProviderWrapper>
 <DashboardLayout title="My Assessments - CourseCompass LMS" userType="student">
   {/* Content of this page should be updated to reflect assessments instead of just quizzes */}
   <QuizPage client:load /> 

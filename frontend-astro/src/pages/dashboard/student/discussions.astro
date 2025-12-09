@@ -1,12 +1,10 @@
-﻿---
+---
 export const prerender = false;
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import DiscussionForumPage from '../../../components/DiscussionForumPage';
-import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
 ---
 export const prerender = false;
 
-<ClerkProviderWrapper>
 <DashboardLayout title="Course Discussions - CourseCompass LMS" userType="student">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800">Course Discussions</h1>

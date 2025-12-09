@@ -1,14 +1,12 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { Icon } from 'astro-icon/components';
-import ClerkProviderWrapper from '../../../components/ClerkProviderWrapper.tsx';
 
 export const prerender = false;
 
 // Authentication is handled by middleware
 ---
 
-<ClerkProviderWrapper>
 <DashboardLayout title="Analytics - Trainer - CourseCompass LMS" userType="trainer">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800">Course Analytics</h1>
@@ -41,5 +39,4 @@ export const prerender = false;
       </div>
     </div>
 </DashboardLayout>
-</ClerkProviderWrapper>
 

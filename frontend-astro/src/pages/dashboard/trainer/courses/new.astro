@@ -1,10 +1,8 @@
 ---
 import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
 import { Icon } from 'astro-icon/components';
-import ClerkProviderWrapper from '../../../../components/ClerkProviderWrapper.tsx';
 ---
 
-<ClerkProviderWrapper>
 <DashboardLayout title="Create New Course - CourseCompass LMS" userType="trainer">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800">Create New Course</h1>
@@ -68,7 +66,6 @@ import ClerkProviderWrapper from '../../../../components/ClerkProviderWrapper.ts
     </form>
   </div>
 </DashboardLayout>
-</ClerkProviderWrapper>
 
 <script is:inline src="/src/utils/api-client.js"></script>
 <script is:inline>
