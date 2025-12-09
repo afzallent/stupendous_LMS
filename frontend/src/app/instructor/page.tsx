@@ -492,6 +492,14 @@ export default function InstructorDashboard() {
                 <SelectItem value="1y">Last year</SelectItem>
               </SelectContent>
             </Select>
+            <Button 
+              onClick={() => router.push('/instructor/import-export')}
+              variant="outline"
+              className="border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Import/Export
+            </Button>
             <Button onClick={() => router.push('/instructor/create-course')}>
               <Plus className="h-4 w-4 mr-2" />
               New Course

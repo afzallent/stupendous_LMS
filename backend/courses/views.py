@@ -382,6 +382,185 @@ class CourseViewSet(viewsets.ModelViewSet):
             'detail': 'Thumbnail uploaded successfully.',
             'course': serializer.data
         }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def export_csv(self, request):
+        """Export instructor's courses with lessons to CSV"""
+        import csv
+        from django.http import HttpResponse
+        
+        if not request.user.role == 'TRAINER':
+            return Response(
+                {'detail': 'Only instructors can export courses.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get instructor's courses
+        courses = Course.objects.filter(instructor=request.user).prefetch_related('lessons')
+        
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="courses_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Course ID', 'Course Title', 'Course Description', 'Price', 'Is Free',
+            'Status', 'Lesson Order', 'Lesson Title', 'Video URL', 'Lesson Content'
+        ])
+        
+        for course in courses:
+            lessons = course.lessons.all().order_by('order')
+            if lessons.exists():
+                for lesson in lessons:
+                    writer.writerow([
+                        course.id,
+                        course.title,
+                        course.description,
+                        str(course.price),
+                        'Yes' if course.is_free else 'No',
+                        course.status,
+                        lesson.order,
+                        lesson.title,
+                        lesson.video_url or '',
+                        lesson.content or ''
+                    ])
+            else:
+                # Course without lessons
+                writer.writerow([
+                    course.id,
+                    course.title,
+                    course.description,
+                    str(course.price),
+                    'Yes' if course.is_free else 'No',
+                    course.status,
+                    '',
+                    '',
+                    '',
+                    ''
+                ])
+        
+        return response
+    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated],
+            parser_classes=[MultiPartParser, FormParser])
+    def import_csv(self, request):
+        """Import courses with lessons from CSV"""
+        import csv
+        import io
+        
+        if not request.user.role == 'TRAINER':
+            return Response(
+                {'detail': 'Only instructors can import courses.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if 'file' not in request.FILES:
+            return Response(
+                {'detail': 'No file was uploaded.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        csv_file = request.FILES['file']
+        
+        # Validate file type
+        if not csv_file.name.endswith('.csv'):
+            return Response(
+                {'detail': 'File must be a CSV.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Read CSV file
+            decoded_file = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            
+            courses_created = 0
+            lessons_created = 0
+            courses_updated = 0
+            current_course = None
+            current_course_id = None
+            
+            for row in reader:
+                course_id = row.get('Course ID', '').strip()
+                course_title = row.get('Course Title', '').strip()
+                course_description = row.get('Course Description', '').strip()
+                price = row.get('Price', '0').strip()
+                is_free = row.get('Is Free', 'No').strip().lower() in ['yes', 'true', '1']
+                status_val = row.get('Status', 'draft').strip()
+                
+                lesson_order = row.get('Lesson Order', '').strip()
+                lesson_title = row.get('Lesson Title', '').strip()
+                video_url = row.get('Video URL', '').strip()
+                lesson_content = row.get('Lesson Content', '').strip()
+                
+                # Skip empty rows
+                if not course_title:
+                    continue
+                
+                # Check if this is a new course or continuation of previous
+                if course_id != current_course_id:
+                    # New course
+                    if course_id and course_id.isdigit():
+                        # Update existing course
+                        try:
+                            current_course = Course.objects.get(id=int(course_id), instructor=request.user)
+                            current_course.title = course_title
+                            current_course.description = course_description
+                            current_course.price = float(price) if price else 0
+                            current_course.is_free = is_free
+                            current_course.status = status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
+                            current_course.save()
+                            courses_updated += 1
+                        except Course.DoesNotExist:
+                            # Create new course if ID doesn't exist
+                            current_course = Course.objects.create(
+                                instructor=request.user,
+                                title=course_title,
+                                description=course_description,
+                                price=float(price) if price else 0,
+                                is_free=is_free,
+                                status=status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
+                            )
+                            courses_created += 1
+                    else:
+                        # Create new course
+                        current_course = Course.objects.create(
+                            instructor=request.user,
+                            title=course_title,
+                            description=course_description,
+                            price=float(price) if price else 0,
+                            is_free=is_free,
+                            status=status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
+                        )
+                        courses_created += 1
+                    
+                    current_course_id = course_id
+                
+                # Add lesson if provided
+                if lesson_title and current_course:
+                    order = int(lesson_order) if lesson_order and lesson_order.isdigit() else lessons_created + 1
+                    Lesson.objects.create(
+                        course=current_course,
+                        title=lesson_title,
+                        video_url=video_url if video_url else None,
+                        content=lesson_content if lesson_content else '',
+                        order=order
+                    )
+                    lessons_created += 1
+            
+            return Response({
+                'detail': 'Import successful',
+                'courses_created': courses_created,
+                'courses_updated': courses_updated,
+                'lessons_created': lessons_created
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'detail': f'Error processing CSV: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class LessonViewSet(viewsets.ModelViewSet):
