@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "certificates",
     "activity",
     "media_config",
+    "discussions",
+    "notifications",
 ]
 
 AUTH_USER_MODEL = 'core.User'

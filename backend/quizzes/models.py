@@ -89,6 +89,7 @@ class QuizAttempt(models.Model):
     max_score = models.IntegerField(default=0)
     percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     passed = models.BooleanField(default=False)
+    attempt_number = models.IntegerField(default=1, help_text="Sequential attempt number for this student and quiz")
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     time_taken = models.IntegerField(null=True, blank=True, help_text="Time taken in seconds")

@@ -34,10 +34,22 @@ class ActivityLog(models.Model):
         ('lesson_update', 'Updated Lesson'),
         ('lesson_delete', 'Deleted Lesson'),
         
-        # Quiz Actions (for future)
+        # Quiz Actions
         ('quiz_start', 'Started Quiz'),
         ('quiz_submit', 'Submitted Quiz'),
         ('quiz_complete', 'Completed Quiz'),
+        ('quiz_create', 'Created Quiz'),
+        ('quiz_update', 'Updated Quiz'),
+        ('quiz_delete', 'Deleted Quiz'),
+        
+        # Discussion Actions
+        ('discussion_post', 'Posted Discussion Thread'),
+        ('discussion_reply', 'Replied to Discussion'),
+        ('discussion_edit', 'Edited Discussion Post'),
+        ('discussion_delete', 'Deleted Discussion Post'),
+        ('discussion_pin', 'Pinned Discussion Thread'),
+        ('discussion_lock', 'Locked Discussion Thread'),
+        ('discussion_solution', 'Marked Reply as Solution'),
         
         # Certificate Actions (for future)
         ('certificate_view', 'Viewed Certificate'),

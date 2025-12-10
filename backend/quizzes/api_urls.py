@@ -12,4 +12,8 @@ router.register(r'quiz-bank', views.QuestionBankViewSet, basename='question-bank
 
 urlpatterns = [
     path('', include(router.urls)),
+    # Custom question management endpoints
+    path('quizzes/<int:quiz_id>/questions/<int:question_id>/', 
+         views.QuestionManagementView.as_view(), 
+         name='quiz-question-detail'),
 ]

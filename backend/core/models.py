@@ -48,6 +48,11 @@ class User(AbstractUser):
         blank=True,
         help_text="User notification preferences"
     )
+    expertise = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Areas of expertise (comma-separated for trainers)"
+    )
     
     # Timestamps
     created_at = models.DateTimeField(default=timezone.now)

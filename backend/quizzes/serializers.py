@@ -93,10 +93,10 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizAttempt
         fields = ['id', 'quiz', 'quiz_title', 'student', 'score', 'max_score', 
-                  'percentage', 'passed', 'started_at', 'completed_at', 
+                  'percentage', 'passed', 'attempt_number', 'started_at', 'completed_at', 
                   'time_taken', 'answers']
         read_only_fields = ['id', 'student', 'score', 'max_score', 'percentage', 
-                            'passed', 'started_at', 'completed_at']
+                            'passed', 'attempt_number', 'started_at', 'completed_at']
 
 
 class QuizSubmissionSerializer(serializers.Serializer):
