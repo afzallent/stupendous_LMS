@@ -595,7 +595,7 @@ class LessonViewSet(viewsets.ModelViewSet):
             raise permissions.PermissionDenied("You can only delete lessons from your own courses.")
         instance.delete()
     
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='mark-complete')
     def mark_complete(self, request, pk=None):
         """Mark a lesson as complete for the current user"""
         lesson = self.get_object()

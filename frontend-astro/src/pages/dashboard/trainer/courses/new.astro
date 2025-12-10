@@ -67,66 +67,45 @@ import { Icon } from 'astro-icon/components';
   </div>
 </DashboardLayout>
 
-<script is:inline src="/src/utils/api-client.js"></script>
-<script is:inline>
+<script>
+  import { djangoApi, API_ENDPOINTS, TokenManager } from '../../../../config/django-api.config';
 
-  async function getClerkToken() {
-    if (window.Clerk && window.Clerk.session) {
-      try {
-        const token = await window.Clerk.session.getToken();
-        return token;
-      } catch (error) {
-        console.error('Error getting Clerk token:', error);
-        return null;
-      }
-    }
-    return null;
-  }
-
-  document.getElementById('createCourseForm').addEventListener('submit', async (e) => {
+  const form = document.getElementById('createCourseForm');
+  
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const formData = {
-      title: document.getElementById('title').value,
-      description: document.getElementById('description').value,
-      price: parseFloat(document.getElementById('price').value)
+      title: (document.getElementById('title') as HTMLInputElement).value,
+      description: (document.getElementById('description') as HTMLTextAreaElement).value,
+      price: parseFloat((document.getElementById('price') as HTMLInputElement).value),
+      status: 'draft' // Set initial status as draft
     };
 
     try {
-      const token = await getClerkToken();
-      if (!token) {
-        throw new Error('Authentication token not found. Please log in again.');
+      const user = TokenManager.getUser();
+      if (!user) {
+        alert('Please log in to create a course');
+        window.location.href = '/login/trainer';
+        return;
       }
 
-      const headers = await window.getAuthHeaders();
-      const response = await fetch(window.getApiUrl(window.API_ENDPOINTS.courses), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(formData)
-      });
+      const response = await djangoApi.post(API_ENDPOINTS.courses.list, formData);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create course');
-      }
-
-      // Handle standardized API response format
-      if (data.success) {
+      if (response.success) {
         alert('Course created successfully!');
-        // Extract course ID from the standardized response
-        const courseId = data.data?.id || data.data?.course?.id || data.course?.id;
+        const courseId = response.data?.id || response.id;
         if (courseId) {
           window.location.href = `/dashboard/trainer/courses/${courseId}/lessons`;
         } else {
           window.location.href = '/dashboard/trainer/courses';
         }
       } else {
-        throw new Error(data.error || data.message || 'Failed to create course');
+        throw new Error(response.error || response.detail || 'Failed to create course');
       }
     } catch (error) {
       console.error('Error creating course:', error);
-      alert(error.message || 'Failed to create course. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to create course. Please try again.');
     }
   });
 </script>

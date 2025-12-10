@@ -31,7 +31,7 @@ urlpatterns = [
     path("api/", include("certificates.api_urls")),
     path("api/", include("files.urls")),
     path("api/activity/", include("activity.api_urls")),
-    path("api/activity/", include("activity.api_urls")),
+    path("api/", include("discussions.api_urls")),
     
     # Legacy template views (for backward compatibility)
     path("", include("core.urls")),

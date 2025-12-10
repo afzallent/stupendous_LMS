@@ -1,15 +1,18 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.contenttypes.models import ContentType
 
-from courses.models import Course, Enrollment
+from courses.models import Course, Enrollment, Lesson
 from .models import ActivityLog, LessonTimeTracking, DailyActivitySummary
 from .utils import get_user_activity_stats, get_course_engagement_stats
+from .serializers import ActivityLogSerializer, ActivityLogDetailSerializer
+from .permissions import IsInstructor
 
 
 @api_view(['GET'])
@@ -209,3 +212,113 @@ def course_analytics(request, course_id):
         'enrollment_trend': list(enrollments_by_day),
         'lesson_completion': lesson_completion,
     })
+
+
+
+class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for viewing activity logs.
+    Trainers can only see activities from their courses.
+    
+    Supports filtering by:
+    - course: Filter by course ID
+    - student: Filter by student ID
+    - action_type: Filter by action type
+    - date_from: Filter activities from this date (YYYY-MM-DD)
+    - date_to: Filter activities to this date (YYYY-MM-DD)
+    """
+    serializer_class = ActivityLogSerializer
+    permission_classes = [IsInstructor]
+    
+    def get_queryset(self):
+        """
+        Return activity logs for the trainer's courses only.
+        Supports filtering by course, student, action_type, and date_range.
+        """
+        user = self.request.user
+        
+        # Get all courses taught by this instructor
+        instructor_courses = Course.objects.filter(instructor=user)
+        
+        # Get all lessons from instructor's courses
+        lesson_ids = Lesson.objects.filter(course__in=instructor_courses).values_list('id', flat=True)
+        
+        # Get content types for Course and Lesson
+        course_ct = ContentType.objects.get_for_model(Course)
+        lesson_ct = ContentType.objects.get_for_model(Lesson)
+        
+        # Build base queryset - activities related to instructor's courses or lessons
+        queryset = ActivityLog.objects.filter(
+            Q(content_type=course_ct, object_id__in=instructor_courses.values_list('id', flat=True)) |
+            Q(content_type=lesson_ct, object_id__in=lesson_ids)
+        ).select_related('user').order_by('-timestamp')
+        
+        # Apply filters from query parameters
+        course_id = self.request.query_params.get('course', None)
+        student_id = self.request.query_params.get('student', None)
+        action_type = self.request.query_params.get('action_type', None)
+        date_from = self.request.query_params.get('date_from', None)
+        date_to = self.request.query_params.get('date_to', None)
+        
+        # Filter by course
+        if course_id:
+            try:
+                course = Course.objects.get(id=course_id, instructor=user)
+                course_lesson_ids = course.lessons.values_list('id', flat=True)
+                queryset = queryset.filter(
+                    Q(content_type=course_ct, object_id=course.id) |
+                    Q(content_type=lesson_ct, object_id__in=course_lesson_ids)
+                )
+            except Course.DoesNotExist:
+                # Return empty queryset if course doesn't exist or doesn't belong to trainer
+                return ActivityLog.objects.none()
+        
+        # Filter by student
+        if student_id:
+            queryset = queryset.filter(user_id=student_id)
+        
+        # Filter by action type
+        if action_type:
+            queryset = queryset.filter(action_type=action_type)
+        
+        # Filter by date range
+        if date_from:
+            try:
+                from_date = timezone.datetime.strptime(date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__gte=from_date)
+            except ValueError:
+                pass  # Invalid date format, ignore filter
+        
+        if date_to:
+            try:
+                to_date = timezone.datetime.strptime(date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__lte=to_date)
+            except ValueError:
+                pass  # Invalid date format, ignore filter
+        
+        return queryset
+    
+    @action(detail=False, methods=['get'], url_path='recent')
+    def recent(self, request):
+        """
+        Get recent activities for trainer's courses.
+        Returns last 50 activities by default.
+        
+        Query parameters:
+        - limit: Number of activities to return (default: 50, max: 100)
+        """
+        # Get limit from query params, default to 50, max 100
+        try:
+            limit = int(request.query_params.get('limit', 50))
+            limit = min(limit, 100)  # Cap at 100
+        except (ValueError, TypeError):
+            limit = 50
+        
+        # Get the filtered queryset and limit it
+        queryset = self.get_queryset()[:limit]
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'count': len(serializer.data),
+            'results': serializer.data
+        })

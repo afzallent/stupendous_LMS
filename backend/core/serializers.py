@@ -64,14 +64,48 @@ class ChangePasswordSerializer(serializers.Serializer):
     
     Validates old password and ensures new password meets requirements.
     """
-    old_password = serializers.CharField(required=True, write_only=True)
+    current_password = serializers.CharField(required=True, write_only=True)
     new_password = serializers.CharField(required=True, write_only=True, min_length=8)
     
     def validate_new_password(self, value):
-        """Validate new password strength"""
+        """
+        Validate new password strength.
+        
+        Requirements:
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        """
         if len(value) < 8:
             raise serializers.ValidationError('Password must be at least 8 characters long.')
+        
+        # Check for complexity requirements
+        has_upper = any(c.isupper() for c in value)
+        has_lower = any(c.islower() for c in value)
+        has_digit = any(c.isdigit() for c in value)
+        
+        if not has_upper:
+            raise serializers.ValidationError('Password must contain at least one uppercase letter.')
+        
+        if not has_lower:
+            raise serializers.ValidationError('Password must contain at least one lowercase letter.')
+        
+        if not has_digit:
+            raise serializers.ValidationError('Password must contain at least one digit.')
+        
         return value
+    
+    def validate(self, data):
+        """Validate that current password is correct"""
+        user = self.context.get('user')
+        if not user:
+            raise serializers.ValidationError('User context is required.')
+        
+        if not user.check_password(data['current_password']):
+            raise serializers.ValidationError({'current_password': 'Current password is incorrect.'})
+        
+        return data
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -108,6 +142,53 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class TrainerProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for trainer profile information.
+    
+    Includes all profile fields and notification preferences.
+    """
+    avatar_url = serializers.SerializerMethodField()
+    notification_preferences = serializers.JSONField(required=False)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'phone', 'bio', 'expertise', 'avatar', 'avatar_url',
+            'notification_preferences'
+        ]
+        read_only_fields = ['id', 'username', 'avatar_url']
+    
+    def get_avatar_url(self, obj):
+        """Get avatar URL if exists"""
+        if hasattr(obj, 'avatar') and obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+    
+    def validate_notification_preferences(self, value):
+        """Validate notification preferences structure"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Notification preferences must be a JSON object.')
+        
+        # Ensure expected keys exist
+        valid_keys = [
+            'discussion_notifications',
+            'progress_notifications',
+            'assessment_notifications',
+            'auto_publish_courses'
+        ]
+        
+        for key in value.keys():
+            if key not in valid_keys:
+                raise serializers.ValidationError(f'Invalid preference key: {key}')
+        
+        return value
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

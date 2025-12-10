@@ -61,3 +61,60 @@ def log_lesson_completion(sender, instance, created, **kwargs):
                 content_object=instance.lesson,
                 description=f"{instance.student.username} completed {instance.lesson.title}"
             )
+
+
+@receiver(post_save, sender='quizzes.QuizAttempt')
+def log_quiz_submission(sender, instance, created, **kwargs):
+    """Log when a student submits a quiz"""
+    # Only log when the attempt is completed (has a completed_at timestamp)
+    if instance.completed_at:
+        # Check if this is a new completion or an update that just completed
+        if created or kwargs.get('update_fields') is None or 'completed_at' in kwargs.get('update_fields', []):
+            log_activity(
+                user=instance.student,
+                action_type='quiz_submit',
+                content_object=instance.quiz,
+                description=f"{instance.student.username} submitted {instance.quiz.title} (Attempt #{instance.attempt_number})",
+                metadata={
+                    'attempt_number': instance.attempt_number,
+                    'score': float(instance.score) if instance.score else 0,
+                    'percentage': float(instance.percentage) if instance.percentage else 0,
+                    'passed': instance.passed,
+                    'time_taken': instance.time_taken
+                }
+            )
+
+
+@receiver(post_save, sender='discussions.DiscussionThread')
+def log_discussion_post(sender, instance, created, **kwargs):
+    """Log when a user creates a discussion thread"""
+    if created and not instance.is_deleted:
+        log_activity(
+            user=instance.author,
+            action_type='discussion_post',
+            content_object=instance,
+            description=f"{instance.author.username} posted '{instance.title}' in {instance.course.title}",
+            metadata={
+                'course_id': instance.course.id,
+                'course_title': instance.course.title,
+                'thread_title': instance.title
+            }
+        )
+
+
+@receiver(post_save, sender='discussions.DiscussionReply')
+def log_discussion_reply(sender, instance, created, **kwargs):
+    """Log when a user replies to a discussion thread"""
+    if created and not instance.is_deleted:
+        log_activity(
+            user=instance.author,
+            action_type='discussion_reply',
+            content_object=instance.thread,
+            description=f"{instance.author.username} replied to '{instance.thread.title}'",
+            metadata={
+                'thread_id': instance.thread.id,
+                'thread_title': instance.thread.title,
+                'course_id': instance.thread.course.id,
+                'course_title': instance.thread.course.title
+            }
+        )

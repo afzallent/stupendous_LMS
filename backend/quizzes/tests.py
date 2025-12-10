@@ -408,6 +408,157 @@ class QuizViewSetTestCase(APITestCase):
         response = self.client.get(f'/api/quizzes/{self.quiz.id}/my-attempts/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn('must be enrolled', response.data['detail'])
+    
+    def test_attempt_history_endpoint(self):
+        """Test attempt_history endpoint returns detailed breakdown"""
+        from courses.models import Enrollment
+        from .models import QuizAttempt, QuizAnswer
+        
+        # Enroll student
+        Enrollment.objects.create(student=self.student, course=self.course)
+        
+        # Add questions to quiz
+        question1 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='What is 2 + 2?',
+            question_type='multiple_choice',
+            points=10,
+            explanation='Basic math',
+            created_by=self.instructor
+        )
+        correct_option1 = QuestionOption.objects.create(
+            question=question1,
+            option_text='4',
+            is_correct=True
+        )
+        wrong_option1 = QuestionOption.objects.create(
+            question=question1,
+            option_text='5',
+            is_correct=False
+        )
+        
+        question2 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='What is 3 + 3?',
+            question_type='multiple_choice',
+            points=10,
+            explanation='More math',
+            created_by=self.instructor
+        )
+        correct_option2 = QuestionOption.objects.create(
+            question=question2,
+            option_text='6',
+            is_correct=True
+        )
+        
+        # Create first attempt (partial correct)
+        attempt1 = QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            attempt_number=1,
+            score=10,
+            max_score=20,
+            percentage=50,
+            passed=False
+        )
+        answer1_1 = QuizAnswer.objects.create(
+            attempt=attempt1,
+            question=question1,
+            selected_option=correct_option1,
+            is_correct=True,
+            points_earned=10
+        )
+        answer1_2 = QuizAnswer.objects.create(
+            attempt=attempt1,
+            question=question2,
+            selected_option=wrong_option1,  # Wrong answer
+            is_correct=False,
+            points_earned=0
+        )
+        
+        # Create second attempt (all correct)
+        attempt2 = QuizAttempt.objects.create(
+            quiz=self.quiz,
+            student=self.student,
+            attempt_number=2,
+            score=20,
+            max_score=20,
+            percentage=100,
+            passed=True
+        )
+        answer2_1 = QuizAnswer.objects.create(
+            attempt=attempt2,
+            question=question1,
+            selected_option=correct_option1,
+            is_correct=True,
+            points_earned=10
+        )
+        answer2_2 = QuizAnswer.objects.create(
+            attempt=attempt2,
+            question=question2,
+            selected_option=correct_option2,
+            is_correct=True,
+            points_earned=10
+        )
+        
+        # Test as instructor
+        self.client.force_authenticate(user=self.instructor)
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/attempts/{self.student.id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['student_id'], self.student.id)
+        self.assertEqual(response.data['quiz_id'], self.quiz.id)
+        self.assertEqual(len(response.data['attempts']), 2)
+        
+        # Verify attempts are in chronological order (oldest first)
+        self.assertEqual(response.data['attempts'][0]['attempt_number'], 1)
+        self.assertEqual(response.data['attempts'][1]['attempt_number'], 2)
+        
+        # Verify first attempt details
+        first_attempt = response.data['attempts'][0]
+        self.assertEqual(first_attempt['score'], 10.0)
+        self.assertEqual(first_attempt['percentage'], 50.0)
+        self.assertFalse(first_attempt['passed'])
+        self.assertEqual(len(first_attempt['questions']), 2)
+        
+        # Verify question breakdown for first attempt
+        q1_data = first_attempt['questions'][0]
+        self.assertEqual(q1_data['question_text'], 'What is 2 + 2?')
+        self.assertEqual(q1_data['points_earned'], 10)
+        self.assertEqual(q1_data['student_answer'], '4')
+        self.assertEqual(q1_data['correct_answer'], '4')
+        self.assertTrue(q1_data['is_correct'])
+        
+        q2_data = first_attempt['questions'][1]
+        self.assertEqual(q2_data['question_text'], 'What is 3 + 3?')
+        self.assertEqual(q2_data['points_earned'], 0)
+        self.assertFalse(q2_data['is_correct'])
+        
+        # Verify second attempt details
+        second_attempt = response.data['attempts'][1]
+        self.assertEqual(second_attempt['score'], 20.0)
+        self.assertEqual(second_attempt['percentage'], 100.0)
+        self.assertTrue(second_attempt['passed'])
+    
+    def test_attempt_history_wrong_instructor_fails(self):
+        """Test attempt_history endpoint fails for non-owner instructor"""
+        self.client.force_authenticate(user=self.other_instructor)
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/attempts/{self.student.id}/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_attempt_history_nonexistent_student(self):
+        """Test attempt_history endpoint with non-existent student"""
+        self.client.force_authenticate(user=self.instructor)
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/attempts/99999/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('Student not found', response.data['detail'])
+    
+    def test_attempt_history_no_attempts(self):
+        """Test attempt_history endpoint when student has no attempts"""
+        self.client.force_authenticate(user=self.instructor)
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/attempts/{self.student.id}/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('No attempts found', response.data['detail'])
 
 
 class QuestionManagementTestCase(APITestCase):

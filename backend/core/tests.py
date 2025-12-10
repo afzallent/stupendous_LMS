@@ -143,3 +143,110 @@ class TestJWTTokenIssuance:
         assert 'user' in login_response.data, "User data missing from response"
         assert login_response.data['user']['username'] == unique_username, "Username mismatch in response"
         assert login_response.data['user']['email'] == unique_email, "Email mismatch in response"
+
+
+@pytest.mark.django_db
+class TestProfileImageValidation:
+    """
+    Property-based tests for Profile Image Validation
+    
+    Feature: trainer-dashboard-features, Property 11: Profile image validation rejects invalid files
+    Validates: Requirements 6.2
+    """
+    
+    @given(
+        file_size=st.integers(min_value=1, max_value=10 * 1024 * 1024),  # 1 byte to 10MB
+        content_type=st.sampled_from([
+            'image/jpeg',
+            'image/png', 
+            'image/gif',
+            'image/webp',
+            'image/bmp',
+            'image/tiff',
+            'application/pdf',
+            'text/plain',
+            'video/mp4',
+        ])
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_profile_image_validation(self, file_size, content_type):
+        """
+        Property: For any file upload attempt, files that are not JPEG/PNG/GIF/WebP 
+        or exceed 5MB should be rejected, and valid files should be accepted.
+        
+        This property tests that:
+        1. Valid file types (JPEG, PNG, GIF, WebP) under 5MB are accepted
+        2. Invalid file types are rejected with appropriate error
+        3. Files over 5MB are rejected with appropriate error
+        4. The validation is consistent across all inputs
+        """
+        from io import BytesIO
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        
+        client = APIClient()
+        
+        # Create a test user
+        unique_id = str(uuid.uuid4())[:8]
+        user = User.objects.create_user(
+            username=f"testuser_{unique_id}",
+            email=f"test_{unique_id}@example.com",
+            password="testpass123",
+            is_instructor=True
+        )
+        
+        # Authenticate the user
+        client.force_authenticate(user=user)
+        
+        # Create a mock file with the specified size and content type
+        file_content = b'x' * file_size
+        file_name = f"test_avatar_{unique_id}.jpg"
+        uploaded_file = SimpleUploadedFile(
+            name=file_name,
+            content=file_content,
+            content_type=content_type
+        )
+        
+        # Attempt to upload the file
+        response = client.post(
+            '/api/user/upload_avatar/',
+            {'avatar': uploaded_file},
+            format='multipart'
+        )
+        
+        # Define valid criteria
+        max_size = 5 * 1024 * 1024  # 5MB
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        
+        is_valid_size = file_size <= max_size
+        is_valid_type = content_type in allowed_types
+        is_valid = is_valid_size and is_valid_type
+        
+        # Assert the response matches expectations
+        if is_valid:
+            # Valid files should be accepted (200 OK)
+            assert response.status_code == status.HTTP_200_OK, \
+                f"Valid file (size={file_size}, type={content_type}) was rejected: {response.data}"
+            assert 'detail' in response.data, "Success response missing 'detail' field"
+            assert 'avatar_url' in response.data, "Success response missing 'avatar_url' field"
+            
+            # Verify the avatar was actually saved
+            user.refresh_from_db()
+            assert user.avatar, "Avatar was not saved to user model"
+        else:
+            # Invalid files should be rejected (400 Bad Request)
+            assert response.status_code == status.HTTP_400_BAD_REQUEST, \
+                f"Invalid file (size={file_size}, type={content_type}) was accepted"
+            assert 'avatar' in response.data, "Error response missing 'avatar' field"
+            
+            # Check the specific error message
+            # Note: The validation checks size first, then type
+            # So if both are invalid, we'll get a size error
+            error_message = response.data['avatar'][0]
+            if not is_valid_size:
+                # Size validation happens first
+                assert 'size' in error_message.lower() or '5mb' in error_message.lower(), \
+                    f"Size error message unclear: {error_message}"
+            elif not is_valid_type:
+                # Type validation only if size is valid
+                assert 'image' in error_message.lower() or 'type' in error_message.lower(), \
+                    f"Type error message unclear: {error_message}"

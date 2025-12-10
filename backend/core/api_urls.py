@@ -6,6 +6,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
+from . import trainer_views
 
 router = DefaultRouter()
 router.register(r'auth', views.AuthViewSet, basename='auth')
@@ -24,4 +25,11 @@ urlpatterns = [
     # Alias endpoints for frontend compatibility
     path('auth/me/', views.UserProfileViewSet.as_view({'get': 'me'}), name='auth-me'),
     path('auth/signup/', views.AuthViewSet.as_view({'post': 'register'}), name='auth-signup'),
+    
+    # Trainer profile endpoints
+    path('trainer/profile/', trainer_views.TrainerProfileViewSet.as_view({'get': 'profile'}), name='trainer-profile'),
+    path('trainer/profile/update_profile/', trainer_views.TrainerProfileViewSet.as_view({'put': 'update_profile', 'patch': 'update_profile'}), name='trainer-profile-update'),
+    path('trainer/profile/upload_avatar/', trainer_views.TrainerProfileViewSet.as_view({'post': 'upload_avatar'}), name='trainer-upload-avatar'),
+    path('trainer/profile/delete_avatar/', trainer_views.TrainerProfileViewSet.as_view({'delete': 'delete_avatar'}), name='trainer-delete-avatar'),
+    path('trainer/profile/change_password/', trainer_views.TrainerProfileViewSet.as_view({'post': 'change_password'}), name='trainer-change-password'),
 ]

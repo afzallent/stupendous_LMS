@@ -1,42 +1,15 @@
 ---
 import DashboardLayout from '../../../../layouts/DashboardLayout.astro';
 import Icon from '../../../../components/Icon.astro';
-import ClerkTrainerWrapper from '../../../../components/auth/ClerkTrainerWrapper.jsx';
 
 // Set prerender to false since this is a dynamic page
 export const prerender = false;
 
 // Authentication is handled by middleware
-// Fetch ALL courses from PHP API for debugging
-let courses = [];
-let fetchError = null;
-
-try {
-  const API_URL = import.meta.env.PUBLIC_API_URL;
-  if (!API_URL) {
-    throw new Error('PUBLIC_API_URL environment variable is not set');
-  }
-  const response = await fetch(`${API_URL}/courses.php`);
-  if (response.ok) {
-    const data = await response.json();
-    // Handle standardized API response format
-    if (data.success === true && data.data) {
-      courses = Array.isArray(data.data) ? data.data : [];
-    } else {
-      // Fallback for direct array response
-      courses = Array.isArray(data) ? data : [];
-    }
-  } else {
-    fetchError = `HTTP ${response.status}: ${response.statusText}`;
-  }
-} catch (error) {
-  fetchError = error.message;
-  console.error('Failed to fetch courses:', error);
-}
+// Courses will be loaded client-side with proper authentication
 ---
 
 <DashboardLayout title="My Courses">
-  <ClerkTrainerWrapper client:only="react">
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <div>
@@ -54,88 +27,21 @@ try {
 
     <!-- Course Grid -->
     <div id="coursesList" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {fetchError ? (
-        <div class="col-span-full text-center py-12">
-          <div class="mx-auto h-12 w-12 text-red-500">
-            <Icon name="exclamation" class="h-12 w-12" />
-          </div>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">Failed to load courses</h3>
-          <p class="mt-1 text-sm text-gray-500">{fetchError}</p>
-          <div class="mt-6">
-            <button
-              onclick="location.reload()"
-              class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Try Again
-            </button>
-          </div>
+      <!-- Loading state -->
+      <div class="col-span-full text-center py-12">
+        <div class="mx-auto h-12 w-12 text-gray-400 animate-spin">
+          <svg class="h-12 w-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
         </div>
-      ) : courses.length === 0 ? (
-        <div class="col-span-full text-center py-12">
-          <div class="mx-auto h-12 w-12 text-gray-400">
-            <Icon name="book" class="h-12 w-12" />
-          </div>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">No courses</h3>
-          <p class="mt-1 text-sm text-gray-500">Get started by creating a new course.</p>
-          <div class="mt-6">
-            <a
-              href="/dashboard/trainer/courses/new"
-              class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              <Icon name="plus" class="h-5 w-5 mr-2" />
-              Add New Course
-            </a>
-          </div>
-        </div>
-      ) : (
-        courses.map(course => (
-          <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="relative">
-              <div class="aspect-w-16 aspect-h-9 bg-gray-200">
-                <img
-                  src={`https://placehold.co/400x200/e2e8f0/1e40af?text=${encodeURIComponent(course.title)}`}
-                  alt={course.title}
-                  class="object-cover w-full h-full"
-                />
-              </div>
-              <div class="absolute top-2 right-2">
-                <button
-                  onclick={`deleteCourse(${course.id})`}
-                  class="p-1 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-600 transition-colors"
-                  title="Delete course"
-                >
-                  <Icon name="trash" class="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            <div class="p-4">
-              <h3 class="text-lg font-medium text-gray-900 truncate">{course.title}</h3>
-              <p class="mt-1 text-sm text-gray-500 line-clamp-2">{course.description}</p>
-              <div class="mt-4 flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="text-sm font-medium text-indigo-600">${course.price}</span>
-                  <span class="text-sm text-gray-500">•</span>
-                  <span class="text-sm text-gray-500">Created {new Date(course.created_at).toLocaleDateString()}</span>
-                </div>
-                <a
-                  href={`/dashboard/trainer/courses/${course.id}/lessons`}
-                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Manage Course
-                </a>
-              </div>
-            </div>
-          </div>
-        ))
-      )}
+        <h3 class="mt-2 text-sm font-medium text-gray-900">Loading courses...</h3>
+      </div>
     </div>
   </div>
-  </ClerkTrainerWrapper>
 </DashboardLayout>
 
-<script src="/src/utils/api-client.js"></script>
 <script>
-
   // Function to format date
   function formatDate(dateString) {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -150,18 +56,15 @@ try {
     }).format(price);
   }
 
-  // Function to get Clerk token
-  async function getClerkToken() {
-    if (window.Clerk && window.Clerk.session) {
-      try {
-        const token = await window.Clerk.session.getToken();
-        return token;
-      } catch (error) {
-        console.error('Error getting Clerk token:', error);
-        return null;
-      }
-    }
-    return null;
+  // Function to get auth token
+  function getAuthToken() {
+    return localStorage.getItem('access_token') || localStorage.getItem('token');
+  }
+
+  // Function to get API base URL
+  function getApiBaseUrl() {
+    // In client-side scripts, we need to use window or hardcode the URL
+    return 'http://localhost:8000/api';
   }
 
   // Function to load courses
@@ -169,38 +72,31 @@ try {
     const coursesList = document.getElementById('coursesList');
     
     try {
-      // First try to get Clerk token
-      let token = await getClerkToken();
-      
-      // If no Clerk token, fall back to localStorage (for development)
+      const token = getAuthToken();
       if (!token) {
-        token = localStorage.getItem('token');
+        throw new Error('No authentication token found');
       }
-      
-      const headers = await window.getAuthHeaders();
-      const response = await fetch(window.getApiUrl(window.API_ENDPOINTS.courses), {
-        headers
+
+      const response = await fetch(`${getApiBaseUrl()}/courses/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch courses');
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      let courses = [];
-      // Handle standardized API response format
-      if (data.success === true && data.data) {
-        courses = Array.isArray(data.data) ? data.data : [];
-      } else {
-        // Fallback for direct array response
-        courses = Array.isArray(data) ? data : [];
-      }
+      const courses = await response.json();
       
-      if (courses.length === 0) {
+      if (!Array.isArray(courses) || courses.length === 0) {
         coursesList.innerHTML = `
           <div class="col-span-full text-center py-12">
             <div class="mx-auto h-12 w-12 text-gray-400">
-              <Icon name="book" class="h-12 w-12" />
+              <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
             </div>
             <h3 class="mt-2 text-sm font-medium text-gray-900">No courses</h3>
             <p class="mt-1 text-sm text-gray-500">Get started by creating a new course.</p>
@@ -209,7 +105,9 @@ try {
                 href="/dashboard/trainer/courses/new"
                 class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                <Icon name="plus" class="h-5 w-5 mr-2" />
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
                 Add New Course
               </a>
             </div>
@@ -221,9 +119,9 @@ try {
       coursesList.innerHTML = courses.map(course => `
         <div class="bg-white overflow-hidden shadow rounded-lg">
           <div class="relative">
-            <div class="aspect-w-16 aspect-h-9 bg-gray-200">
+            <div class="aspect-w-16 aspect-h-9 bg-gray-200 h-48">
               <img
-                src="https://placehold.co/400x200/e2e8f0/1e40af?text=${encodeURIComponent(course.title)}"
+                src="${course.thumbnail || `https://placehold.co/400x200/e2e8f0/1e40af?text=${encodeURIComponent(course.title)}`}"
                 alt="${course.title}"
                 class="object-cover w-full h-full"
               />
@@ -234,24 +132,26 @@ try {
                 class="p-1 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-600 transition-colors"
                 title="Delete course"
               >
-                <Icon name="trash" class="h-5 w-5" />
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
               </button>
             </div>
           </div>
           <div class="p-4">
             <h3 class="text-lg font-medium text-gray-900 truncate">${course.title}</h3>
-            <p class="mt-1 text-sm text-gray-500 line-clamp-2">${course.description}</p>
+            <p class="mt-1 text-sm text-gray-500 line-clamp-2">${course.description || 'No description'}</p>
             <div class="mt-4 flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="text-sm font-medium text-indigo-600">${formatPrice(course.price)}</span>
+                <span class="text-sm font-medium text-indigo-600">${formatPrice(course.price || 0)}</span>
                 <span class="text-sm text-gray-500">•</span>
-                <span class="text-sm text-gray-500">Created ${formatDate(course.created_at)}</span>
+                <span class="text-sm text-gray-500">${course.lessons_count || 0} lessons</span>
               </div>
               <a
                 href="/dashboard/trainer/courses/${course.id}/lessons"
                 class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Manage Course
+                Manage
               </a>
             </div>
           </div>
@@ -262,10 +162,12 @@ try {
       coursesList.innerHTML = `
         <div class="col-span-full text-center py-12">
           <div class="mx-auto h-12 w-12 text-red-500">
-            <Icon name="exclamation" class="h-12 w-12" />
+            <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
           <h3 class="mt-2 text-sm font-medium text-gray-900">Failed to load courses</h3>
-          <p class="mt-1 text-sm text-gray-500">Please try again later.</p>
+          <p class="mt-1 text-sm text-gray-500">${error.message}</p>
           <div class="mt-6">
             <button
               onclick="loadCourses()"
@@ -286,19 +188,17 @@ try {
     }
 
     try {
-      // First try to get Clerk token
-      let token = await getClerkToken();
-      
-      // If no Clerk token, fall back to localStorage (for development)
+      const token = getAuthToken();
       if (!token) {
-        token = localStorage.getItem('token');
+        throw new Error('No authentication token found');
       }
 
-      const headers = await window.getAuthHeaders();
-      const response = await fetch(window.getApiUrl(window.API_ENDPOINTS.courses), {
+      const response = await fetch(`${getApiBaseUrl()}/courses/${courseId}/`, {
         method: 'DELETE',
-        headers,
-        body: JSON.stringify({ id: courseId })
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -313,48 +213,14 @@ try {
     }
   }
 
-  // Function to check if we're on the courses page
-  function isCoursesPage() {
-    return window.location.pathname === '/dashboard/trainer/courses';
-  }
-
-  // Function to wait for Clerk to be available
-  function waitForClerk() {
-    return new Promise((resolve) => {
-      if (window.Clerk) {
-        resolve();
-      } else {
-        const checkClerk = setInterval(() => {
-          if (window.Clerk) {
-            clearInterval(checkClerk);
-            resolve();
-          }
-        }, 100);
-        
-        // Timeout after 3 seconds (shorter timeout)
-        setTimeout(() => {
-          clearInterval(checkClerk);
-          console.log('Clerk timeout reached, proceeding without Clerk');
-          resolve(); // Continue anyway
-        }, 3000);
-      }
-    });
-  }
-
-  // Load courses when the page loads or when navigating to the page
-  document.addEventListener('DOMContentLoaded', async () => {
-    console.log('DOM loaded, checking if courses page');
-    if (isCoursesPage()) {
-      console.log('Is courses page, loading courses');
-      // Wait for Clerk to be available, then load courses
-      await waitForClerk();
-      loadCourses();
-    }
+  // Load courses when the page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    loadCourses();
   });
 
-  // Listen for navigation events
+  // Listen for Astro navigation events
   document.addEventListener('astro:page-load', () => {
-    if (isCoursesPage()) {
+    if (window.location.pathname === '/dashboard/trainer/courses') {
       loadCourses();
     }
   });

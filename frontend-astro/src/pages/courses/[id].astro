@@ -133,9 +133,11 @@ const formatPrice = (price) => {
               <button 
                 id="enrollBtn"
                 data-course-id={course.id}
+                data-course-price={course.price}
+                data-is-free={course.is_free}
                 class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors duration-150 text-lg mb-4"
               >
-                Enroll Now
+                {course.is_free || parseFloat(course.price) === 0 ? 'Enroll for Free' : 'Buy Now'}
               </button>
             </div>
             
@@ -174,43 +176,82 @@ const formatPrice = (price) => {
   const enrollBtn = document.getElementById('enrollBtn');
   const courseId = enrollBtn?.getAttribute('data-course-id');
   
+  console.log('Enrollment script loaded');
+  console.log('Course ID:', courseId);
+  console.log('Enroll button:', enrollBtn);
+  
   async function checkEnrollment() {
-    if (!courseId) return;
+    if (!courseId) {
+      console.error('No course ID found');
+      return;
+    }
     
     const user = TokenManager.getUser();
+    console.log('Current user:', user);
+    
     if (!user) {
+      console.log('User not logged in, showing login button');
       enrollBtn.textContent = 'Login to Enroll';
       enrollBtn.onclick = () => window.location.href = '/login/student';
       return;
     }
     
+    console.log('Checking enrollment status...');
     const response = await djangoApi.get(`${API_ENDPOINTS.enrollments.check}?courseId=${courseId}`);
+    console.log('Enrollment check response:', response);
     
     if (response.success && response.is_enrolled) {
+      console.log('User is already enrolled');
       enrollBtn.textContent = 'Continue Learning';
       enrollBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
       enrollBtn.classList.add('bg-green-600', 'hover:bg-green-700');
       enrollBtn.onclick = () => window.location.href = `/course-player?course_id=${courseId}`;
     } else {
+      console.log('User not enrolled, setting up enroll handler');
       enrollBtn.onclick = handleEnroll;
     }
   }
   
-  async function handleEnroll() {
+  async function handleEnroll(e) {
+    e.preventDefault();
+    console.log('Enroll button clicked!');
+    
     const user = TokenManager.getUser();
     if (!user) {
+      console.log('User not logged in, redirecting to login');
       window.location.href = '/login/student';
       return;
     }
     
+    // Check if course requires payment
+    const coursePrice = parseFloat(enrollBtn.dataset.coursePrice || '0');
+    const isFree = enrollBtn.dataset.isFree === 'true';
+    
+    console.log('Course price:', coursePrice, 'Is free:', isFree);
+    
+    if (!isFree && coursePrice > 0) {
+      // Redirect to payment page
+      console.log('Course requires payment, redirecting to checkout...');
+      window.location.href = `/checkout?course_id=${courseId}`;
+      return;
+    }
+    
+    // Free course - proceed with enrollment
+    console.log('Starting enrollment process for free course...');
     enrollBtn.disabled = true;
     enrollBtn.textContent = 'Enrolling...';
     
-    const response = await djangoApi.post(API_ENDPOINTS.enrollments.create, {
+    const enrollData = {
       course_id: parseInt(courseId)
-    });
+    };
+    console.log('Enrollment data:', enrollData);
+    console.log('API endpoint:', API_ENDPOINTS.enrollments.create);
+    
+    const response = await djangoApi.post(API_ENDPOINTS.enrollments.create, enrollData);
+    console.log('Enrollment response:', response);
     
     if (response.success) {
+      console.log('Enrollment successful!');
       enrollBtn.textContent = 'Continue Learning';
       enrollBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
       enrollBtn.classList.add('bg-green-600', 'hover:bg-green-700');
@@ -219,11 +260,18 @@ const formatPrice = (price) => {
       
       alert('Successfully enrolled in course!');
     } else {
+      console.error('Enrollment failed:', response.error);
       enrollBtn.disabled = false;
       enrollBtn.textContent = 'Enroll Now';
-      alert('Error: ' + (response.error || 'Failed to enroll'));
+      alert('Error: ' + (response.error || response.detail || 'Failed to enroll'));
     }
   }
   
-  checkEnrollment();
+  // Initialize
+  if (enrollBtn) {
+    console.log('Initializing enrollment check...');
+    checkEnrollment();
+  } else {
+    console.error('Enroll button not found!');
+  }
 </script>

@@ -193,6 +193,106 @@ class QuizViewSet(viewsets.ModelViewSet):
         serializer = QuizAttemptSerializer(attempts, many=True)
         return Response(serializer.data)
     
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated], 
+            url_path='attempts/(?P<student_id>[^/.]+)')
+    def attempt_history(self, request, pk=None, student_id=None):
+        """Get attempt history for a specific student (trainer only)
+        
+        GET /api/quizzes/{id}/attempts/{student_id}/
+        Returns all attempts ordered chronologically with question-by-question breakdown
+        """
+        quiz = self.get_object()
+        
+        # Verify ownership - only course instructor can view attempt history
+        if quiz.course.instructor != request.user:
+            return Response(
+                {'detail': 'Only the course instructor can view attempt history.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get student
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            student = User.objects.get(id=student_id)
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'Student not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all attempts for this student and quiz, ordered chronologically
+        attempts = QuizAttempt.objects.filter(
+            quiz=quiz,
+            student=student
+        ).prefetch_related(
+            'answers__question__options',
+            'answers__selected_option'
+        ).order_by('started_at')  # Chronological order (oldest first)
+        
+        if not attempts.exists():
+            return Response(
+                {'detail': 'No attempts found for this student.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Build detailed response with question-by-question breakdown
+        response_data = {
+            'student_id': student.id,
+            'student_name': f"{student.first_name} {student.last_name}".strip() or student.username,
+            'quiz_id': quiz.id,
+            'quiz_title': quiz.title,
+            'attempts': []
+        }
+        
+        for attempt in attempts:
+            attempt_data = {
+                'attempt_id': attempt.id,
+                'attempt_number': attempt.attempt_number,
+                'started_at': attempt.started_at,
+                'completed_at': attempt.completed_at,
+                'time_taken': attempt.time_taken,
+                'score': float(attempt.score) if attempt.score else 0,
+                'max_score': attempt.max_score,
+                'percentage': float(attempt.percentage) if attempt.percentage else 0,
+                'passed': attempt.passed,
+                'questions': []
+            }
+            
+            # Add question-by-question breakdown
+            for answer in attempt.answers.all():
+                question = answer.question
+                
+                # Get correct answer(s)
+                correct_options = question.options.filter(is_correct=True)
+                correct_answer = ', '.join([opt.option_text for opt in correct_options]) if correct_options.exists() else 'N/A'
+                
+                # Get student's answer
+                if answer.selected_option:
+                    student_answer = answer.selected_option.option_text
+                elif answer.text_answer:
+                    student_answer = answer.text_answer
+                else:
+                    student_answer = 'No answer'
+                
+                question_data = {
+                    'question_id': question.id,
+                    'question_text': question.question_text,
+                    'question_type': question.question_type,
+                    'points_possible': question.points,
+                    'points_earned': answer.points_earned,
+                    'student_answer': student_answer,
+                    'correct_answer': correct_answer,
+                    'is_correct': answer.is_correct,
+                    'explanation': question.explanation
+                }
+                
+                attempt_data['questions'].append(question_data)
+            
+            response_data['attempts'].append(attempt_data)
+        
+        return Response(response_data)
+    
     @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def results(self, request, pk=None):
         """Get quiz results (instructor only)"""

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { API_ENDPOINTS, apiCall, getApiUrl } from '../../config/api.config';
+import { djangoApi, API_ENDPOINTS, TokenManager } from '../../config/django-api.config';
 
 export default function TrainerSettings() {
   const [formData, setFormData] = useState({
@@ -16,29 +16,26 @@ export default function TrainerSettings() {
   });
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Hardcoded trainer ID for testing without Clerk
-  const TRAINER_ID = 'trainer_demo_001'; 
+  const fileInputRef = useRef<HTMLInputElement>(null); 
 
   useEffect(() => {
     const fetchTrainerSettings = async () => {
       try {
-        const response = await apiCall(`${API_ENDPOINTS.trainerSettings}?trainer_id=${TRAINER_ID}`);
+        const response = await djangoApi.get(API_ENDPOINTS.user.me);
 
         if (response.success) {
-          const data = response.data || {};
+          const data = response.data || response;
           setFormData({
-            firstName: data.name || '',
+            firstName: data.first_name || '',
             lastName: data.last_name || '',
             email: data.email || '',
             phone: data.phone || '',
             bio: data.bio || '',
             expertise: data.expertise || '',
-            autoPublish: data.auto_publish === 1, // Assuming 1 for true, 0 for false
-            discussionNotifications: data.discussion_notifications === 1,
-            studentProgress: data.student_progress === 1,
-            profileImage: data.profile_image || '',
+            autoPublish: false, // These settings can be added to User model later
+            discussionNotifications: true,
+            studentProgress: true,
+            profileImage: data.avatar || '',
           });
         } else {
           setMessage({ text: response.error || 'Failed to fetch trainer settings.', type: 'error' });
@@ -76,32 +73,41 @@ export default function TrainerSettings() {
     e.preventDefault();
 
     const submitFormData = new FormData();
-    submitFormData.append('trainer_id', TRAINER_ID);
-    submitFormData.append('firstName', formData.firstName);
-    submitFormData.append('lastName', formData.lastName);
+    submitFormData.append('first_name', formData.firstName);
+    submitFormData.append('last_name', formData.lastName);
     submitFormData.append('email', formData.email);
-    submitFormData.append('phone', formData.phone);
-    submitFormData.append('bio', formData.bio);
-    submitFormData.append('expertise', formData.expertise);
-    submitFormData.append('auto_publish', formData.autoPublish ? '1' : '0');
-    submitFormData.append('discussion_notifications', formData.discussionNotifications ? '1' : '0');
-    submitFormData.append('student_progress', formData.studentProgress ? '1' : '0');
+    submitFormData.append('phone', formData.phone || '');
+    submitFormData.append('bio', formData.bio || '');
     if (selectedFile) {
-      submitFormData.append('profile_image', selectedFile);
+      submitFormData.append('avatar', selectedFile);
     }
 
     try {
-      const response = await fetch(getApiUrl(API_ENDPOINTS.trainerSettings), {
-        method: 'POST',
-        body: submitFormData,
-      });
-
-      const data = await response.json();
-
-      if (data.success || response.ok) {
-        setMessage({ text: 'Settings updated successfully!', type: 'success' });
+      // For profile image upload, use the upload method
+      let response;
+      if (selectedFile) {
+        response = await djangoApi.upload(API_ENDPOINTS.user.uploadAvatar, submitFormData);
       } else {
-        setMessage({ text: data.error || 'Failed to update settings.', type: 'error' });
+        // For other settings, convert FormData to JSON
+        const jsonData: any = {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          bio: formData.bio,
+        };
+        response = await djangoApi.patch(API_ENDPOINTS.user.me, jsonData);
+      }
+
+      if (response.success) {
+        setMessage({ text: 'Settings updated successfully!', type: 'success' });
+        // Update user in localStorage
+        const user = TokenManager.getUser();
+        if (user) {
+          TokenManager.setUser({ ...user, ...response.data });
+        }
+      } else {
+        setMessage({ text: response.error || 'Failed to update settings.', type: 'error' });
       }
     } catch (error) {
       console.error('Error updating settings:', error);
