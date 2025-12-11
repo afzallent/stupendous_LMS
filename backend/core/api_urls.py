@@ -32,4 +32,7 @@ urlpatterns = [
     path('trainer/profile/upload_avatar/', trainer_views.TrainerProfileViewSet.as_view({'post': 'upload_avatar'}), name='trainer-upload-avatar'),
     path('trainer/profile/delete_avatar/', trainer_views.TrainerProfileViewSet.as_view({'delete': 'delete_avatar'}), name='trainer-delete-avatar'),
     path('trainer/profile/change_password/', trainer_views.TrainerProfileViewSet.as_view({'post': 'change_password'}), name='trainer-change-password'),
+    
+    # Trainer student management endpoints
+    path('trainer/students/', trainer_views.StudentManagementView.as_view(), name='trainer-students'),
 ]

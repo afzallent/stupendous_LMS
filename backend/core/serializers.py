@@ -191,6 +191,33 @@ class TrainerProfileSerializer(serializers.ModelSerializer):
         return value
 
 
+class StudentListSerializer(serializers.Serializer):
+    """
+    Serializer for student list in trainer's courses.
+    
+    Provides student information with enrollment count and overall progress.
+    """
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    email = serializers.EmailField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    enrolled_course_count = serializers.IntegerField()
+    overall_progress = serializers.FloatField()
+    
+    def to_representation(self, instance):
+        """Format the student data"""
+        return {
+            'id': instance['id'],
+            'username': instance['username'],
+            'email': instance['email'],
+            'first_name': instance['first_name'],
+            'last_name': instance['last_name'],
+            'enrolled_course_count': instance['enrolled_course_count'],
+            'overall_progress': round(instance['overall_progress'], 2)
+        }
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Custom JWT token serializer that includes user data.

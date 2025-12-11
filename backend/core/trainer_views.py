@@ -6,9 +6,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 from django.contrib.auth import get_user_model
+from django.db.models import Count, Avg, Q
 
-from .serializers import TrainerProfileSerializer, ChangePasswordSerializer
+from .serializers import TrainerProfileSerializer, ChangePasswordSerializer, StudentListSerializer
 from .permissions import IsInstructor
 
 User = get_user_model()
@@ -167,3 +170,121 @@ class TrainerProfileViewSet(viewsets.ViewSet):
             }, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class StudentManagementPagination(PageNumberPagination):
+    """
+    Pagination class for student management list.
+    
+    Returns 20 students per page.
+    """
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class StudentManagementView(APIView):
+    """
+    API view for managing students enrolled in trainer's courses.
+    
+    GET /api/trainer/students/
+    
+    Returns all unique students enrolled in any of the trainer's courses
+    with their enrollment count and overall progress.
+    
+    Requirements: 3.1, 3.2, 3.3
+    """
+    permission_classes = [IsAuthenticated, IsInstructor]
+    pagination_class = StudentManagementPagination
+    
+    def get(self, request):
+        """
+        Get list of all unique students enrolled in trainer's courses.
+        
+        Returns:
+        - Student name, email
+        - Number of enrolled courses
+        - Overall progress (average across all enrollments)
+        
+        Paginated at 20 students per page.
+        """
+        from courses.models import Enrollment, Progress, Lesson
+        
+        # Get all courses taught by this trainer
+        trainer_courses = request.user.courses_created.all()
+        
+        if not trainer_courses.exists():
+            return Response({
+                'count': 0,
+                'next': None,
+                'previous': None,
+                'results': []
+            }, status=status.HTTP_200_OK)
+        
+        # Get all unique students enrolled in trainer's courses
+        enrollments = Enrollment.objects.filter(
+            course__in=trainer_courses
+        ).select_related('student', 'course')
+        
+        # Group by student and calculate statistics
+        student_data = {}
+        
+        for enrollment in enrollments:
+            student = enrollment.student
+            student_id = student.id
+            
+            if student_id not in student_data:
+                student_data[student_id] = {
+                    'id': student.id,
+                    'username': student.username,
+                    'email': student.email,
+                    'first_name': student.first_name or '',
+                    'last_name': student.last_name or '',
+                    'enrolled_course_count': 0,
+                    'course_progresses': []
+                }
+            
+            # Increment enrolled course count
+            student_data[student_id]['enrolled_course_count'] += 1
+            
+            # Calculate progress for this course
+            course = enrollment.course
+            total_lessons = Lesson.objects.filter(course=course).count()
+            
+            if total_lessons > 0:
+                completed_lessons = Progress.objects.filter(
+                    student=student,
+                    lesson__course=course,
+                    completed=True
+                ).count()
+                
+                course_progress = (completed_lessons / total_lessons) * 100
+            else:
+                course_progress = 0.0
+            
+            student_data[student_id]['course_progresses'].append(course_progress)
+        
+        # Calculate overall progress for each student
+        students_list = []
+        for student_id, data in student_data.items():
+            if data['course_progresses']:
+                overall_progress = sum(data['course_progresses']) / len(data['course_progresses'])
+            else:
+                overall_progress = 0.0
+            
+            data['overall_progress'] = overall_progress
+            del data['course_progresses']  # Remove temporary field
+            students_list.append(data)
+        
+        # Sort by last name, then first name
+        students_list.sort(key=lambda x: (x['last_name'], x['first_name']))
+        
+        # Apply pagination
+        paginator = self.pagination_class()
+        paginated_students = paginator.paginate_queryset(students_list, request)
+        
+        # Serialize the data
+        serializer = StudentListSerializer(paginated_students, many=True)
+        
+        return paginator.get_paginated_response(serializer.data)

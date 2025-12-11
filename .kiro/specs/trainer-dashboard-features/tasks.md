@@ -415,7 +415,9 @@ This implementation plan builds comprehensive trainer dashboard features by **ex
   - Return updated profile data
   - _Requirements: 6.2_
 
-- [-] 32. Add password change endpoint
+- [x] 32. Add password change endpoint
+
+
 
 
 
@@ -517,7 +519,11 @@ This implementation plan builds comprehensive trainer dashboard features by **ex
 
 ## Phase 8: Student Management API
 
-- [ ] 42. Create StudentManagementView (APIView)
+- [x] 42. Create StudentManagementView (APIView)
+
+
+
+
   - Implement GET /api/trainer/students/
   - Return all unique students enrolled in trainer's courses
   - Include student name, email, enrolled course count, overall progress
