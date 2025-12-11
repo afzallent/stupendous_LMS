@@ -94,8 +94,8 @@ export default function QuizTakingPage() {
         const quizData = await djangoApi.get<any>(`/api/quizzes/${params.quizId}/`)
         
         // Fetch user's previous attempts
-        const attemptsData = await djangoApi.get<any>('/api/quizzes/my_attempts/')
-        const quizAttempts = attemptsData.filter((a: any) => a.quiz === parseInt(params.quizId as string))
+        const attemptsData = await djangoApi.get<any>(`/api/quizzes/${params.quizId}/my-attempts/`)
+        const quizAttempts = attemptsData
         
         // Transform backend data to frontend format
         const transformedQuiz: Quiz = {
@@ -256,11 +256,19 @@ export default function QuizTakingPage() {
       // Set result and show results page
       const quizResult: QuizAttempt = {
         id: result.id.toString(),
-        score: parseFloat(result.score),
-        maxScore: result.max_score,
-        passed: result.passed,
+        score: parseFloat(result.score || 0),
+        maxScore: result.max_score || 0,
+        passed: result.passed || false,
         completedAt: result.completed_at
       }
+      
+      console.log('Quiz submission result:', result)
+      console.log('Transformed quiz result:', quizResult)
+      
+      // Debug: Check if quiz has questions and points
+      console.log('Quiz questions:', quiz.questions)
+      console.log('Total questions:', quiz.questions.length)
+      console.log('Questions with points:', quiz.questions.map(q => ({ id: q.id, points: q.points })))
       
       setQuizResult(quizResult)
       setShowResults(true)
@@ -274,11 +282,38 @@ export default function QuizTakingPage() {
       })
     } catch (error: any) {
       console.error('Quiz submission error:', error)
-      toast({
-        title: 'Error',
-        description: error?.message || 'Failed to submit quiz',
-        variant: 'destructive'
-      })
+      
+      // Handle specific error cases
+      if (error.response?.status === 400) {
+        const errorMessage = error.response.data?.detail || error.message
+        
+        if (errorMessage.includes('Maximum attempts')) {
+          // Max attempts reached - show special handling
+          setCanRetake(false)
+          toast({
+            title: 'Maximum Attempts Reached',
+            description: errorMessage,
+            variant: 'destructive'
+          })
+          
+          // Redirect back to course after a delay
+          setTimeout(() => {
+            router.push(`/learn/${params.courseId}`)
+          }, 3000)
+        } else {
+          toast({
+            title: 'Cannot Submit Quiz',
+            description: errorMessage,
+            variant: 'destructive'
+          })
+        }
+      } else {
+        toast({
+          title: 'Error',
+          description: error?.message || 'Failed to submit quiz',
+          variant: 'destructive'
+        })
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -356,24 +391,35 @@ export default function QuizTakingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-6">
-            <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Your Score</p>
-                <p className="text-3xl font-bold">
-                  {quizResult.score}/{quizResult.maxScore}
-                </p>
-                <p className="text-lg">
-                  {((quizResult.score / quizResult.maxScore) * 100).toFixed(1)}%
-                </p>
+            {quizResult.maxScore === 0 ? (
+              <div className="text-center space-y-4">
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-800 font-medium">Quiz Configuration Issue</p>
+                  <p className="text-yellow-700 text-sm mt-1">
+                    This quiz has no questions or questions with no points assigned. Please contact your instructor.
+                  </p>
+                </div>
               </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Your Score</p>
+                  <p className="text-3xl font-bold">
+                    {quizResult.score}/{quizResult.maxScore}
+                  </p>
+                  <p className="text-lg">
+                    {((quizResult.score / quizResult.maxScore) * 100).toFixed(1)}%
+                  </p>
+                </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Passing Score</p>
                 <p className="text-3xl font-bold">{quiz.passingScore}%</p>
-                <Badge variant={quizResult.passed ? 'success' : 'destructive'}>
+                <Badge variant={quizResult.passed ? 'default' : 'destructive'} className={quizResult.passed ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}>
                   {quizResult.passed ? 'PASSED' : 'NOT PASSED'}
                 </Badge>
               </div>
-            </div>
+              </div>
+            )}
 
             {quiz.metadata?.showExplanations && (
               <Card className="bg-muted/50">
@@ -429,25 +475,52 @@ export default function QuizTakingPage() {
   const progressPercentage = ((currentQuestionIndex + 1) / quiz.questions.length) * 100
 
   return (
-    <div className="container max-w-4xl py-8">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold">{quiz.title}</h1>
-            {quiz.description && (
-              <p className="text-muted-foreground mt-1">{quiz.description}</p>
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                onClick={() => router.push(`/learn/${params.courseId}`)}
+                className="flex items-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <BookOpen className="h-5 w-5 text-primary" />
+                <span className="font-semibold">Back to Course</span>
+              </Button>
+            </div>
+            {timeRemaining !== null && (
+              <Card className={`px-4 py-2 shadow-lg ${timeRemaining < 60 ? 'border-red-500 bg-red-50' : 'bg-white'}`}>
+                <div className="flex items-center gap-2">
+                  <Clock className={`h-4 w-4 ${timeRemaining < 60 ? 'text-red-500' : 'text-primary'}`} />
+                  <span className={`font-mono font-semibold ${timeRemaining < 60 ? 'text-red-500' : 'text-foreground'}`}>
+                    {formatTime(timeRemaining)}
+                  </span>
+                </div>
+              </Card>
             )}
           </div>
-          {timeRemaining !== null && (
-            <Card className={`px-4 py-2 ${timeRemaining < 60 ? 'border-red-500' : ''}`}>
-              <div className="flex items-center gap-2">
-                <Clock className={`h-4 w-4 ${timeRemaining < 60 ? 'text-red-500' : ''}`} />
-                <span className={`font-mono font-semibold ${timeRemaining < 60 ? 'text-red-500' : ''}`}>
-                  {formatTime(timeRemaining)}
-                </span>
-              </div>
-            </Card>
-          )}
+        </div>
+      </header>
+
+      <div className="container max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold mb-2">{quiz.title}</h1>
+            {quiz.description && (
+              <p className="text-muted-foreground text-lg">{quiz.description}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Question {currentQuestionIndex + 1} of {quiz.questions.length}</span>
+              <span>{currentQuestion.points} point{currentQuestion.points > 1 ? 's' : ''}</span>
+            </div>
+            <Progress value={progressPercentage} className="h-2" />
+          </div>
         </div>
 
         <div className="space-y-2">

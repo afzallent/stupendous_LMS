@@ -17,15 +17,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface Certificate {
   id: string
-  certificateId: string
-  certificateUrl: string
-  issuedAt: string
-  course: {
-    title: string
-    trainer: {
-      name: string
-    }
-  }
+  certificate_id: string
+  student_name: string
+  course_title: string
+  instructor_name: string
+  issued_at: string
+  completion_date: string
+  is_valid: boolean
+  verification_url: string
 }
 
 export default function CertificatesPage() {
@@ -48,18 +47,9 @@ export default function CertificatesPage() {
         const user = JSON.parse(storedUser)
         
         // Fetch certificates from Django backend
-        const response = await fetch(`http://localhost:8000/api/certificates/`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-          }
-        })
-        
-        if (!response.ok) {
-          throw new Error("Failed to fetch certificates")
-        }
-        
-        const data = await response.json()
-        setCertificates(data.results || data.data || [])
+        const { djangoApi } = await import('@/lib/django-api-client')
+        const data = await djangoApi.get<any>('/api/certificates/')
+        setCertificates(data.results || data || [])
       } catch (err) {
         setError("Failed to load certificates. Please try again.")
         console.error("Certificates fetch error:", err)
@@ -146,15 +136,18 @@ export default function CertificatesPage() {
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
                   <div className="flex items-center justify-between mb-4">
                     <Award className="h-8 w-8" />
-                    <Badge variant="secondary" className="bg-white/20 text-white">
-                      Verified
+                    <Badge 
+                      variant="secondary" 
+                      className={`${certificate.is_valid ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'}`}
+                    >
+                      {certificate.is_valid ? 'Verified' : 'Revoked'}
                     </Badge>
                   </div>
                   <h3 className="font-bold text-lg line-clamp-2 mb-2">
-                    {certificate.course.title}
+                    {certificate.course_title}
                   </h3>
                   <p className="text-sm opacity-90">
-                    by {certificate.course.trainer.name}
+                    by {certificate.instructor_name}
                   </p>
                 </div>
                 <CardContent className="p-6">
@@ -162,7 +155,7 @@ export default function CertificatesPage() {
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-2" />
                       <span>
-                        Issued on {new Date(certificate.issuedAt).toLocaleDateString()}
+                        Issued on {new Date(certificate.issued_at).toLocaleDateString()}
                       </span>
                     </div>
                     
@@ -170,7 +163,7 @@ export default function CertificatesPage() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleView(certificate.certificateId)}
+                        onClick={() => handleView(certificate.certificate_id)}
                       >
                         View
                       </Button>
@@ -178,14 +171,14 @@ export default function CertificatesPage() {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => handleShare(certificate.certificateId)}
+                          onClick={() => handleShare(certificate.certificate_id)}
                         >
                           <Share2 className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => handleDownload(certificate.certificateId)}
+                          onClick={() => handleDownload(certificate.certificate_id)}
                         >
                           <Download className="h-4 w-4" />
                         </Button>

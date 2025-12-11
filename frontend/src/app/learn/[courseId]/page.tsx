@@ -352,19 +352,46 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
 
     setIsGeneratingCertificate(true)
     try {
-      // Certificate feature not implemented in Django yet
-      toast({
-        title: "Coming Soon",
-        description: "Certificate generation feature is not yet implemented. Stay tuned!",
-        variant: "default"
+      // Generate certificate using Django API
+      const certificateResponse = await djangoApi.post<any>('/api/certificates/', {
+        course_id: courseId
       })
-    } catch (error) {
+      
+      toast({
+        title: "🎉 Certificate Generated!",
+        description: `Your completion certificate for "${courseData.title}" is ready!`,
+        duration: 5000
+      })
+      
+      // Navigate to certificates page to view the certificate
+      setTimeout(() => {
+        router.push('/profile/certificates')
+      }, 2000)
+      
+    } catch (error: any) {
       console.error('Certificate generation error:', error)
-      toast({
-        title: "Error",
-        description: "Failed to generate certificate. Please try again.",
-        variant: "destructive"
-      })
+      
+      // Handle specific error cases
+      if (error.response?.status === 400) {
+        const errorMessage = error.response.data?.detail || 'Course not completed yet'
+        toast({
+          title: "Cannot Generate Certificate",
+          description: errorMessage,
+          variant: "destructive"
+        })
+      } else if (error.response?.status === 403) {
+        toast({
+          title: "Access Denied",
+          description: "You must be enrolled in this course to get a certificate.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to generate certificate. Please try again.",
+          variant: "destructive"
+        })
+      }
     } finally {
       setIsGeneratingCertificate(false)
     }

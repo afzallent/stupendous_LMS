@@ -165,14 +165,17 @@ function AuthPageContent() {
           description: "Welcome back!"
         })
         
-        // Wait a moment for user state to update
+        // Wait a moment for user state to update, then redirect based on fresh user data
         setTimeout(() => {
           // Use redirect path if provided, otherwise redirect based on user role
           let targetPath = redirectPath
           
           // Override redirect path based on user role if coming from root
           if (redirectPath === '/' || !redirectPath) {
-            const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}')
+            // Get fresh user data from localStorage (just updated by login)
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+            console.log('🔍 Current user role for redirect:', currentUser?.role)
+            
             switch (currentUser?.role) {
               case 'ADMIN':
                 targetPath = '/admin'

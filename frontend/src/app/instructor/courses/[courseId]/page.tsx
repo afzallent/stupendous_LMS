@@ -74,7 +74,7 @@ export default function InstructorCoursePage() {
       setCourse(courseData)
 
       // Fetch lessons
-      const lessonsData = await djangoApi.get<any>(`/api/courses/${courseId}/lessons/`)
+      const lessonsData = await djangoApi.get<any>(`/api/lessons/?course_id=${courseId}`)
       setLessons(lessonsData.results || lessonsData || [])
 
       // Fetch quizzes
@@ -186,7 +186,7 @@ export default function InstructorCoursePage() {
           <TabsContent value="lessons" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Course Lessons</h2>
-              <Button onClick={() => router.push(`/instructor/create-course?edit=${courseId}`)}>
+              <Button onClick={() => router.push(`/instructor/lessons/create?courseId=${courseId}`)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Lesson
               </Button>

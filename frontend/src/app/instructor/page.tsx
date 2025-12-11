@@ -56,6 +56,7 @@ export default function InstructorDashboard() {
   })
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [enrollmentDataFetched, setEnrollmentDataFetched] = useState(false)
 
   // Prevent hydration mismatch by only rendering after mount
   useEffect(() => {
@@ -103,13 +104,16 @@ export default function InstructorDashboard() {
               status: course.status || 'draft',
               thumbnail: course.thumbnail, // Course thumbnail URL
               students: course.enrolled_count || 0,
-              rating: 4.5, // Default rating (not in Django model yet)
-              revenue: 0, // Revenue tracking not implemented yet
-              completionRate: 0, // Completion rate not calculated yet
+              rating: course.rating || 4.5, // Use actual rating or default
+              price: parseFloat(course.price) || 0, // Course price
+              revenue: (course.enrolled_count || 0) * (parseFloat(course.price) || 0), // Calculate revenue
+              completionRate: course.completion_rate || 0, // Use actual completion rate
               lastUpdated: course.updated_at ? new Date(course.updated_at).toLocaleDateString() : 'N/A',
               lessons: course.lesson_count || 0,
               enrollments: course.enrolled_count || 0,
-              averageProgress: 0
+              averageProgress: course.average_progress || 0,
+              description: course.description || '',
+              category: course.category || 'Uncategorized'
             })) || []
             
             const mappedStats = {
@@ -117,13 +121,18 @@ export default function InstructorDashboard() {
               totalStudents: mappedCourses.reduce((sum: number, c: any) => sum + c.students, 0),
               totalEnrollments: mappedCourses.reduce((sum: number, c: any) => sum + c.enrollments, 0),
               totalLessons: mappedCourses.reduce((sum: number, c: any) => sum + c.lessons, 0),
-              totalRevenue: 0, // Django doesn't track revenue yet
-              averageRating: 4.5, // Default rating
-              completionRate: 0
+              totalRevenue: mappedCourses.reduce((sum: number, c: any) => sum + c.revenue, 0),
+              averageRating: mappedCourses.length > 0 
+                ? mappedCourses.reduce((sum: number, c: any) => sum + c.rating, 0) / mappedCourses.length 
+                : 0,
+              completionRate: mappedCourses.length > 0 
+                ? mappedCourses.reduce((sum: number, c: any) => sum + c.completionRate, 0) / mappedCourses.length 
+                : 0
             }
             
             setCourses(mappedCourses)
             setStats(mappedStats)
+            setEnrollmentDataFetched(false) // Reset flag when new courses are loaded
           } else if (coursesResponse.status === 401) {
             console.error('Authentication failed')
             router.push('/auth/login')
@@ -195,7 +204,7 @@ export default function InstructorDashboard() {
   // Separate effect to fetch enrollments and calculate analytics after courses are loaded
   useEffect(() => {
     const fetchEnrollmentAnalytics = async () => {
-      if (courses.length === 0) return
+      if (courses.length === 0 || enrollmentDataFetched) return
 
       try {
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -213,31 +222,22 @@ export default function InstructorDashboard() {
         // Fetch enrollments for each course
         for (const course of courses) {
             try {
-              console.log(`🔍 Fetching enrollments for course ${course.id}: ${course.title}`)
               const enrollmentsResponse = await fetch(`${API_BASE_URL}/api/enrollments/?course=${course.id}`, { headers })
-              console.log(`📡 Enrollments response status for ${course.id}:`, enrollmentsResponse.status)
               
               if (enrollmentsResponse.ok) {
                 const enrollmentsData = await enrollmentsResponse.json()
-                console.log(`📦 Enrollments data for ${course.title}:`, enrollmentsData)
                 
                 const courseEnrollments = (enrollmentsData.results || enrollmentsData || []).map((e: any) => ({
                   ...e,
                   course: course.id,
                   course_title: course.title
                 }))
-                console.log(`✅ Mapped ${courseEnrollments.length} enrollments for ${course.title}`)
                 allEnrollments = [...allEnrollments, ...courseEnrollments]
-              } else {
-                const errorText = await enrollmentsResponse.text()
-                console.error(`❌ Failed to fetch enrollments for ${course.id}:`, enrollmentsResponse.status, errorText)
               }
             } catch (error) {
-              console.error(`❌ Error fetching enrollments for course ${course.id}:`, error)
+              console.error(`Error fetching enrollments for course ${course.id}:`, error)
             }
           }
-          
-          console.log('📊 All enrollments fetched:', allEnrollments.length, allEnrollments)
           
           // Update courses with calculated completion rates and average progress
           const updatedCourses = courses.map(course => {
@@ -349,6 +349,9 @@ export default function InstructorDashboard() {
             })
           
           setTopPerformers(topPerf)
+          
+          // Mark enrollment data as fetched to prevent re-fetching
+          setEnrollmentDataFetched(true)
       } catch (error) {
         console.log('Error calculating student analytics:', error)
         setAtRiskStudents([])
@@ -358,7 +361,7 @@ export default function InstructorDashboard() {
     }
 
     fetchEnrollmentAnalytics()
-  }, [courses])
+  }, [courses.length, enrollmentDataFetched])
 
   const handleLogout = async () => {
     console.log('Instructor logout clicked')
@@ -531,7 +534,7 @@ export default function InstructorDashboard() {
                   <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
                   <p className="text-2xl font-bold">${formatNumber(instructorStats.totalRevenue)}</p>
                   <p className="text-xs text-muted-foreground">
-                    Revenue tracking coming soon
+                    Based on course prices × enrollments
                   </p>
                 </div>
                 <DollarSign className="h-8 w-8 text-green-600" />
@@ -690,7 +693,7 @@ export default function InstructorDashboard() {
                         </div>
                         <div className="flex items-center space-x-1">
                           <DollarSign className="h-4 w-4 text-green-600" />
-                          <span>${formatNumber(course.revenue)}</span>
+                          <span>${formatNumber(course.price)}</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <BarChart3 className="h-4 w-4 text-blue-600" />
@@ -768,7 +771,7 @@ export default function InstructorDashboard() {
                         <Progress value={course.completionRate} className="h-2" />
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>{course.students} students</span>
-                          <span>${course.revenue} revenue</span>
+                          <span>${course.price} price</span>
                         </div>
                       </div>
                     ))}

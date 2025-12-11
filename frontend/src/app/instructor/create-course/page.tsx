@@ -75,10 +75,15 @@ function CreateCoursePageContent() {
     // Fetch categories from Django API
     const fetchCategories = async () => {
       try {
-        const categoriesData = await djangoApi.get<any[]>('/api/categories/')
-        setCategories(categoriesData)
+        const categoriesData = await djangoApi.get<any>('/api/categories/')
+        console.log('Categories API response:', categoriesData)
+        // Handle both array response and paginated response
+        const categoriesArray = Array.isArray(categoriesData) ? categoriesData : (categoriesData.results || [])
+        setCategories(categoriesArray)
       } catch (error) {
         console.error('Error fetching categories:', error)
+        // Ensure categories is always an array
+        setCategories([])
         toast({
           title: "Warning",
           description: "Failed to load categories. Using defaults.",
@@ -104,13 +109,14 @@ function CreateCoursePageContent() {
       console.log('Fetching course data:', `/api/courses/${courseId}?instructorId=${user.id}`)
       const course = await djangoApi.get<any>(`/api/courses/${courseId}`, { instructorId: user.id })
       console.log('Course data received:', course)
+      console.log('Category data:', course.category, typeof course.category)
       
       // Update course data
       setCourseData({
         title: course.title || '',
         subtitle: course.subtitle || '',
         description: course.description || '',
-        category: course.category?.name || '',
+        category: course.category?.name || course.category || '',
         level: course.level || '',
         language: course.language || 'English',
         price: course.price?.toString() || '',
@@ -120,30 +126,33 @@ function CreateCoursePageContent() {
         targetAudience: course.targetAudience || ''
       })
       
-      // Update chapters and lessons if available
-      if (course.chapters && course.chapters.length > 0) {
-        const formattedChapters = course.chapters.map((chapter: any, chapterIndex: number) => ({
-          id: chapter.id || (chapterIndex + 1).toString(),
-          title: chapter.title || '',
-          lessons: chapter.lessons?.map((lesson: any, lessonIndex: number) => ({
-            id: lesson.id || `${chapterIndex + 1}-${lessonIndex + 1}`,
-            title: lesson.title || '',
-            description: lesson.description || '',
-            videoFile: null,
-            videoUrl: lesson.videoUrl || '',
-            duration: lesson.duration?.toString() || '',
-            resources: lesson.resources || []
-          })) || [{
-            id: `${chapterIndex + 1}-1`,
-            title: '',
-            description: '',
-            videoFile: null,
-            videoUrl: '',
-            duration: '',
-            resources: []
-          }]
-        }))
-        setChapters(formattedChapters)
+      // Fetch and load existing lessons
+      try {
+        console.log('Fetching lessons for course:', courseId)
+        const lessonsData = await djangoApi.get<any>(`/api/lessons/?course_id=${courseId}`)
+        const lessons = lessonsData.results || lessonsData || []
+        console.log('Lessons data received:', lessons)
+        
+        if (lessons.length > 0) {
+          // Group lessons into a single chapter for now (can be enhanced later)
+          const formattedChapter = {
+            id: "1",
+            title: "Course Lessons",
+            lessons: lessons.map((lesson: any, index: number) => ({
+              id: lesson.id?.toString() || (index + 1).toString(),
+              title: lesson.title || '',
+              description: lesson.description || '',
+              videoFile: null,
+              videoUrl: lesson.video_url || '',
+              duration: lesson.duration?.toString() || '',
+              resources: lesson.resources || []
+            }))
+          }
+          setChapters([formattedChapter])
+        }
+      } catch (error) {
+        console.error('Error loading lessons:', error)
+        // Continue without lessons if there's an error
       }
     } catch (error) {
       console.error('Error loading course data:', error)
@@ -413,18 +422,61 @@ function CreateCoursePageContent() {
 
   const handlePublishCourse = async () => {
     if (!user?.id) {
-      alert("Please log in to publish your course")
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to publish your course",
+        variant: "destructive"
+      })
       return
     }
 
     // Validate required fields
-    if (!courseData.title || !courseData.description || !courseData.category || !courseData.level || !courseData.price) {
-      alert("Please fill in all required fields before publishing")
+    const missingFields = []
+    if (!courseData.title) missingFields.push("Title")
+    if (!courseData.description) missingFields.push("Description")
+    if (!courseData.category) missingFields.push("Category")
+    if (!courseData.level) missingFields.push("Level")
+    if (!courseData.price) missingFields.push("Price")
+
+    if (missingFields.length > 0) {
+      toast({
+        title: "Missing Required Fields",
+        description: `Please fill in: ${missingFields.join(", ")}`,
+        variant: "destructive"
+      })
       return
     }
 
-    if (chapters.some(chapter => !chapter.title || chapter.lessons.some(lesson => !lesson.title))) {
-      alert("Please ensure all chapters and lessons have titles")
+    // Validate chapters and lessons
+    const invalidChapters = []
+    const invalidLessons = []
+    
+    chapters.forEach((chapter, chapterIndex) => {
+      if (!chapter.title) {
+        invalidChapters.push(`Chapter ${chapterIndex + 1}`)
+      }
+      chapter.lessons.forEach((lesson, lessonIndex) => {
+        if (!lesson.title) {
+          invalidLessons.push(`Chapter ${chapterIndex + 1}, Lesson ${lessonIndex + 1}`)
+        }
+      })
+    })
+
+    if (invalidChapters.length > 0 || invalidLessons.length > 0) {
+      let errorMessage = ""
+      if (invalidChapters.length > 0) {
+        errorMessage += `Missing chapter titles: ${invalidChapters.join(", ")}`
+      }
+      if (invalidLessons.length > 0) {
+        if (errorMessage) errorMessage += ". "
+        errorMessage += `Missing lesson titles: ${invalidLessons.join(", ")}`
+      }
+      
+      toast({
+        title: "Incomplete Course Content",
+        description: errorMessage,
+        variant: "destructive"
+      })
       return
     }
 
@@ -432,7 +484,10 @@ function CreateCoursePageContent() {
     try {
       // First, create or update the course
       // Map category name to ID
-      const selectedCategory = categories.find(c => c.name === courseData.category)
+      console.log('Categories:', categories, 'Type:', typeof categories, 'IsArray:', Array.isArray(categories))
+      console.log('Looking for category:', courseData.category)
+      const selectedCategory = Array.isArray(categories) ? categories.find(c => c.name === courseData.category) : null
+      console.log('Selected category:', selectedCategory)
       
       const coursePayload = {
         title: courseData.title,
@@ -442,8 +497,16 @@ function CreateCoursePageContent() {
         status: "published",
       }
 
-      // Create course in Django (instructor is set automatically)
-      const course = await djangoApi.post<any>('/api/courses/', coursePayload)
+      // Create or update course in Django
+      let course
+      if (isEditMode && courseId) {
+        // Update existing course
+        course = await djangoApi.put<any>(`/api/courses/${courseId}/`, coursePayload)
+      } else {
+        // Create new course
+        course = await djangoApi.post<any>('/api/courses/', coursePayload)
+        setCourseId(course.id.toString())
+      }
       
       // Create lessons for the course
       let lessonOrder = 1
@@ -462,13 +525,46 @@ function CreateCoursePageContent() {
 
       toast({
         title: "Success",
-        description: "Course published successfully! It will now appear in the course listings."
+        description: isEditMode 
+          ? "Course updated successfully! Changes have been saved."
+          : "Course published successfully! It will now appear in the course listings."
       })
       
       router.push("/instructor")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error publishing course:", error)
-      alert("Failed to publish course. Please try again.")
+      
+      let errorMessage = "Failed to publish course. Please try again."
+      let errorTitle = "Publishing Failed"
+      
+      // Handle specific API errors
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (error?.response?.data) {
+        // Handle Django API validation errors
+        const apiErrors = error.response.data
+        if (typeof apiErrors === 'object') {
+          const errorFields = Object.keys(apiErrors)
+          if (errorFields.length > 0) {
+            errorTitle = "Validation Error"
+            errorMessage = errorFields.map(field => {
+              const fieldErrors = Array.isArray(apiErrors[field]) ? apiErrors[field] : [apiErrors[field]]
+              return `${field}: ${fieldErrors.join(", ")}`
+            }).join(". ")
+          }
+        } else if (typeof apiErrors === 'string') {
+          errorMessage = apiErrors
+        }
+      } else if (error?.status) {
+        errorTitle = `HTTP ${error.status} Error`
+        errorMessage = `Server returned ${error.status}. Please check your data and try again.`
+      }
+      
+      toast({
+        title: errorTitle,
+        description: errorMessage,
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false)
     }
@@ -1109,7 +1205,7 @@ function CreateCoursePageContent() {
 
                   <div className="flex space-x-4">
                     <Button onClick={handlePublishCourse} className="flex-1" disabled={isLoading}>
-                      {isLoading ? "Publishing..." : "Publish Course"}
+                      {isLoading ? (isEditMode ? "Saving..." : "Publishing...") : (isEditMode ? "Save Changes" : "Publish Course")}
                     </Button>
                     <Button variant="outline" onClick={handleSaveDraft} disabled={isLoading}>
                       {isLoading ? "Saving..." : "Save as Draft"}
@@ -1181,7 +1277,7 @@ function CreateCoursePageContent() {
             disabled={!isStepComplete(currentStep) || isLoading}
           >
             {currentStep === steps.length 
-              ? (isLoading ? "Publishing..." : "Publish Course") 
+              ? (isLoading ? (isEditMode ? "Saving..." : "Publishing...") : (isEditMode ? "Save Changes" : "Publish Course"))
               : "Next"
             }
           </Button>

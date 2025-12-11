@@ -33,6 +33,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
+import { CourseCompletionModal } from "@/components/course-completion-modal"
 
 export default function LearnPage({ params }: { params: Promise<{ courseId: string; lessonId: string }> }) {
   const router = useRouter()
@@ -55,6 +56,10 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   const [currentLesson, setCurrentLesson] = useState<any>(null)
   const [curriculum, setCurriculum] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Course completion modal state
+  const [showCompletionModal, setShowCompletionModal] = useState(false)
+  const [completedCertificateId, setCompletedCertificateId] = useState<string | null>(null)
 
   // Fetch course and lesson data from Django API
   useEffect(() => {
@@ -232,7 +237,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
     
     try {
       // Mark lesson as complete in Django
-      const data = await djangoApi.post<any>(`/api/lessons/${lessonId}/mark_complete/`)
+      const data = await djangoApi.post<any>(`/api/lessons/${lessonId}/mark-complete/`)
       console.log('Progress updated:', data)
       
       toast({
@@ -240,16 +245,68 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
         description: "Great job! Your progress has been saved."
       })
       
-      // If certificate was generated (course completed), show notification
-      if (data.data?.certificate) {
-        alert('Congratulations! You have completed the course. Your certificate has been generated.')
-        // Optionally redirect to certificate page
-        // router.push(`/certificates/${data.data.certificate.certificateId}`)
+      // Check if course is completed
+      if (data.course_progress?.course_completed) {
+        // Show immediate celebration
+        toast({
+          title: "🎉 Course Completed!",
+          description: `Amazing! You've finished all ${data.course_progress.total_lessons} lessons!`,
+          duration: 5000
+        })
+        
+        // Generate certificate automatically
+        try {
+          const certificateResponse = await djangoApi.post<any>('/api/certificates/', {
+            course_id: courseId
+          })
+          
+          // Show certificate success and completion modal
+          setTimeout(() => {
+            toast({
+              title: "📜 Certificate Generated!",
+              description: `Your completion certificate for "${course.title}" is ready!`,
+              duration: 5000
+            })
+            
+            // Show the beautiful completion modal with confetti
+            setCompletedCertificateId(certificateResponse.certificate_id || certificateResponse.id)
+            setShowCompletionModal(true)
+          }, 2000)
+          
+        } catch (certError) {
+          console.error('Error generating certificate:', certError)
+          setTimeout(() => {
+            toast({
+              title: "📜 Certificate Available",
+              description: `Visit your profile to generate your completion certificate for "${course.title}".`,
+              duration: 5000
+            })
+            
+            // Show completion modal even without certificate ID
+            setShowCompletionModal(true)
+          }, 2000)
+        }
       }
     } catch (error) {
       console.error('Error updating progress:', error)
       alert('Failed to update progress. Please try again.')
     }
+  }
+
+  // Helper function to check if current lesson is the first lesson
+  const isFirstLesson = () => {
+    if (curriculum.length === 0) return true
+    const firstChapter = curriculum[0]
+    if (firstChapter.lessons.length === 0) return true
+    return firstChapter.lessons[0].id === lessonId
+  }
+
+  // Helper function to check if current lesson is the last lesson
+  const isLastLesson = () => {
+    if (curriculum.length === 0) return true
+    const lastChapter = curriculum[curriculum.length - 1]
+    if (lastChapter.lessons.length === 0) return true
+    return lastChapter.lessons[lastChapter.lessons.length - 1].id === lessonId
   }
 
   const navigateLesson = (direction: "prev" | "next") => {
@@ -298,6 +355,33 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   const handleBackToCourse = () => {
     // Navigate back to course overview
     router.push(`/learn/${courseId}`)
+  }
+
+  // Course completion modal handlers
+  const handleViewCertificate = () => {
+    setShowCompletionModal(false)
+    router.push(`/profile/certificates`)
+  }
+
+  const handleDownloadCertificate = () => {
+    // In a real implementation, this would trigger PDF download
+    if (completedCertificateId) {
+      toast({
+        title: "Download Started",
+        description: "Your certificate is being downloaded...",
+      })
+    }
+  }
+
+  const handleShareCertificate = () => {
+    // In a real implementation, this would open sharing options
+    if (completedCertificateId) {
+      navigator.clipboard.writeText(`${window.location.origin}/certificates/${completedCertificateId}`)
+      toast({
+        title: "Link Copied!",
+        description: "Certificate link copied to clipboard",
+      })
+    }
   }
 
   // Auto-save notes
@@ -512,19 +596,32 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                       variant="outline"
                       size="sm"
                       onClick={() => navigateLesson("prev")}
-                      disabled={currentLesson.order === 1}
+                      disabled={isFirstLesson()}
                     >
                       <ChevronLeft className="h-4 w-4 mr-1" />
                       Previous
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigateLesson("next")}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
+                    
+                    {!isLastLesson() ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigateLesson("next")}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleBackToCourse}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Back to Course
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -719,6 +816,17 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
           </div>
         </div>
       </div>
+
+      {/* Course Completion Modal with Confetti */}
+      <CourseCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => setShowCompletionModal(false)}
+        courseTitle={course?.title || "Course"}
+        certificateId={completedCertificateId || undefined}
+        onViewCertificate={handleViewCertificate}
+        onDownloadCertificate={handleDownloadCertificate}
+        onShareCertificate={handleShareCertificate}
+      />
     </div>
   )
 }

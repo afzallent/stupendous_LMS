@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { CertificateTemplate } from "@/components/certificate-template"
 import { Button } from "@/components/ui/button"
@@ -20,20 +20,15 @@ export default function CertificatePage({ params }: { params: Promise<{ id: stri
     const fetchCertificate = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/certificates/verify?certificateId=${id}`)
+        const { djangoApi } = await import('@/lib/django-api-client')
+        const data = await djangoApi.get<any>(`/api/certificates/verify/?certificateId=${id}`)
         
-        if (!response.ok) {
-          throw new Error("Failed to fetch certificate")
-        }
-        
-        const data = await response.json()
-        
-        if (!data.valid) {
-          setError(data.error || "Invalid certificate")
+        if (!data.is_valid) {
+          setError(data.detail || "Invalid certificate")
           return
         }
         
-        setCertificate(data.certificate)
+        setCertificate(data)
       } catch (err) {
         setError("Failed to load certificate. Please try again.")
         console.error("Certificate fetch error:", err)
@@ -100,11 +95,11 @@ export default function CertificatePage({ params }: { params: Promise<{ id: stri
 
   return (
     <CertificateTemplate
-      studentName={certificate.studentName}
-      courseTitle={certificate.courseTitle}
-      completionDate={new Date(certificate.issuedAt).toLocaleDateString()}
-      certificateId={certificate.id}
-      instructorName="Course Instructor" // In a real implementation, this would come from the API
+      studentName={certificate.student_name}
+      courseTitle={certificate.course_title}
+      completionDate={new Date(certificate.issued_at).toLocaleDateString()}
+      certificateId={certificate.certificate_id}
+      instructorName={certificate.instructor_name}
     />
   )
 }

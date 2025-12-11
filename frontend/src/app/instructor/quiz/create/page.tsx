@@ -71,7 +71,7 @@ export default function CreateQuizPage() {
   })
 
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'settings' | 'questions'>('settings')
+  const [activeTab, setActiveTab] = useState<'settings' | 'questions'>('questions')
 
   const addQuestion = () => {
     if (!currentQuestion.question.trim()) {
@@ -212,9 +212,11 @@ export default function CreateQuizPage() {
       console.log('❌ No questions added')
       toast({
         title: 'Error',
-        description: 'Please add at least one question',
+        description: 'Please switch to the Questions tab and add at least one question',
         variant: 'destructive'
       })
+      // Switch to questions tab to help user
+      setActiveTab('questions')
       return
     }
 
@@ -252,49 +254,45 @@ export default function CreateQuizPage() {
         const questionType = question.type === 'MULTIPLE_CHOICE' ? 'multiple_choice' :
                             question.type === 'TRUE_FALSE' ? 'true_false' : 'short_answer'
 
+        // Prepare options array
+        let options: any[] = []
+        
+        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'MULTIPLE_ANSWER') {
+          options = question.options
+            .filter(option => option.trim())
+            .map((option, i) => ({
+              option_text: option,
+              is_correct: Array.isArray(question.correctAnswer)
+                ? question.correctAnswer.includes(option)
+                : question.correctAnswer === option,
+              order: i
+            }))
+        } else if (question.type === 'TRUE_FALSE') {
+          options = [
+            {
+              option_text: 'True',
+              is_correct: question.correctAnswer === 'True',
+              order: 0
+            },
+            {
+              option_text: 'False',
+              is_correct: question.correctAnswer === 'False',
+              order: 1
+            }
+          ]
+        }
+
         const questionPayload = {
           quiz: createdQuiz.id,
           question_text: question.question,
           question_type: questionType,
           points: question.points,
           order: question.order,
-          explanation: question.explanation || ''
+          explanation: question.explanation || '',
+          options: options
         }
 
-        const createdQuestion = await djangoApi.post<any>('/api/questions/', questionPayload)
-
-        // Step 3: Create options for multiple choice and true/false questions
-        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'MULTIPLE_ANSWER') {
-          for (let i = 0; i < question.options.length; i++) {
-            const option = question.options[i]
-            if (option.trim()) {
-              const isCorrect = Array.isArray(question.correctAnswer)
-                ? question.correctAnswer.includes(option)
-                : question.correctAnswer === option
-
-              await djangoApi.post('/api/questions/' + createdQuestion.id + '/options/', {
-                question: createdQuestion.id,
-                option_text: option,
-                is_correct: isCorrect,
-                order: i
-              })
-            }
-          }
-        } else if (question.type === 'TRUE_FALSE') {
-          // Create True and False options
-          await djangoApi.post('/api/questions/' + createdQuestion.id + '/options/', {
-            question: createdQuestion.id,
-            option_text: 'True',
-            is_correct: question.correctAnswer === 'True',
-            order: 0
-          })
-          await djangoApi.post('/api/questions/' + createdQuestion.id + '/options/', {
-            question: createdQuestion.id,
-            option_text: 'False',
-            is_correct: question.correctAnswer === 'False',
-            order: 1
-          })
-        }
+        await djangoApi.post<any>(`/api/quizzes/${createdQuiz.id}/questions/`, questionPayload)
       }
 
       toast({
@@ -351,8 +349,10 @@ export default function CreateQuizPage() {
             console.log('🔄 Switching to questions tab')
             setActiveTab('questions')
           }}
+          className={quizData.questions.length === 0 ? 'border-red-500 text-red-600' : ''}
         >
           Questions ({quizData.questions.length})
+          {quizData.questions.length === 0 && <span className="ml-1 text-red-500">⚠️</span>}
         </Button>
       </div>
 
@@ -485,6 +485,23 @@ export default function CreateQuizPage() {
 
       {activeTab === 'questions' && (
         <div className="space-y-6">
+          {quizData.questions.length === 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <span className="text-yellow-400 text-xl">⚠️</span>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    No questions added yet
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>Add at least one question below to create your quiz. You can create multiple choice, true/false, fill-in-the-blank, or multiple answer questions.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Add New Question</CardTitle>
