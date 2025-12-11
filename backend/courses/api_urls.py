@@ -14,11 +14,14 @@ router.register(r'progress', views.ProgressViewSet, basename='progress')
 router.register(r'categories', views.CategoryViewSet, basename='category')
 
 urlpatterns = [
-    # Router endpoints
-    path('', include(router.urls)),
+    # Coupon endpoints under courses namespace for frontend compatibility (must be before router)
+    path('courses/coupons/', views.CouponListView.as_view(), name='course-coupons-list'),
     
     # Course detail with progress
     path('courses/<int:course_id>/with-progress/', views.CourseDetailWithProgressView.as_view(), name='course-with-progress'),
+    
+    # Router endpoints
+    path('', include(router.urls)),
     
     # Student endpoints
     path('student/dashboard/', views.StudentDashboardView.as_view(), name='student-dashboard'),

@@ -6,18 +6,18 @@ from django.utils import timezone
 from datetime import timedelta
 
 from rest_framework import viewsets, status, permissions, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from core.models import User
-from .models import Course, Lesson, Enrollment, Progress, Category
+from .models import Course, Lesson, Enrollment, Progress, Category, Coupon
 from .forms import CourseForm, LessonForm
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
-    EnrollmentSerializer, ProgressSerializer, CategorySerializer
+    EnrollmentSerializer, ProgressSerializer, CategorySerializer, CouponSerializer
 )
 from .permissions import IsInstructorOrReadOnly, IsOwnerOrReadOnly, IsEnrolledStudent
 
@@ -1357,12 +1357,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class CouponViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for coupon validation (read-only for students)"""
-    from .models import Coupon
-    from .serializers import CouponSerializer
-    
     queryset = Coupon.objects.filter(is_active=True)
     serializer_class = CouponSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
         """Filter coupons by code if provided"""
@@ -1375,8 +1372,6 @@ class CouponViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['post'])
     def validate(self, request):
         """Validate a coupon code without using it"""
-        from .models import Coupon
-        
         code = request.data.get('code')
         if not code:
             return Response(
@@ -1398,6 +1393,26 @@ class CouponViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        from .serializers import CouponSerializer
         serializer = CouponSerializer(coupon)
         return Response(serializer.data)
+
+
+class CouponListView(APIView):
+    """Simple class-based view for coupon listing with code filtering"""
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        code = request.query_params.get('code')
+        
+        if code:
+            # Filter by specific code
+            coupons = Coupon.objects.filter(code=code.upper(), is_active=True)
+        else:
+            # Return all active coupons
+            coupons = Coupon.objects.filter(is_active=True)
+        
+        serializer = CouponSerializer(coupons, many=True)
+        return Response({
+            'count': len(serializer.data),
+            'results': serializer.data
+        })

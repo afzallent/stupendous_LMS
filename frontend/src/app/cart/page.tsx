@@ -177,7 +177,6 @@ export default function CartPage() {
       // In a real implementation, you'd have a separate validation endpoint
       const response = await fetch(`${API_BASE_URL}/api/courses/coupons/?code=${couponCode.toUpperCase()}`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
@@ -188,12 +187,12 @@ export default function CartPage() {
 
       const data = await response.json()
       
-      if (data.length === 0) {
+      if (!data.results || data.results.length === 0) {
         setCouponError("Invalid coupon code")
         return
       }
 
-      const coupon = data[0]
+      const coupon = data.results[0]
       
       if (!coupon.is_valid) {
         setCouponError("This coupon is no longer valid")
