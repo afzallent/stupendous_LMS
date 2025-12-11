@@ -194,7 +194,12 @@ export default function CreateQuizPage() {
   }
 
   const saveQuiz = async () => {
+    console.log('🎯 Save Quiz button clicked!')
+    console.log('Quiz Data:', quizData)
+    console.log('Course ID:', courseId)
+    
     if (!quizData.title.trim()) {
+      console.log('❌ Quiz title is empty')
       toast({
         title: 'Error',
         description: 'Please enter a quiz title',
@@ -204,6 +209,7 @@ export default function CreateQuizPage() {
     }
 
     if (quizData.questions.length === 0) {
+      console.log('❌ No questions added')
       toast({
         title: 'Error',
         description: 'Please add at least one question',
@@ -213,6 +219,7 @@ export default function CreateQuizPage() {
     }
 
     if (!courseId) {
+      console.log('❌ Course ID is missing')
       toast({
         title: 'Error',
         description: 'Course ID is missing',
@@ -221,6 +228,7 @@ export default function CreateQuizPage() {
       return
     }
 
+    console.log('✅ All validations passed, starting save...')
     setIsSaving(true)
 
     try {
@@ -330,18 +338,25 @@ export default function CreateQuizPage() {
       <div className="flex gap-4 mb-6">
         <Button
           variant={activeTab === 'settings' ? 'default' : 'outline'}
-          onClick={() => setActiveTab('settings')}
+          onClick={() => {
+            console.log('🔄 Switching to settings tab')
+            setActiveTab('settings')
+          }}
         >
           Quiz Settings
         </Button>
         <Button
           variant={activeTab === 'questions' ? 'default' : 'outline'}
-          onClick={() => setActiveTab('questions')}
+          onClick={() => {
+            console.log('🔄 Switching to questions tab')
+            setActiveTab('questions')
+          }}
         >
           Questions ({quizData.questions.length})
         </Button>
       </div>
 
+      {/* Debug: Current active tab is {activeTab} */}
       {activeTab === 'settings' && (
         <div className="grid gap-6 md:grid-cols-2">
           <Card>

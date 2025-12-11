@@ -389,7 +389,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         import csv
         from django.http import HttpResponse
         
-        if not request.user.role == 'TRAINER':
+        if not request.user.is_instructor:
             return Response(
                 {'detail': 'Only instructors can export courses.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -448,7 +448,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         import csv
         import io
         
-        if not request.user.role == 'TRAINER':
+        if not request.user.is_instructor:
             return Response(
                 {'detail': 'Only instructors can import courses.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -745,7 +745,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             # Verify user is instructor of the course
             try:
                 course = Course.objects.get(id=course_id)
-                if user.role == 'TRAINER' and course.instructor == user:
+                if user.is_instructor and course.instructor == user:
                     return queryset.filter(course_id=course_id).select_related('student', 'course')
             except Course.DoesNotExist:
                 pass
