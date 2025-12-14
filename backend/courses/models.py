@@ -113,8 +113,57 @@ class Course(models.Model):
             self.status = 'draft'
             self.save()
 
+
+class Chapter(models.Model):
+    """Chapter/Section model for organizing lessons"""
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='chapters')
+    title = models.CharField(max_length=200, help_text="Chapter title (e.g., 'Introduction', 'Advanced Topics')")
+    description = models.TextField(blank=True, help_text="Optional chapter description")
+    order = models.IntegerField(default=0, help_text="Order of chapter in course")
+    is_locked = models.BooleanField(default=False, help_text="Lock chapter until prerequisites are met")
+    prerequisite_chapter = models.ForeignKey(
+        'self', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='dependent_chapters',
+        help_text="Chapter that must be completed before this one is unlocked"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order']
+        unique_together = ['course', 'order']
+    
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"
+    
+    def is_unlocked_for_student(self, student):
+        """Check if chapter is unlocked for a specific student"""
+        if not self.is_locked:
+            return True
+        
+        if not self.prerequisite_chapter:
+            return True
+        
+        # Check if all lessons in prerequisite chapter are completed
+        prerequisite_lessons = self.prerequisite_chapter.lessons.all()
+        if not prerequisite_lessons.exists():
+            return True
+        
+        completed_count = Progress.objects.filter(
+            student=student,
+            lesson__in=prerequisite_lessons,
+            completed=True
+        ).count()
+        
+        return completed_count == prerequisite_lessons.count()
+
+
 class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
+    chapter = models.ForeignKey(Chapter, on_delete=models.SET_NULL, null=True, blank=True, related_name='lessons', help_text="Chapter this lesson belongs to")
     title = models.CharField(max_length=200)
     video_url = models.URLField(blank=True, null=True, help_text="Enter the URL of the video (e.g. YouTube embed URL)")
     video_file = models.FileField(upload_to='lesson_videos/', null=True, blank=True, help_text="Upload video file")

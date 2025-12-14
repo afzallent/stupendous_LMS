@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Lesson, Enrollment, Progress, Category, Coupon
+from .models import Course, Lesson, Enrollment, Progress, Category, Coupon, Chapter
 from core.serializers import UserSerializer
 
 
@@ -30,15 +30,39 @@ class CategorySerializer(serializers.ModelSerializer):
         return obj.courses.filter(status='published').count()
 
 
+class ChapterSerializer(serializers.ModelSerializer):
+    """Serializer for course chapters/sections"""
+    lesson_count = serializers.SerializerMethodField()
+    is_unlocked = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Chapter
+        fields = ['id', 'course', 'title', 'description', 'order', 'is_locked', 
+                  'prerequisite_chapter', 'lesson_count', 'is_unlocked', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_lesson_count(self, obj):
+        return obj.lessons.count()
+    
+    def get_is_unlocked(self, obj):
+        """Check if chapter is unlocked for current user"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return True
+        return obj.is_unlocked_for_student(request.user)
+
+
 class LessonSerializer(serializers.ModelSerializer):
     """
     Serializer for lesson data.
     
     Represents a lesson within a course, including video URL and content.
     """
+    chapter_title = serializers.CharField(source='chapter.title', read_only=True)
+    
     class Meta:
         model = Lesson
-        fields = ['id', 'course', 'title', 'video_url', 'order', 'content']
+        fields = ['id', 'course', 'chapter', 'chapter_title', 'title', 'video_url', 'order', 'content']
         read_only_fields = ['id']
 
 

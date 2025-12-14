@@ -13,11 +13,11 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from core.models import User
-from .models import Course, Lesson, Enrollment, Progress, Category, Coupon
+from .models import Course, Lesson, Enrollment, Progress, Category, Coupon, Chapter
 from .forms import CourseForm, LessonForm
 from .serializers import (
     CourseSerializer, CourseDetailSerializer, LessonSerializer,
-    EnrollmentSerializer, ProgressSerializer, CategorySerializer, CouponSerializer
+    EnrollmentSerializer, ProgressSerializer, CategorySerializer, CouponSerializer, ChapterSerializer
 )
 from .permissions import IsInstructorOrReadOnly, IsOwnerOrReadOnly, IsEnrolledStudent
 
@@ -339,49 +339,58 @@ class CourseViewSet(viewsets.ModelViewSet):
             parser_classes=[MultiPartParser, FormParser])
     def upload_thumbnail(self, request, pk=None):
         """Upload course thumbnail image"""
-        from rest_framework.parsers import MultiPartParser, FormParser
+        import logging
+        logger = logging.getLogger(__name__)
         
-        course = self.get_object()
-        
-        # Check if user is the course instructor
-        if course.instructor != request.user:
+        try:
+            course = self.get_object()
+            
+            # Check if user is the course instructor
+            if course.instructor != request.user:
+                return Response(
+                    {'detail': 'Only the course instructor can upload thumbnails.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            if 'thumbnail' not in request.FILES:
+                return Response(
+                    {'detail': 'No file was submitted.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            thumbnail_file = request.FILES['thumbnail']
+            
+            # Validate file size (max 5MB)
+            if thumbnail_file.size > 5 * 1024 * 1024:
+                return Response(
+                    {'detail': 'File size must be less than 5MB.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate file type
+            allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg']
+            if thumbnail_file.content_type not in allowed_types:
+                return Response(
+                    {'detail': f'File must be an image (JPEG, PNG, GIF, or WebP). Got: {thumbnail_file.content_type}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Save thumbnail
+            course.thumbnail = thumbnail_file
+            course.save()
+            
+            serializer = self.get_serializer(course)
+            return Response({
+                'detail': 'Thumbnail uploaded successfully.',
+                'course': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Thumbnail upload error: {str(e)}", exc_info=True)
             return Response(
-                {'detail': 'Only the course instructor can upload thumbnails.'},
-                status=status.HTTP_403_FORBIDDEN
+                {'detail': f'Upload failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        if 'thumbnail' not in request.FILES:
-            return Response(
-                {'thumbnail': ['No file was submitted.']},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        thumbnail_file = request.FILES['thumbnail']
-        
-        # Validate file size (max 5MB)
-        if thumbnail_file.size > 5 * 1024 * 1024:
-            return Response(
-                {'thumbnail': ['File size must be less than 5MB.']},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Validate file type
-        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-        if thumbnail_file.content_type not in allowed_types:
-            return Response(
-                {'thumbnail': ['File must be an image (JPEG, PNG, GIF, or WebP).']},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Save thumbnail
-        course.thumbnail = thumbnail_file
-        course.save()
-        
-        serializer = self.get_serializer(course)
-        return Response({
-            'detail': 'Thumbnail uploaded successfully.',
-            'course': serializer.data
-        }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def export_csv(self, request):
@@ -642,6 +651,51 @@ class LessonViewSet(viewsets.ModelViewSet):
                 'percentage': int((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0,
                 'course_completed': course_completed
             }
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='bulk-delete-without-video')
+    def bulk_delete_without_video(self, request):
+        """Delete all lessons without valid video URLs for a specific course"""
+        course_id = request.data.get('course_id')
+        
+        if not course_id:
+            return Response(
+                {'detail': 'course_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response(
+                {'detail': 'Course not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if user is the course instructor
+        if course.instructor != request.user:
+            return Response(
+                {'detail': 'You can only delete lessons from your own courses.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Find lessons without video URLs
+        lessons_without_video = Lesson.objects.filter(
+            course=course
+        ).filter(
+            Q(video_url__isnull=True) | Q(video_url='') | Q(video_url__exact='')
+        )
+        
+        deleted_count = lessons_without_video.count()
+        deleted_titles = list(lessons_without_video.values_list('title', flat=True))
+        
+        # Delete the lessons
+        lessons_without_video.delete()
+        
+        return Response({
+            'detail': f'Successfully deleted {deleted_count} lesson(s) without video.',
+            'deleted_count': deleted_count,
+            'deleted_lessons': deleted_titles
         }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
@@ -1339,6 +1393,80 @@ class CourseDetailWithProgressView(APIView):
         }
         
         return Response(response_data)
+
+
+# Chapter ViewSet
+class ChapterViewSet(viewsets.ModelViewSet):
+    """ViewSet for course chapters/sections"""
+    queryset = Chapter.objects.all()
+    serializer_class = ChapterSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter chapters by course"""
+        course_id = self.request.query_params.get('course_id')
+        if course_id:
+            return Chapter.objects.filter(course_id=course_id).order_by('order')
+        return Chapter.objects.all().order_by('course', 'order')
+    
+    def perform_create(self, serializer):
+        """Ensure only course owner can create chapters"""
+        course = serializer.validated_data.get('course')
+        if course.instructor != self.request.user:
+            raise permissions.PermissionDenied("You can only add chapters to your own courses.")
+        serializer.save()
+    
+    def perform_update(self, serializer):
+        """Ensure only course owner can update chapters"""
+        if serializer.instance.course.instructor != self.request.user:
+            raise permissions.PermissionDenied("You can only edit chapters in your own courses.")
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        """Ensure only course owner can delete chapters"""
+        if instance.course.instructor != self.request.user:
+            raise permissions.PermissionDenied("You can only delete chapters from your own courses.")
+        instance.delete()
+    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def reorder(self, request):
+        """Reorder chapters within a course"""
+        chapters_data = request.data.get('chapters', [])
+        course_id = request.data.get('course_id')
+        
+        if not course_id:
+            return Response(
+                {'detail': 'course_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response(
+                {'detail': 'Course not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if course.instructor != request.user:
+            return Response(
+                {'detail': 'You can only reorder chapters in your own courses.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Update chapter orders
+        for chapter_data in chapters_data:
+            chapter_id = chapter_data.get('id')
+            new_order = chapter_data.get('order')
+            
+            try:
+                chapter = Chapter.objects.get(id=chapter_id, course=course)
+                chapter.order = new_order
+                chapter.save()
+            except Chapter.DoesNotExist:
+                continue
+        
+        return Response({'detail': 'Chapters reordered successfully.'}, status=status.HTTP_200_OK)
 
 
 # Category ViewSet

@@ -47,6 +47,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
+  const [videoSize, setVideoSize] = useState<"large" | "small">("large") // Video size toggle
 
   // Unwrap the params Promise using React.use()
   const { courseId, lessonId } = use(params)
@@ -433,10 +434,11 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex flex-col lg:flex-row">
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Video Section */}
+          {/* Video Section - Large Mode */}
+          {videoSize === "large" && (
           <div className="relative bg-black">
             {/* Video Player */}
             <div className="relative aspect-video">
@@ -476,6 +478,19 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                   </div>
                 </div>
               )}
+
+              {/* Video Size Toggle Button */}
+              <div className="absolute top-4 right-4 z-10 hidden md:block">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setVideoSize("small")}
+                  className="bg-black/50 hover:bg-black/70 text-white border-white/20"
+                >
+                  <Minimize className="h-4 w-4 mr-2" />
+                  Minimize
+                </Button>
+              </div>
 
               {/* Video Controls Overlay - Only show for non-YouTube videos */}
               {!currentLesson.isYouTube && currentLesson.videoUrl && (
@@ -554,10 +569,83 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
               )}
             </div>
           </div>
+          )}
+
+          {/* Small Inline Video Mode - YouTube default size */}
+          {videoSize === "small" && currentLesson.videoUrl && (
+            <div className="relative bg-black p-4 border-b">
+              <div className="max-w-2xl mx-auto">
+                {/* Video Player */}
+                <div className="relative aspect-video rounded-lg overflow-hidden shadow-lg">
+                  {currentLesson.isYouTube ? (
+                    <iframe
+                      className="w-full h-full"
+                      src={currentLesson.videoUrl}
+                      title={currentLesson.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full"
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleLoadedMetadata}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onEnded={() => {
+                        setIsPlaying(false)
+                        markLessonComplete()
+                      }}
+                    >
+                      <source src={currentLesson.videoUrl} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
+                  
+                  {/* Maximize Button */}
+                  <div className="absolute top-2 right-2 z-10">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setVideoSize("large")}
+                      className="bg-black/70 hover:bg-black/90 text-white border-white/20"
+                    >
+                      <Maximize className="h-4 w-4 mr-2" />
+                      Expand
+                    </Button>
+                  </div>
+                  
+                  {/* Mini controls for non-YouTube videos */}
+                  {!currentLesson.isYouTube && (
+                    <div className="absolute bottom-2 left-2 flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={togglePlay}
+                        className="bg-black/70 hover:bg-black/90 text-white h-8 w-8 p-0"
+                      >
+                        {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleMute}
+                        className="bg-black/70 hover:bg-black/90 text-white h-8 w-8 p-0"
+                      >
+                        {isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Lesson Content */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full flex flex-col">
+          <div className="flex-1">
+            <div className="flex flex-col h-full">
               {/* Lesson Header */}
               <div className="border-b p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -627,16 +715,16 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
               </div>
 
               {/* Tabs */}
-              <div className="flex-1 overflow-hidden">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-                  <TabsList className="grid w-full grid-cols-4 m-4">
+              <div className="flex-1 flex flex-col min-h-0">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+                  <TabsList className="grid w-full grid-cols-4 m-4 flex-shrink-0">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="notes">Notes</TabsTrigger>
                     <TabsTrigger value="resources">Resources</TabsTrigger>
                     <TabsTrigger value="discussion">Discussion</TabsTrigger>
                   </TabsList>
 
-                  <div className="flex-1 overflow-auto p-4">
+                  <div className="p-4 flex-1 overflow-y-auto">
                     <TabsContent value="overview" className="space-y-6">
                       <Card>
                         <CardHeader>
@@ -757,7 +845,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
         </div>
 
         {/* Sidebar - Course Progress & Curriculum */}
-        <div className="w-80 border-l bg-muted/30 flex flex-col">
+        <div className="lg:w-80 w-full border-l lg:border-l border-t lg:border-t-0 bg-muted/30 flex flex-col overflow-y-auto">
           <div className="p-4 border-b">
             <h3 className="font-semibold mb-2">Course Progress</h3>
             <div className="space-y-2">

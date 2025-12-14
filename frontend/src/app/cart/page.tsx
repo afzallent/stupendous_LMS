@@ -139,13 +139,13 @@ export default function CartPage() {
   }
 
   const calculateDiscount = () => {
-    const originalTotal = cartState.items.reduce((sum, item) => sum + item.originalPrice, 0)
-    const currentTotal = cartState.total
-    return originalTotal - currentTotal
+    const originalTotal = cartState.items.reduce((sum, item) => sum + (item.originalPrice || 0), 0)
+    const currentTotal = cartState.total || 0
+    return Math.max(0, originalTotal - currentTotal)
   }
 
   const calculateDiscountPercentage = () => {
-    const originalTotal = cartState.items.reduce((sum, item) => sum + item.originalPrice, 0)
+    const originalTotal = cartState.items.reduce((sum, item) => sum + (item.originalPrice || 0), 0)
     const discount = calculateDiscount()
     return originalTotal > 0 ? Math.round((discount / originalTotal) * 100) : 0
   }
@@ -227,17 +227,18 @@ export default function CartPage() {
   }
 
   const calculateFinalTotal = () => {
-    let total = cartState.total
+    let total = cartState.total || 0
     if (appliedCoupon) {
       const couponDiscount = (total * appliedCoupon.discount_percentage) / 100
       total = total - couponDiscount
     }
-    return total
+    return Math.max(0, total) // Ensure non-negative
   }
 
   const getCouponDiscount = () => {
     if (!appliedCoupon) return 0
-    return (cartState.total * appliedCoupon.discount_percentage) / 100
+    const total = cartState.total || 0
+    return (total * appliedCoupon.discount_percentage) / 100
   }
 
   if (!mounted) {

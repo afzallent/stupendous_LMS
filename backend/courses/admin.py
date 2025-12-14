@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
-from .models import Course, Lesson, Enrollment, Progress, Category, Coupon
+from .models import Course, Lesson, Enrollment, Progress, Category, Coupon, Chapter
 
 
 # Define resources for import/export
@@ -80,6 +80,35 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = ['name', 'slug', 'created_at']
     prepopulated_fields = {'slug': ('name',)}
     search_fields = ['name', 'description']
+
+
+@admin.register(Chapter)
+class ChapterAdmin(admin.ModelAdmin):
+    list_display = ['title', 'course', 'order', 'is_locked', 'lesson_count', 'created_at']
+    list_filter = ['course', 'is_locked', 'created_at']
+    search_fields = ['title', 'description', 'course__title']
+    ordering = ['course', 'order']
+    
+    fieldsets = (
+        ('Chapter Information', {
+            'fields': ('course', 'title', 'description', 'order')
+        }),
+        ('Access Control', {
+            'fields': ('is_locked', 'prerequisite_chapter'),
+            'description': 'Control chapter access and prerequisites'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def lesson_count(self, obj):
+        """Display number of lessons in chapter"""
+        return obj.lessons.count()
+    lesson_count.short_description = 'Lessons'
 
 
 @admin.register(Course)

@@ -98,6 +98,35 @@ export default function InstructorCoursePage() {
     }
   }
 
+  const handleBulkDeleteLessonsWithoutVideo = async () => {
+    const lessonsWithoutVideo = lessons.filter(l => !l.video_url || l.video_url.trim() === '')
+    
+    if (lessonsWithoutVideo.length === 0) {
+      alert('No lessons without video found.')
+      return
+    }
+
+    const lessonTitles = lessonsWithoutVideo.map(l => `• ${l.title}`).join('\n')
+    const confirmed = confirm(
+      `This will delete ${lessonsWithoutVideo.length} lesson(s) without video:\n\n${lessonTitles}\n\nAre you sure?`
+    )
+    
+    if (!confirmed) return
+
+    try {
+      const response = await djangoApi.post<any>('/api/lessons/bulk-delete-without-video/', {
+        course_id: courseId
+      })
+      
+      alert(`Successfully deleted ${response.deleted_count} lesson(s):\n${response.deleted_lessons.join('\n')}`)
+      
+      // Refresh the lessons list
+      fetchCourseData()
+    } catch (error: any) {
+      alert(error?.message || 'Failed to delete lessons')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -186,10 +215,22 @@ export default function InstructorCoursePage() {
           <TabsContent value="lessons" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Course Lessons</h2>
-              <Button onClick={() => router.push(`/instructor/lessons/create?courseId=${courseId}`)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Lesson
-              </Button>
+              <div className="flex gap-2">
+                {lessons.some(l => !l.video_url || l.video_url.trim() === '') && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleBulkDeleteLessonsWithoutVideo}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove Lessons Without Video
+                  </Button>
+                )}
+                <Button onClick={() => router.push(`/instructor/lessons/create?courseId=${courseId}`)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Lesson
+                </Button>
+              </div>
             </div>
 
             {lessons.length === 0 ? (

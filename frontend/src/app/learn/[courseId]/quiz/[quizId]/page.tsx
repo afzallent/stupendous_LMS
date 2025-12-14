@@ -262,14 +262,6 @@ export default function QuizTakingPage() {
         completedAt: result.completed_at
       }
       
-      console.log('Quiz submission result:', result)
-      console.log('Transformed quiz result:', quizResult)
-      
-      // Debug: Check if quiz has questions and points
-      console.log('Quiz questions:', quiz.questions)
-      console.log('Total questions:', quiz.questions.length)
-      console.log('Questions with points:', quiz.questions.map(q => ({ id: q.id, points: q.points })))
-      
       setQuizResult(quizResult)
       setShowResults(true)
 
@@ -281,37 +273,52 @@ export default function QuizTakingPage() {
         variant: result.passed ? 'default' : 'destructive'
       })
     } catch (error: any) {
-      console.error('Quiz submission error:', error)
+      // Extract error message from different possible error structures
+      let errorMessage = 'Failed to submit quiz. Please try again.'
       
-      // Handle specific error cases
-      if (error.response?.status === 400) {
-        const errorMessage = error.response.data?.detail || error.message
-        
-        if (errorMessage.includes('Maximum attempts')) {
-          // Max attempts reached - show special handling
-          setCanRetake(false)
-          toast({
-            title: 'Maximum Attempts Reached',
-            description: errorMessage,
-            variant: 'destructive'
-          })
-          
-          // Redirect back to course after a delay
-          setTimeout(() => {
-            router.push(`/learn/${params.courseId}`)
-          }, 3000)
-        } else {
-          toast({
-            title: 'Cannot Submit Quiz',
-            description: errorMessage,
-            variant: 'destructive'
-          })
-        }
-      } else {
+      if (error.message) {
+        errorMessage = error.message
+      } else if (error.details?.detail) {
+        errorMessage = error.details.detail
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      }
+      
+      // Handle maximum attempts error
+      if (errorMessage.includes('Maximum attempts')) {
+        setCanRetake(false)
         toast({
-          title: 'Error',
-          description: error?.message || 'Failed to submit quiz',
-          variant: 'destructive'
+          title: '⚠️ Maximum Attempts Reached',
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 5000
+        })
+        
+        // Redirect back to course after showing message
+        setTimeout(() => {
+          router.push(`/learn/${params.courseId}`)
+        }, 3000)
+      } 
+      // Handle enrollment error
+      else if (errorMessage.includes('enrolled')) {
+        toast({
+          title: '🔒 Enrollment Required',
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 5000
+        })
+        
+        setTimeout(() => {
+          router.push(`/courses/${params.courseId}`)
+        }, 3000)
+      }
+      // Handle other errors
+      else {
+        toast({
+          title: '❌ Submission Failed',
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 5000
         })
       }
     } finally {
@@ -506,6 +513,20 @@ export default function QuizTakingPage() {
       </header>
 
       <div className="container max-w-4xl mx-auto px-4 py-8">
+        {/* Maximum Attempts Warning */}
+        {!canRetake && (
+          <Alert className="mb-6 border-red-200 bg-red-50">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <div className="ml-2">
+              <h3 className="font-semibold text-red-900">Maximum Attempts Reached</h3>
+              <AlertDescription className="text-red-800 mt-1">
+                You have used all {attemptCount} of {quiz.metadata?.maxRetakes || 2} allowed attempts for this quiz. 
+                You cannot take this quiz again. Please contact your instructor if you need additional attempts.
+              </AlertDescription>
+            </div>
+          </Alert>
+        )}
+
         <div className="mb-8">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold mb-2">{quiz.title}</h1>
@@ -523,16 +544,7 @@ export default function QuizTakingPage() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Question {currentQuestionIndex + 1} of {quiz.questions.length}</span>
-            <span>{currentQuestion.points} point{currentQuestion.points > 1 ? 's' : ''}</span>
-          </div>
-          <Progress value={progressPercentage} className="h-2" />
-        </div>
-      </div>
-
-      <Card>
+        <Card>
         <CardHeader>
           <CardTitle>Question {currentQuestionIndex + 1}</CardTitle>
         </CardHeader>
@@ -557,20 +569,20 @@ export default function QuizTakingPage() {
             </RadioGroup>
           )}
 
-          {currentQuestion.type === 'TRUE_FALSE' && (
+          {currentQuestion.type === 'TRUE_FALSE' && currentQuestion.options && (
             <RadioGroup
               value={answers[currentQuestion.id] as string || ''}
               onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
             >
               <div className="space-y-2">
-                <div className="flex items-center space-x-2 p-3 rounded-lg hover:bg-muted">
-                  <RadioGroupItem value="True" id="true" />
-                  <Label htmlFor="true" className="cursor-pointer flex-1">True</Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg hover:bg-muted">
-                  <RadioGroupItem value="False" id="false" />
-                  <Label htmlFor="false" className="cursor-pointer flex-1">False</Label>
-                </div>
+                {currentQuestion.options.map((option, index) => (
+                  <div key={index} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-muted">
+                    <RadioGroupItem value={option} id={`tf-option-${index}`} />
+                    <Label htmlFor={`tf-option-${index}`} className="cursor-pointer flex-1">
+                      {option}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </RadioGroup>
           )}
@@ -610,7 +622,7 @@ export default function QuizTakingPage() {
           <Button
             variant="outline"
             onClick={goToPrevious}
-            disabled={currentQuestionIndex === 0}
+            disabled={currentQuestionIndex === 0 || !canRetake}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Previous
@@ -621,23 +633,33 @@ export default function QuizTakingPage() {
             {quiz.questions.map((_, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentQuestionIndex(index)}
+                onClick={() => !canRetake ? null : setCurrentQuestionIndex(index)}
+                disabled={!canRetake}
                 className={`w-2 h-2 rounded-full transition-colors ${
                   index === currentQuestionIndex
                     ? 'bg-primary'
                     : answers[quiz.questions[index].id]
                     ? 'bg-primary/50'
                     : 'bg-muted-foreground/30'
-                }`}
+                } ${!canRetake ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 aria-label={`Go to question ${index + 1}`}
               />
             ))}
           </div>
 
           {currentQuestionIndex === quiz.questions.length - 1 ? (
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isSubmitting || !canRetake}
+              title={!canRetake ? 'Maximum attempts reached' : ''}
+            >
               {isSubmitting ? (
                 <>Submitting...</>
+              ) : !canRetake ? (
+                <>
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  Cannot Submit
+                </>
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
@@ -646,7 +668,7 @@ export default function QuizTakingPage() {
               )}
             </Button>
           ) : (
-            <Button onClick={goToNext}>
+            <Button onClick={goToNext} disabled={!canRetake}>
               Next
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -654,39 +676,41 @@ export default function QuizTakingPage() {
         </CardFooter>
       </Card>
 
-      {/* Quick navigation panel */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-base">Question Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
-            {quiz.questions.map((question, index) => (
-              <Button
-                key={question.id}
-                variant={answers[question.id] ? 'default' : 'outline'}
-                size="sm"
-                className={`${
-                  index === currentQuestionIndex ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => setCurrentQuestionIndex(index)}
-              >
-                {index + 1}
-              </Button>
-            ))}
-          </div>
-          <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-primary rounded"></div>
-              <span>Answered</span>
+        {/* Quick navigation panel */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-base">Question Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+              {quiz.questions.map((question, index) => (
+                <Button
+                  key={question.id}
+                  variant={answers[question.id] ? 'default' : 'outline'}
+                  size="sm"
+                  className={`${
+                    index === currentQuestionIndex ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => setCurrentQuestionIndex(index)}
+                  disabled={!canRetake}
+                >
+                  {index + 1}
+                </Button>
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 border border-input rounded"></div>
-              <span>Not answered</span>
+            <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-primary rounded"></div>
+                <span>Answered</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 border border-input rounded"></div>
+                <span>Not answered</span>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
