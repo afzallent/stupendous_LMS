@@ -139,9 +139,9 @@ function CreateCoursePageContent() {
             id: "1",
             title: "Course Lessons",
             lessons: lessons.map((lesson: any, index: number) => ({
-              id: lesson.id?.toString() || (index + 1).toString(),
+              id: lesson.id, // Use actual numeric ID from database
               title: lesson.title || '',
-              description: lesson.description || '',
+              description: lesson.content || lesson.description || '',
               videoFile: null,
               videoUrl: lesson.video_url || '',
               duration: lesson.duration?.toString() || '',
@@ -311,8 +311,15 @@ function CreateCoursePageContent() {
     }
 
     const lesson = chapters[chapterIndex].lessons[lessonIndex]
-    if (!lesson.id) {
-      alert('Please save the lesson first before uploading video')
+    
+    // Validate lesson ID is a number (from database)
+    const lessonId = typeof lesson.id === 'number' ? lesson.id : parseInt(lesson.id)
+    if (!lessonId || isNaN(lessonId)) {
+      toast({
+        title: "Save Required",
+        description: "Please save the lesson first before uploading video",
+        variant: "destructive"
+      })
       return
     }
 
@@ -324,12 +331,7 @@ function CreateCoursePageContent() {
       const formData = new FormData()
       formData.append('video', file)
 
-      // Upload to Django backend - lesson must exist first
-      if (!lesson.id) {
-        throw new Error('Lesson must be saved before uploading video')
-      }
-
-      const result = await djangoApi.upload(`/api/lessons/${lesson.id}/upload_video/`, formData)
+      const result = await djangoApi.upload(`/api/lessons/${lessonId}/upload_video/`, formData)
 
       // Update lesson with video file
       const updatedChapters = [...chapters]

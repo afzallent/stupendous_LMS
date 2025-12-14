@@ -209,11 +209,12 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const accessToken = localStorage.getItem('access_token')
         
-        const courseResponse = await fetch(`${API_BASE_URL}/api/courses/${courseId}/with-progress/`, {
+        const courseResponse = await fetch(`${API_BASE_URL}/api/courses/${courseId}/with-progress/?t=${Date.now()}`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
-          }
+          },
+          cache: 'no-store'
         })
         
         if (!courseResponse.ok) {

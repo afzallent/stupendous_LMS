@@ -81,10 +81,17 @@ class Course(models.Model):
         ('archived', 'Archived'),
     ]
     
+    LEVEL_CHOICES = [
+        ('Beginner', 'Beginner'),
+        ('Intermediate', 'Intermediate'),
+        ('Advanced', 'Advanced'),
+    ]
+    
     title = models.CharField(max_length=200)
     description = models.TextField()
     instructor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='courses_created')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='courses')
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='Beginner', help_text="Course difficulty level")
     thumbnail = models.ImageField(upload_to='course_thumbnails/', null=True, blank=True, help_text="Course thumbnail image")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     

@@ -127,6 +127,37 @@ export default function InstructorCoursePage() {
     }
   }
 
+  const handleDeleteCourse = async () => {
+    const confirmed = confirm(
+      `⚠️ WARNING: This will permanently delete the course "${course?.title}".\n\n` +
+      `This action will also delete:\n` +
+      `• All ${lessons.length} lesson(s)\n` +
+      `• All ${quizzes.length} quiz(zes)\n` +
+      `• All student enrollments (${course?.enrolled_count} students)\n` +
+      `• All progress data\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Are you absolutely sure you want to delete this course?`
+    )
+    
+    if (!confirmed) return
+
+    // Double confirmation for safety
+    const doubleConfirm = confirm(
+      `Final confirmation: Type the course title to confirm deletion.\n\n` +
+      `Are you really sure you want to delete "${course?.title}"?`
+    )
+    
+    if (!doubleConfirm) return
+
+    try {
+      await djangoApi.delete(`/api/courses/${courseId}/`)
+      alert('Course deleted successfully')
+      router.push('/instructor')
+    } catch (error: any) {
+      alert(error?.message || 'Failed to delete course')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -200,6 +231,13 @@ export default function InstructorCoursePage() {
               >
                 <Users className="h-4 w-4 mr-2" />
                 View Students
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteCourse}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Course
               </Button>
             </div>
           </div>

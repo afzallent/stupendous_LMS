@@ -87,8 +87,18 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
         })
         
         // Map lesson data
+        console.log('Raw lesson data:', lessonData)
+        console.log('video_url field:', lessonData.video_url)
+        console.log('video_file field:', lessonData.video_file)
+        
         let videoUrl = lessonData.video_url || lessonData.video_file || ''
-        const isYouTube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')
+        
+        // Trim whitespace
+        if (videoUrl) {
+          videoUrl = videoUrl.trim()
+        }
+        
+        const isYouTube = videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))
         
         // Convert YouTube watch URL to embed URL
         if (isYouTube && videoUrl) {
@@ -104,6 +114,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
         console.log('Original URL:', lessonData.video_url)
         console.log('Processed Video URL:', videoUrl)
         console.log('Is YouTube:', isYouTube)
+        console.log('Video URL exists:', !!videoUrl)
         
         setCurrentLesson({
           id: lessonData.id,
