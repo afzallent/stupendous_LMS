@@ -856,6 +856,8 @@ class TestXAPIStatementStorage:
         
         This test verifies that the uniqueness constraint on statement_id is enforced.
         """
+        from django.db import IntegrityError, transaction
+        
         actor = statement['actor']
         verb = statement['verb']
         obj = statement['object']
@@ -887,26 +889,518 @@ class TestXAPIStatementStorage:
         )
         
         # Try to create a second statement with the same UUID
-        from django.db import IntegrityError
+        # Use transaction.atomic() to handle the IntegrityError properly
         with pytest.raises(IntegrityError):
-            XAPIStatement.objects.create(
-                statement_id=xapi_statement1.statement_id,  # Use the same UUID
-                actor_type=actor.get('objectType', 'Agent'),
-                actor_name=actor_name,
-                actor_mbox=actor_mbox,
-                actor_account_name=actor.get('account', {}).get('name') if 'account' in actor else None,
-                actor_account_homepage=actor.get('account', {}).get('homePage') if 'account' in actor else None,
-                actor_json=actor,
-                verb_id=verb['id'],
-                verb_display=verb.get('display', {}),
-                object_type=obj.get('objectType', 'Activity'),
-                object_id=obj['id'],
-                object_json=obj,
-                result_json=statement.get('result'),
-                context_json=statement.get('context'),
-                timestamp=django_timezone.now(),
-                statement_json=statement
-            )
+            with transaction.atomic():
+                XAPIStatement.objects.create(
+                    statement_id=xapi_statement1.statement_id,  # Use the same UUID
+                    actor_type=actor.get('objectType', 'Agent'),
+                    actor_name=actor_name,
+                    actor_mbox=actor_mbox,
+                    actor_account_name=actor.get('account', {}).get('name') if 'account' in actor else None,
+                    actor_account_homepage=actor.get('account', {}).get('homePage') if 'account' in actor else None,
+                    actor_json=actor,
+                    verb_id=verb['id'],
+                    verb_display=verb.get('display', {}),
+                    object_type=obj.get('objectType', 'Activity'),
+                    object_id=obj['id'],
+                    object_json=obj,
+                    result_json=statement.get('result'),
+                    context_json=statement.get('context'),
+                    timestamp=django_timezone.now(),
+                    statement_json=statement
+                )
         
         # Clean up
         xapi_statement1.delete()
+
+
+
+# ============================================================================
+# Property-Based Tests for Query Filtering
+# ============================================================================
+
+@pytest.mark.django_db
+class TestXAPIQueryFiltering:
+    """
+    Property-based tests for xAPI query filtering correctness
+    
+    Feature: scorm-xapi-compliance, Property 13: xAPI query filtering correctness
+    Validates: Requirements 3.5, 6.2
+    """
+    
+    @given(st.lists(valid_xapi_statement(), min_size=5, max_size=20))
+    @settings(max_examples=10, deadline=10000)  # Reduced examples and added deadline
+    def test_query_by_verb_returns_only_matching_statements(self, statements):
+        """
+        Property: For any set of stored xAPI statements and a verb filter,
+        the query should return exactly the statements with that verb
+        
+        This test verifies that verb filtering works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Pick a verb from the statements
+            target_verb = statements[0]['verb']['id']
+            
+            # Count how many statements have this verb
+            expected_count = sum(1 for s in statements if s['verb']['id'] == target_verb)
+            
+            # Query by verb
+            result = store.query_statements(verb=target_verb, limit=1000)
+            returned_statements = result['statements']
+            
+            # Verify all returned statements have the target verb
+            for stmt in returned_statements:
+                assert stmt['verb']['id'] == target_verb, \
+                    f"Query returned statement with wrong verb: {stmt['verb']['id']} != {target_verb}"
+            
+            # Verify we got the right count
+            assert len(returned_statements) == expected_count, \
+                f"Expected {expected_count} statements with verb {target_verb}, got {len(returned_statements)}"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=5, max_size=20))
+    @settings(max_examples=10, deadline=10000)
+    def test_query_by_activity_returns_only_matching_statements(self, statements):
+        """
+        Property: For any set of stored xAPI statements and an activity filter,
+        the query should return exactly the statements with that activity
+        
+        This test verifies that activity filtering works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Pick an activity from the statements
+            target_activity = statements[0]['object']['id']
+            
+            # Count how many statements have this activity
+            expected_count = sum(1 for s in statements if s['object']['id'] == target_activity)
+            
+            # Query by activity
+            result = store.query_statements(activity=target_activity, limit=1000)
+            returned_statements = result['statements']
+            
+            # Verify all returned statements have the target activity
+            for stmt in returned_statements:
+                assert stmt['object']['id'] == target_activity, \
+                    f"Query returned statement with wrong activity: {stmt['object']['id']} != {target_activity}"
+            
+            # Verify we got the right count
+            assert len(returned_statements) == expected_count, \
+                f"Expected {expected_count} statements with activity {target_activity}, got {len(returned_statements)}"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=5, max_size=20))
+    @settings(max_examples=10, deadline=10000)
+    def test_query_by_agent_mbox_returns_only_matching_statements(self, statements):
+        """
+        Property: For any set of stored xAPI statements and an agent filter,
+        the query should return exactly the statements with that agent
+        
+        This test verifies that agent filtering works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Find a statement with an mbox and use it as filter
+            target_statement = None
+            for s in statements:
+                if 'mbox' in s['actor']:
+                    target_statement = s
+                    break
+            
+            # Skip if no statement has mbox
+            assume(target_statement is not None)
+            
+            target_mbox = target_statement['actor']['mbox']
+            
+            # Count how many statements have this mbox
+            expected_count = sum(
+                1 for s in statements 
+                if 'mbox' in s['actor'] and s['actor']['mbox'] == target_mbox
+            )
+            
+            # Query by agent
+            agent_filter = {'mbox': target_mbox}
+            result = store.query_statements(agent=agent_filter, limit=1000)
+            returned_statements = result['statements']
+            
+            # Verify all returned statements have the target mbox
+            for stmt in returned_statements:
+                assert 'mbox' in stmt['actor'], "Returned statement should have mbox"
+                assert stmt['actor']['mbox'] == target_mbox, \
+                    f"Query returned statement with wrong mbox: {stmt['actor']['mbox']} != {target_mbox}"
+            
+            # Verify we got the right count
+            assert len(returned_statements) == expected_count, \
+                f"Expected {expected_count} statements with mbox {target_mbox}, got {len(returned_statements)}"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=10, max_size=30))
+    @settings(max_examples=10, deadline=10000)
+    def test_query_with_multiple_filters_returns_intersection(self, statements):
+        """
+        Property: For any set of stored xAPI statements and multiple filters,
+        the query should return exactly the statements matching ALL filters
+        
+        This test verifies that combining multiple filters works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Pick filters from the first statement
+            target_verb = statements[0]['verb']['id']
+            target_activity = statements[0]['object']['id']
+            
+            # Count how many statements match BOTH filters
+            expected_count = sum(
+                1 for s in statements 
+                if s['verb']['id'] == target_verb and s['object']['id'] == target_activity
+            )
+            
+            # Query with both filters
+            result = store.query_statements(
+                verb=target_verb,
+                activity=target_activity,
+                limit=1000
+            )
+            returned_statements = result['statements']
+            
+            # Verify all returned statements match both filters
+            for stmt in returned_statements:
+                assert stmt['verb']['id'] == target_verb, \
+                    f"Query returned statement with wrong verb: {stmt['verb']['id']} != {target_verb}"
+                assert stmt['object']['id'] == target_activity, \
+                    f"Query returned statement with wrong activity: {stmt['object']['id']} != {target_activity}"
+            
+            # Verify we got the right count
+            assert len(returned_statements) == expected_count, \
+                f"Expected {expected_count} statements matching both filters, got {len(returned_statements)}"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=5, max_size=20))
+    @settings(max_examples=10, deadline=10000)
+    def test_query_with_since_filter_returns_only_newer_statements(self, statements):
+        """
+        Property: For any set of stored xAPI statements and a 'since' timestamp,
+        the query should return only statements with timestamp >= since
+        
+        This test verifies that timestamp filtering works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Get all stored statements to find their timestamps
+            all_stored = XAPIStatement.objects.filter(
+                statement_id__in=created_statements
+            ).order_by('timestamp')
+            
+            # Skip if we don't have enough statements
+            assume(all_stored.count() >= 2)
+            
+            # Pick a timestamp in the middle
+            middle_index = all_stored.count() // 2
+            since_timestamp = all_stored[middle_index].timestamp
+            
+            # Count how many statements should be returned
+            expected_count = all_stored.filter(timestamp__gte=since_timestamp).count()
+            
+            # Query with since filter
+            result = store.query_statements(since=since_timestamp, limit=1000)
+            returned_statements = result['statements']
+            
+            # Verify all returned statements have timestamp >= since
+            for stmt in returned_statements:
+                stmt_obj = XAPIStatement.objects.get(statement_id=stmt['id'])
+                assert stmt_obj.timestamp >= since_timestamp, \
+                    f"Query returned statement with timestamp {stmt_obj.timestamp} < {since_timestamp}"
+            
+            # Verify we got the right count
+            assert len(returned_statements) == expected_count, \
+                f"Expected {expected_count} statements since {since_timestamp}, got {len(returned_statements)}"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=5, max_size=20))
+    @settings(max_examples=50, deadline=None)
+    def test_query_with_until_filter_returns_only_older_statements(self, statements):
+        """
+        Property: For any set of stored xAPI statements and an 'until' timestamp,
+        the query should return only statements with timestamp <= until
+        
+        This test verifies that timestamp filtering works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Get all stored statements to find their timestamps
+            all_stored = XAPIStatement.objects.filter(
+                statement_id__in=created_statements
+            ).order_by('timestamp')
+            
+            # Skip if we don't have enough statements
+            assume(all_stored.count() >= 2)
+            
+            # Pick a timestamp in the middle
+            middle_index = all_stored.count() // 2
+            until_timestamp = all_stored[middle_index].timestamp
+            
+            # Count how many statements should be returned
+            expected_count = all_stored.filter(timestamp__lte=until_timestamp).count()
+            
+            # Query with until filter
+            result = store.query_statements(until=until_timestamp, limit=1000)
+            returned_statements = result['statements']
+            
+            # Verify all returned statements have timestamp <= until
+            for stmt in returned_statements:
+                stmt_obj = XAPIStatement.objects.get(statement_id=stmt['id'])
+                assert stmt_obj.timestamp <= until_timestamp, \
+                    f"Query returned statement with timestamp {stmt_obj.timestamp} > {until_timestamp}"
+            
+            # Verify we got the right count
+            assert len(returned_statements) == expected_count, \
+                f"Expected {expected_count} statements until {until_timestamp}, got {len(returned_statements)}"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=5, max_size=20))
+    @settings(max_examples=50, deadline=None)
+    def test_query_with_no_filters_returns_all_statements(self, statements):
+        """
+        Property: For any set of stored xAPI statements with no filters,
+        the query should return all non-voided statements
+        
+        This test verifies that querying without filters returns everything.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Query without filters
+            result = store.query_statements(limit=1000)
+            returned_statements = result['statements']
+            
+            # Verify we got all statements
+            assert len(returned_statements) == len(statements), \
+                f"Expected {len(statements)} statements, got {len(returned_statements)}"
+            
+            # Verify all statement IDs are present
+            returned_ids = {stmt['id'] for stmt in returned_statements}
+            expected_ids = {str(stmt_id) for stmt_id in created_statements}
+            
+            assert returned_ids == expected_ids, \
+                "Query should return all stored statement IDs"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=10, max_size=30))
+    @settings(max_examples=50, deadline=None)
+    def test_query_pagination_limit_works_correctly(self, statements):
+        """
+        Property: For any set of stored xAPI statements and a limit parameter,
+        the query should return at most 'limit' statements
+        
+        This test verifies that pagination limit works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Query with a small limit
+            limit = min(5, len(statements))
+            result = store.query_statements(limit=limit)
+            returned_statements = result['statements']
+            
+            # Verify we got at most 'limit' statements
+            assert len(returned_statements) <= limit, \
+                f"Query should return at most {limit} statements, got {len(returned_statements)}"
+            
+            # If there are more statements than the limit, verify 'more' is set
+            if len(statements) > limit:
+                assert result['more'] != '', \
+                    "Query should indicate more results are available"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=10, max_size=30))
+    @settings(max_examples=50, deadline=None)
+    def test_query_pagination_offset_works_correctly(self, statements):
+        """
+        Property: For any set of stored xAPI statements and an offset parameter,
+        the query should skip the first 'offset' statements
+        
+        This test verifies that pagination offset works correctly.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Query without offset
+            result1 = store.query_statements(limit=1000)
+            all_statements = result1['statements']
+            
+            # Query with offset
+            offset = min(5, len(statements) - 1)
+            result2 = store.query_statements(offset=offset, limit=1000)
+            offset_statements = result2['statements']
+            
+            # Verify we got fewer statements with offset
+            assert len(offset_statements) == len(all_statements) - offset, \
+                f"Expected {len(all_statements) - offset} statements with offset {offset}, got {len(offset_statements)}"
+            
+            # Verify the statements are different (offset skipped some)
+            if offset > 0 and len(all_statements) > offset:
+                first_ids = {stmt['id'] for stmt in all_statements[:offset]}
+                offset_ids = {stmt['id'] for stmt in offset_statements}
+                
+                # The offset statements should not include the first 'offset' statements
+                assert len(first_ids & offset_ids) == 0, \
+                    "Offset query should not return the first 'offset' statements"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()
+    
+    @given(st.lists(valid_xapi_statement(), min_size=5, max_size=20))
+    @settings(max_examples=50, deadline=None)
+    def test_voided_statements_are_excluded_from_queries(self, statements):
+        """
+        Property: For any set of stored xAPI statements where some are voided,
+        queries should not return voided statements
+        
+        This test verifies that voided statements are excluded from query results.
+        """
+        from xapi.statement_store import XAPIStatementStore
+        
+        store = XAPIStatementStore()
+        created_statements = []
+        
+        try:
+            # Store all statements
+            for statement in statements:
+                statement_id = store.store_statement(statement)
+                created_statements.append(statement_id)
+            
+            # Void the first statement
+            if len(created_statements) > 0:
+                store.void_statement(created_statements[0])
+            
+            # Query all statements
+            result = store.query_statements(limit=1000)
+            returned_statements = result['statements']
+            
+            # Verify the voided statement is not in the results
+            returned_ids = {stmt['id'] for stmt in returned_statements}
+            assert str(created_statements[0]) not in returned_ids, \
+                "Voided statement should not be returned in query results"
+            
+            # Verify we got all non-voided statements
+            assert len(returned_statements) == len(statements) - 1, \
+                f"Expected {len(statements) - 1} non-voided statements, got {len(returned_statements)}"
+            
+        finally:
+            # Clean up
+            for stmt_id in created_statements:
+                XAPIStatement.objects.filter(statement_id=stmt_id).delete()

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework.authtoken",  # For xAPI token authentication
     "rest_framework_simplejwt",
     "corsheaders",
     "drf_spectacular",

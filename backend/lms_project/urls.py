@@ -24,6 +24,9 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 urlpatterns = [
     path("admin/", admin.site.urls),
     
+    # xAPI LRS endpoints (per xAPI specification - no /api/ prefix)
+    path("xapi/", include("xapi.urls")),
+    
     # API endpoints (all under /api/ prefix)
     path("api/", include("core.api_urls")),
     path("api/", include("courses.api_urls")),
@@ -32,6 +35,7 @@ urlpatterns = [
     path("api/", include("files.urls")),
     path("api/activity/", include("activity.api_urls")),
     path("api/", include("discussions.api_urls")),
+    path("api/scorm/", include("scorm.urls")),
     
     # Legacy template views (for backward compatibility)
     path("", include("core.urls")),

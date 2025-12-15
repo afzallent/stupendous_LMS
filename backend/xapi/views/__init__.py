@@ -1,2 +1,4 @@
 # xAPI views package
-# Views will be imported here as they are created
+from xapi.views.statements import StatementsView
+
+__all__ = ['StatementsView']

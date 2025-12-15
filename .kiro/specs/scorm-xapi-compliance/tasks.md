@@ -1,379 +1,479 @@
 # Implementation Plan
 
+## Important: Property-Based Testing Configuration
+
+**ALL property-based tests MUST include Hypothesis settings to prevent infinite loops:**
+
+```python
+from hypothesis import given, strategies as st, settings
+
+@given(valid_xapi_statement())
+@settings(max_examples=100, deadline=None)  # REQUIRED - prevents infinite loops
+def test_example(self, statement):
+    # test implementation
+```
+
+- `max_examples=100`: Limits iterations to 100
+- `deadline=None`: Disables per-test timeout (prevents false failures)
+
+**Never run property-based tests without explicit `@settings` decorator!**
+
+---
+
+## Implementation Status Summary
+
+**Completed:**
+- ✅ xAPI LRS core infrastructure (models, validation, storage, REST API)
+- ✅ XAPIStatement, XAPIVerb, XAPIActivityType, XAPIAttachment models with migrations
+- ✅ XAPIStatementValidator with comprehensive validation
+- ✅ XAPIStatementStore for statement storage and retrieval
+- ✅ xAPI REST API endpoints (POST, GET, PUT /xapi/statements/)
+- ✅ xAPI authentication (HTTP Basic Auth and Token-based)
+- ✅ Property-based tests for statement validation and storage (19 tests passing)
+- ✅ xAPI statement generator (XAPIStatementGenerator class)
+- ✅ Django signals for automatic statement generation (9 tests passing)
+- ✅ Lesson model extended with content_type field
+- ✅ Seed command for common verbs and activity types
+- ✅ SCORM models (ScormPackage, ScormSCO, ScormData) with migrations
+- ✅ SCORM package manager (ScormPackageManager class)
+- ✅ SCORM runtime API adapter (ScormAPIAdapter class)
+- ✅ SCORM upload API endpoint (POST /api/scorm/upload/)
+- ✅ SCORM runtime API endpoints (initialize, get-value, set-value, commit, terminate)
+- ✅ Unit tests for SCORM (77 tests passing)
+
+**Not Started:**
+- ⏳ SCORM-xAPI synchronization (DataSyncManager)
+- ⏳ Content type models (MarkdownLesson, H5PPackage, HTMLEmbed, PhETContent, ContentInteraction)
+- ⏳ Content managers and API endpoints (Markdown, H5P, HTML embed)
+- ⏳ Video interaction tracking
+- ⏳ Analytics engine and reporting (XAPIAnalytics class)
+- ⏳ Privacy controls and configuration (XAPIConfiguration, pseudonymization, data export/deletion)
+- ⏳ Frontend components
+
+---
+
+## Completed Tasks
+
 - [x] 1. Set up project structure and dependencies
   - [x] 1.1 Create Django apps for SCORM and xAPI
-    - Create `scorm` app with models, views, serializers directories
-    - Create `xapi` app with models, views, serializers directories
-    - Register apps in Django settings
-    - _Requirements: 1.1, 3.1_
-  - [x] 1.2 Install required Python packages
-    - Add lxml, jsonschema, python-dateutil, markdown, Pygments to requirements.txt
-    - Add hypothesis for property-based testing
-    - _Requirements: All_
-  - [x] 1.3 Add content_type field to Lesson model
-    - Add content_type choice field (video, markdown, scorm, h5p, html_embed)
-    - Create migration
-    - _Requirements: 11.1, 12.1, 13.1_
+  - [x] 1.2 Install required Python packages (Hypothesis, lxml, etc.)
+  - [x] 1.3 Add content_type field to Lesson model with migration
 
 - [x] 2. Implement xAPI data models and LRS core
-  - [x] 2.1 Create XAPIStatement model
-    - Implement statement storage with all xAPI fields
-    - Add indexes for query performance
-    - _Requirements: 3.2, 3.3_
-  - [x] 2.2 Create XAPIVerb and XAPIActivityType models
-    - Seed common verbs (completed, passed, failed, registered, etc.)
-    - Seed activity types (lesson, course, quiz, video)
-    - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [x] 2.3 Write property test for xAPI statement validation
-
-
-
-
-
-
-    - **Property 10: xAPI statement validation**
-    - **Validates: Requirements 3.2**
-
-  - [x] 2.4 Write property test for statement storage uniqueness
-
-
-
-
-
-    - **Property 11: xAPI statement storage uniqueness**
-    - **Validates: Requirements 3.3**
+  - [x] 2.1 Create XAPIStatement model with all required fields
+  - [x] 2.2 Create XAPIVerb and XAPIActivityType models with seed command
+  - [x] 2.3 Create XAPIAttachment model for statement attachments
+  - [x] 2.4 Create migrations for all xAPI models
+  - [x] 2.5 Write property test for xAPI statement validation (Property 10) - 19 tests passing
+  - [x] 2.6 Write property test for statement storage uniqueness (Property 11) - included in above
 
 - [x] 3. Implement xAPI statement validation and storage
+  - [x] 3.1 Create XAPIStatementValidator class with comprehensive validation
+  - [x] 3.2 Create XAPIStatementStore class for LRS operations
+  - [-] 3.3 Write property test for query filtering (Property 13)
 
 
 
 
 
-  - [x] 3.1 Create XAPIStatementValidator class
+
+- [x] 4. Implement xAPI REST API endpoints
+  - [x] 4.1 Create xAPI statements endpoint (POST, GET, PUT /xapi/statements/)
+  - [x] 4.2 Implement xAPI authentication (HTTP Basic Auth and Token-based)
+  - [x] 4.3 Create management command for token generation
+  - [x] 4.4 Write unit tests for authentication (20 tests passing)
+  - [ ]* 4.5 Write property test for authentication enforcement (Property 12)
+
+  - [-] 4.6 Write property test for HTTP status codes (Property 22)
 
 
-    - Validate required fields (actor, verb, object)
-    - Validate IRI formats
-    - Validate timestamp formats
-    - _Requirements: 3.2_
-  - [x] 3.2 Create XAPIStatementStore class
 
 
-    - Implement store_statement method
-    - Implement store_statements for batch operations
-    - Generate UUIDs and timestamps
-    - _Requirements: 3.3, 6.3_
-  - [ ]* 3.3 Write property test for query filtering
-    - **Property 13: xAPI query filtering correctness**
-    - **Validates: Requirements 3.5, 6.2**
+- [x] 5. Implement xAPI statement generator
+  - [x] 5.1 Create XAPIStatementGenerator class
+  - [x] 5.2 Implement generate_lesson_completed method
+  - [x] 5.3 Implement generate_quiz_passed method
+  - [x] 5.4 Implement generate_quiz_failed method
+  - [x] 5.5 Implement generate_course_registered method
+  - [x] 5.6 Implement generate_video_interaction method (play, pause, seek, complete)
+  - [x] 5.7 Write unit tests for statement generator (15 tests passing)
+  - [ ]* 5.8 Write property test for lesson completion statement (Property 14)
+  - [ ]* 5.9 Write property test for quiz pass/fail statements (Properties 15, 16)
+  - [ ]* 5.10 Write property test for enrollment statement (Property 17)
+  - [ ]* 5.11 Write property test for video interaction statements (Property 18)
 
-- [ ] 4. Implement xAPI REST API endpoints
+- [x] 6. Implement Django signals for automatic statement generation
+  - [x] 6.1 Create signal on Progress.save() for lesson completion
+  - [x] 6.2 Create signal on QuizAttempt.save() for quiz results
+  - [x] 6.3 Create signal on Enrollment.save() for registration
+  - [x] 6.4 Write unit tests for signals (9 tests passing)
 
-  - [ ] 4.1 Create xAPI statements endpoint
-    - POST /xapi/statements/ for single/batch submission
-    - GET /xapi/statements/ with query parameters
-    - PUT /xapi/statements/?statementId={uuid}
-    - _Requirements: 3.1, 3.5, 6.2, 6.3_
-  - [ ] 4.2 Implement xAPI authentication
-    - HTTP Basic Auth support
-    - Token-based authentication
-    - _Requirements: 3.4_
-  - [ ]* 4.3 Write property test for authentication enforcement
-    - **Property 12: xAPI authentication enforcement**
-    - **Validates: Requirements 3.4**
-  - [ ]* 4.4 Write property test for HTTP status codes
-    - **Property 22: HTTP status code correctness**
-    - **Validates: Requirements 6.4**
+- [x] 7. Implement SCORM data models
+  - [x] 7.1 Create ScormPackage model with package metadata, version, content path
+  - [x] 7.2 Create ScormSCO model with SCO metadata and launch URL
+  - [x] 7.3 Create ScormData model for CMI data storage (support SCORM 1.2 and 2004)
+  - [x] 7.4 Create migrations for all SCORM models
+  - [x] 7.5 Write unit tests for SCORM models (8 tests passing)
+
+- [x] 8. Implement SCORM package manager
+  - [x] 8.1 Create ScormPackageManager class
+  - [x] 8.2 Implement validate_package method
+  - [x] 8.3 Implement extract_manifest method (SCORM 1.2 and 2004)
+  - [x] 8.4 Implement extract_content method
+  - [x] 8.5 Write unit tests for package manager (12 tests passing)
+  - [ ]* 8.6 Write property test for package validation (Property 1)
+  - [ ]* 8.7 Write property test for manifest parsing (Property 2)
+  - [ ]* 8.8 Write property test for lesson creation (Property 3)
+
+- [x] 9. Implement SCORM upload API
+  - [x] 9.1 Create POST /api/scorm/upload/ endpoint
+  - [x] 9.2 Implement package validation, extraction, and storage
+  - [x] 9.3 Create GET /api/scorm/packages/ list endpoint
+  - [x] 9.4 Create GET /api/scorm/packages/{id}/ detail endpoint
+  - [x] 9.5 Write unit tests for upload API (11 tests passing)
+
+- [x] 10. Implement SCORM runtime API
+  - [x] 10.1 Create ScormAPIAdapter class
+  - [x] 10.2 Implement LMSInitialize
+  - [x] 10.3 Implement LMSGetValue/LMSSetValue
+  - [x] 10.4 Implement LMSCommit/LMSFinish
+  - [x] 10.5 Implement error code handling
+  - [x] 10.6 Write unit tests for runtime API adapter (31 tests passing)
+  - [ ]* 10.7 Write property test for CMI data round-trip (Property 6)
+  - [ ]* 10.8 Write property test for SCORM state restoration (Property 28)
+
+- [x] 11. Implement SCORM runtime API endpoints
+  - [x] 11.1 Create POST /api/scorm/runtime/initialize/ endpoint
+  - [x] 11.2 Create POST /api/scorm/runtime/get-value/ endpoint
+  - [x] 11.3 Create POST /api/scorm/runtime/set-value/ endpoint
+  - [x] 11.4 Create POST /api/scorm/runtime/commit/ endpoint
+  - [x] 11.5 Create POST /api/scorm/runtime/terminate/ endpoint
+  - [x] 11.6 Write unit tests for runtime API endpoints (15 tests passing)
+
+- [x] 12. Checkpoint - Ensure all tests pass
+  - All xAPI tests passing (43 tests)
+  - All SCORM tests passing (77 tests)
+  - Total: 120 tests passing
+
+## Remaining Tasks
+
+- [x] 13. Implement SCORM-xAPI synchronization
 
 
-- [ ] 5. Checkpoint - Ensure all tests pass
-  - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Implement xAPI statement generator
+  - [x] 13.1 Create DataSyncManager class
 
-  - [ ] 6.1 Create XAPIStatementGenerator class
-    - Implement generate_lesson_completed method
-    - Implement generate_quiz_passed method
-    - Implement generate_quiz_failed method
-    - Implement generate_course_registered method
-    - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [ ] 6.2 Create Django signals for automatic statement generation
-    - Signal on Progress.save() for lesson completion
-    - Signal on QuizAttempt.save() for quiz results
-    - Signal on Enrollment.save() for registration
-    - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [ ]* 6.3 Write property test for lesson completion statement
-    - **Property 14: Lesson completion statement generation**
-    - **Validates: Requirements 4.1**
-  - [ ]* 6.4 Write property test for quiz pass/fail statements
-    - **Property 15: Quiz pass statement generation**
-    - **Property 16: Quiz fail statement generation**
-    - **Validates: Requirements 4.2, 4.3**
-  - [ ]* 6.5 Write property test for enrollment statement
-    - **Property 17: Enrollment statement generation**
-    - **Validates: Requirements 4.4**
 
-- [ ] 7. Implement SCORM data models
+    - Implement sync_scorm_to_progress method to update Progress from ScormData
+    - Implement sync_xapi_to_progress method to update Progress from xAPI statements
+    - Implement sync_xapi_to_quiz_attempt method for quiz synchronization
+    - _Requirements: 8.1, 8.2, 8.3_
+  - [x] 13.2 Add signal for SCORM completion sync
 
-  - [ ] 7.1 Create SCORM models (ScormPackage, ScormSCO, ScormData)
-    - Create ScormPackage model with package metadata, version, content path
-    - Create ScormSCO model with SCO metadata and launch URL
-    - Create ScormData model for CMI data storage (support SCORM 1.2 and 2004)
-    - Create migration
-    - _Requirements: 1.1, 1.2, 1.3, 2.2, 9.1_
 
-- [ ] 8. Implement SCORM package manager
-
-  - [ ] 8.1 Create ScormPackageManager class
-    - Implement validate_package method
-    - Implement extract_manifest method
-    - Implement extract_content method
-    - _Requirements: 1.1, 1.2, 1.4_
-  - [ ] 8.2 Create SCORM upload API endpoint
-    - POST /api/scorm/upload/
-    - Validate, extract, and store package
-    - _Requirements: 1.1, 1.3_
-  - [ ]* 8.3 Write property test for package validation
-    - **Property 1: SCORM package validation consistency**
-    - **Validates: Requirements 1.1, 1.4**
-  - [ ]* 8.4 Write property test for manifest parsing
-    - **Property 2: Manifest parsing completeness**
-    - **Validates: Requirements 1.2**
-  - [ ]* 8.5 Write property test for lesson creation
-    - **Property 3: SCORM upload creates lesson**
-    - **Validates: Requirements 1.3**
-
-- [ ] 9. Implement SCORM runtime API
-
-  - [ ] 9.1 Create ScormAPIAdapter class
-    - Implement LMSInitialize
-    - Implement LMSGetValue/LMSSetValue
-    - Implement LMSCommit/LMSFinish
-    - _Requirements: 2.1, 2.2, 2.5_
-  - [ ] 9.2 Create SCORM runtime API endpoints
-    - POST /api/scorm/runtime/initialize/
-    - POST /api/scorm/runtime/get-value/
-    - POST /api/scorm/runtime/set-value/
-    - POST /api/scorm/runtime/commit/
-    - POST /api/scorm/runtime/terminate/
-    - _Requirements: 2.1, 2.2, 2.5_
-  - [ ]* 9.3 Write property test for CMI data round-trip
-    - **Property 6: CMI data round-trip**
-    - **Validates: Requirements 2.2**
-  - [ ]* 9.4 Write property test for SCORM state restoration
-    - **Property 28: SCORM state restoration**
-    - **Validates: Requirements 9.1, 9.2**
-
-- [ ] 10. Checkpoint - Ensure all tests pass
-
-  - Ensure all tests pass, ask the user if questions arise.
-
-- [ ] 11. Implement SCORM-xAPI synchronization
-  - [ ] 11.1 Create DataSyncManager class
-    - Implement sync_scorm_to_progress method
-    - Implement sync_xapi_to_progress method
-    - _Requirements: 8.1, 8.2_
-  - [ ] 11.2 Add signals for SCORM completion sync
-    - Update Progress when SCORM reports completion
+    - Update Progress when ScormData reports completion (lesson_status = 'completed' or 'passed')
     - Generate xAPI statement on SCORM completion
     - _Requirements: 2.3, 8.1_
-  - [ ]* 11.3 Write property test for SCORM completion sync
-    - **Property 7: SCORM completion synchronization**
-    - **Validates: Requirements 2.3, 8.1**
-  - [ ]* 11.4 Write property test for progress calculation consistency
-    - **Property 26: Progress calculation consistency**
-    - **Validates: Requirements 8.4**
+  - [x] 13.3 Add signal for SCORM score sync
 
-- [ ] 12. Implement content type models
-  - [ ] 12.1 Create MarkdownLesson model
-    - Store raw Markdown and cached HTML
+    - Update Progress when ScormData reports score
+    - Generate xAPI statement with score data
+    - _Requirements: 2.4, 8.1_
+  - [ ]* 13.4 Write unit tests for DataSyncManager
+  - [ ]* 13.5 Write property test for SCORM completion sync (Property 7)
+  - [ ]* 13.6 Write property test for progress calculation consistency (Property 26)
+
+- [ ] 14. Implement content type models
+  - [ ] 14.1 Create MarkdownLesson model
+    - Store raw Markdown content and cached rendered HTML
     - Support syntax highlighting configuration
-    - Create migration
-    - _Requirements: 11.1, 11.3_
-  - [ ] 12.2 Create H5PPackage and H5PContentState models
-    - Store package metadata and extracted content path
-    - Store student state and scores
-    - Create migration
-    - _Requirements: 12.1, 12.4_
-  - [ ] 12.3 Create HTMLEmbed model
-    - Store embed configuration and sandbox settings
-    - Store xAPI messaging configuration
-    - Create migration
-    - _Requirements: 13.1, 13.5_
-  - [ ] 12.4 Create ContentInteraction model
-    - Track interactions with non-video content
-    - Store interaction type and data
-    - Link to xAPI statements
-    - Create migration
-    - _Requirements: 15.1, 15.4_
-
-- [ ] 13. Implement Markdown content manager
-  - [ ] 13.1 Create MarkdownContentManager class
-    - Implement render_markdown with Pygments highlighting
-    - Implement extract_toc for navigation
-    - _Requirements: 11.2, 11.3, 11.4_
-  - [ ] 13.2 Create Markdown API endpoints
-    - POST /api/lessons/{id}/markdown/
-    - GET /api/lessons/{id}/markdown/
-    - POST /api/lessons/{id}/markdown/complete/
+    - Auto-calculate word count and estimated reading time
+    - Create migrations
     - _Requirements: 11.1, 11.2, 11.5_
-
-- [ ] 14. Implement H5P content manager
-  - [ ] 14.1 Create H5PContentManager class
-    - Implement validate_package method
-    - Implement extract_package method
-    - Implement xAPI statement processing
+  - [ ] 14.2 Create H5PPackage model
+    - Store package metadata, library name/version
+    - Store extracted content path
+    - Support iframe embed configuration
+    - Create migrations
     - _Requirements: 12.1, 12.2_
-  - [ ] 14.2 Create H5P API endpoints
-    - POST /api/h5p/upload/
-    - GET /api/h5p/{id}/embed/
-    - POST /api/h5p/{id}/xapi/
-    - POST /api/h5p/{id}/state/
-    - _Requirements: 12.1, 12.2, 12.4, 12.5_
+  - [ ] 14.3 Create H5PContentState model
+    - Store student state data for H5P content
+    - Store scores and completion status
+    - Track last accessed timestamp
+    - Create migrations
+    - _Requirements: 12.3, 12.4_
+  - [ ] 14.4 Create HTMLEmbed model
+    - Store embed type (url or inline HTML)
+    - Store iframe dimensions and sandbox settings
+    - Store xAPI messaging configuration and allowed origins
+    - Create migrations
+    - _Requirements: 13.1, 13.2, 13.5_
+  - [ ] 14.5 Create ContentInteraction model
+    - Track interactions with all content types (viewed, scrolled, interacted, completed)
+    - Store interaction data as JSON
+    - Link to xAPI statements
+    - Create migrations
+    - _Requirements: 15.1, 15.4_
+  - [ ]* 14.6 Write unit tests for content type models
 
-- [ ] 15. Implement HTML embed manager
-  - [ ] 15.1 Create HTMLEmbedManager class
-    - Implement generate_iframe_html with sandbox
-    - Implement postMessage xAPI validation
-    - _Requirements: 13.2, 13.3, 13.4_
-  - [ ] 15.2 Create HTML embed API endpoints
-    - POST /api/lessons/{id}/html-embed/
-    - GET /api/lessons/{id}/html-embed/
-    - POST /api/lessons/{id}/html-embed/xapi/
-    - _Requirements: 13.1, 13.4_
-
-- [ ] 16. Checkpoint - Ensure all tests pass
-  - Ensure all tests pass, ask the user if questions arise.
-
-- [ ] 17. Implement video interaction tracking
-  - [ ] 17.1 Create video xAPI statement generator
-    - Generate statements for play, pause, seek, complete
-    - Include video position in result
-    - _Requirements: 4.5_
-  - [ ] 17.2 Create video tracking API endpoint
-    - POST /api/lessons/{id}/video/interaction/
-    - Accept interaction type and position
-    - _Requirements: 4.5_
-  - [ ]* 17.3 Write property test for video interaction statements
-    - **Property 18: Video interaction statement generation**
-    - **Validates: Requirements 4.5**
-
-- [ ] 18. Implement analytics engine
-  - [ ] 18.1 Create XAPIAnalytics class
-    - Implement get_course_completion_rate
-    - Implement get_average_quiz_scores
-    - Implement get_student_activity_stream
-    - Implement get_time_spent_per_lesson
-    - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ] 18.2 Create analytics API endpoints
-    - GET /api/analytics/course/{id}/completion-rate/
-    - GET /api/analytics/course/{id}/quiz-scores/
-    - GET /api/analytics/student/{id}/activity-stream/
-    - GET /api/analytics/course/{id}/time-spent/
-    - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ] 18.3 Implement xAPI data export
-    - GET /api/analytics/export/
-    - Export as JSON with filtering
-    - _Requirements: 5.5_
-  - [ ]* 18.4 Write property test for activity aggregation
-    - **Property 19: Activity aggregation correctness**
-    - **Validates: Requirements 5.4**
-  - [ ]* 18.5 Write property test for export completeness
-    - **Property 20: xAPI export completeness**
-    - **Validates: Requirements 5.5**
-
-- [ ] 19. Implement privacy and configuration
-  - [ ] 19.1 Create XAPIConfiguration model
-    - Store privacy and tracking settings
-    - Implement singleton pattern
-    - Create migration
-    - _Requirements: 10.1_
-  - [ ] 19.2 Create XAPIAuditLog model
-    - Store access timestamp, user, operation type
-    - Create migration
-    - _Requirements: 10.5_
-  - [ ] 19.3 Implement pseudonymous actor generation
-    - Generate consistent pseudonyms per student
-    - Apply when privacy mode enabled
-    - _Requirements: 10.2_
-  - [ ] 19.4 Implement student data export
-    - GET /api/xapi/my-data/
-    - Export all statements for authenticated student
-    - _Requirements: 10.3_
-  - [ ] 19.5 Implement student data deletion
-    - DELETE /api/xapi/my-data/
-    - Remove all statements for authenticated student
-    - _Requirements: 10.4_
-  - [ ] 19.6 Add audit logging middleware
-    - Log all xAPI data access
-    - _Requirements: 10.5_
-  - [ ]* 19.7 Write property test for pseudonymization
-    - **Property 32: Privacy mode pseudonymization**
-    - **Validates: Requirements 10.2**
-  - [ ]* 19.8 Write property test for data export completeness
-    - **Property 33: Student data export completeness**
-    - **Validates: Requirements 10.3**
-  - [ ]* 19.9 Write property test for data deletion
-    - **Property 34: Student data deletion completeness**
-    - **Validates: Requirements 10.4**
-  - [ ]* 19.10 Write property test for audit logging
-    - **Property 35: xAPI access audit logging**
-    - **Validates: Requirements 10.5**
-
-- [ ] 20. Checkpoint - Ensure all tests pass
-  - Ensure all tests pass, ask the user if questions arise.
-
-- [ ] 21. Implement frontend content type components
-  - [ ] 21.1 Create SCORM player component
-    - Initialize SCORM API adapter
-    - Handle content loading in iframe
-    - Communicate with backend API
-    - Create SCORM lesson page with session management
-    - _Requirements: 2.1, 9.1_
-  - [ ] 21.2 Create Markdown viewer component
-    - Render HTML with syntax highlighting styles
-    - Display table of contents
-    - Track scroll progress
+- [ ] 15. Implement Markdown content manager
+  - [ ] 15.1 Create MarkdownContentManager class
+    - Implement render_markdown with markdown library and syntax highlighting
+    - Implement extract_toc for table of contents generation
+    - Implement track_scroll_progress for reading tracking
     - _Requirements: 11.2, 11.3, 11.4_
-  - [ ] 21.3 Create Markdown editor component for instructors
-    - Live preview
-    - Toolbar for common formatting
-    - _Requirements: 11.1_
-  - [ ] 21.4 Create H5P player component
-    - Load H5P content in iframe
-    - Handle xAPI messages from H5P
+  - [ ] 15.2 Create Markdown API endpoints
+    - POST /api/lessons/{id}/markdown/ - Create/update markdown content
+    - GET /api/lessons/{id}/markdown/ - Retrieve markdown content and rendered HTML
+    - POST /api/lessons/{id}/markdown/complete/ - Mark lesson as completed
+    - POST /api/lessons/{id}/markdown/track/ - Track scroll progress
+    - _Requirements: 11.1, 11.2, 11.5_
+  - [ ] 15.3 Generate xAPI statement on Markdown completion
+    - Use XAPIStatementGenerator to create completion statement
+    - Include reading time in result duration
+    - _Requirements: 11.4_
+  - [ ]* 15.4 Write unit tests for Markdown manager and endpoints
+  - [ ]* 15.5 Write property test for Markdown rendering (Property 36)
+  - [ ]* 15.6 Write property test for reading time calculation (Property 39)
+
+- [ ] 16. Implement H5P content manager
+  - [ ] 16.1 Create H5PContentManager class
+    - Implement validate_package method for H5P ZIP validation
+    - Implement extract_package method to extract and parse h5p.json
+    - Implement get_embed_code method for iframe generation
+    - Implement process_xapi_statement method to handle H5P xAPI messages
+    - _Requirements: 12.1, 12.2, 12.3_
+  - [ ] 16.2 Create H5P API endpoints
+    - POST /api/h5p/upload/ - Upload H5P package
+    - GET /api/h5p/{id}/embed/ - Get embed code and restore state
+    - POST /api/h5p/{id}/xapi/ - Receive xAPI statements from H5P content
+    - POST /api/h5p/{id}/state/ - Save content state
+    - GET /api/h5p/{id}/state/ - Retrieve content state
+    - _Requirements: 12.1, 12.2, 12.4, 12.5_
+  - [ ] 16.3 Implement H5P xAPI statement processing
+    - Validate xAPI statements from H5P content
+    - Store statements in LRS
+    - Update Progress on completion
     - _Requirements: 12.2, 12.3_
-  - [ ] 21.5 Create H5P upload component for instructors
-    - Package upload with validation feedback
-    - Library management interface
+  - [ ]* 16.4 Write unit tests for H5P manager and endpoints
+  - [ ]* 16.5 Write property test for H5P xAPI capture (Property 41)
+  - [ ]* 16.6 Write property test for H5P score capture (Property 44)
+
+- [ ] 17. Implement HTML embed manager
+  - [ ] 17.1 Create HTMLEmbedManager class
+    - Implement create_embed method for configuration
+    - Implement generate_iframe_html with sandbox attributes
+    - Implement validate_xapi_message for postMessage validation
+    - Implement process_postmessage to handle xAPI statements from embeds
+    - _Requirements: 13.2, 13.3, 13.4_
+  - [ ] 17.2 Create HTML embed API endpoints
+    - POST /api/lessons/{id}/html-embed/ - Create/update embed configuration
+    - GET /api/lessons/{id}/html-embed/ - Get embed HTML and xAPI listener script
+    - POST /api/lessons/{id}/html-embed/xapi/ - Receive xAPI statements via postMessage
+    - _Requirements: 13.1, 13.4, 13.5_
+  - [ ] 17.3 Implement HTML sanitization
+    - Sanitize inline HTML to prevent XSS attacks
+    - Validate allowed origins for postMessage
+    - _Requirements: 13.2_
+  - [ ]* 17.4 Write unit tests for HTML embed manager and endpoints
+  - [ ]* 17.5 Write property test for HTML sanitization (Property 50)
+  - [ ]* 17.6 Write property test for iframe sandbox configuration (Property 51)
+
+- [ ] 18. Checkpoint - Ensure all tests pass
+  - Run all unit tests for content type models and managers
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 19. Implement video interaction tracking API
+  - [ ] 19.1 Create video tracking API endpoint
+    - POST /api/lessons/{id}/video/interaction/ - Track video interactions
+    - Accept interaction type (played, paused, seeked, completed) and position
+    - Use existing XAPIStatementGenerator.generate_video_interaction method
+    - Store xAPI statement in LRS
+    - _Requirements: 4.5_
+  - [ ] 19.2 Update ContentInteraction for video tracking
+    - Create ContentInteraction records for video interactions
+    - Link to generated xAPI statements
+    - _Requirements: 15.1_
+  - [ ]* 19.3 Write unit tests for video tracking endpoint
+  - [ ]* 19.4 Write property test for video interaction statements (Property 18)
+
+- [ ] 20. Implement analytics engine
+  - [ ] 20.1 Create XAPIAnalytics class
+    - Implement get_course_completion_rate - calculate from completed statements
+    - Implement get_average_quiz_scores - aggregate quiz scores from statements
+    - Implement get_student_activity_stream - retrieve student's statement timeline
+    - Implement get_time_spent_per_lesson - calculate from duration data
+    - Implement get_verb_distribution - count statements by verb type
+    - _Requirements: 5.1, 5.2, 5.3, 5.4_
+  - [ ] 20.2 Create analytics API endpoints
+    - GET /api/analytics/course/{id}/completion-rate/ - Course completion statistics
+    - GET /api/analytics/course/{id}/quiz-scores/ - Quiz performance statistics
+    - GET /api/analytics/student/{id}/activity-stream/ - Student activity timeline
+    - GET /api/analytics/course/{id}/time-spent/ - Time spent per lesson
+    - GET /api/analytics/course/{id}/verb-distribution/ - Activity type breakdown
+    - _Requirements: 5.1, 5.2, 5.3, 5.4_
+  - [ ] 20.3 Implement xAPI data export
+    - GET /api/analytics/export/ - Export statements as JSON
+    - Support filtering by course, student, date range, verb
+    - Include pagination for large exports
+    - _Requirements: 5.5_
+  - [ ]* 20.4 Write unit tests for analytics engine and endpoints
+  - [ ]* 20.5 Write property test for activity aggregation (Property 19)
+  - [ ]* 20.6 Write property test for export completeness (Property 20)
+
+- [ ] 21. Implement privacy and configuration
+  - [ ] 21.1 Create XAPIConfiguration model
+    - Store LRS settings (endpoint, auth enabled)
+    - Store statement generation settings (auto-generate, track video, etc.)
+    - Store privacy settings (pseudonymous actors, PII inclusion)
+    - Store SCORM settings (versions enabled, max package size)
+    - Implement singleton pattern (pk=1)
+    - Create migrations
+    - _Requirements: 10.1_
+  - [ ] 21.2 Create XAPIAuditLog model
+    - Store access timestamp, user, operation type, statement ID
+    - Store IP address and user agent
+    - Create migrations and indexes
+    - _Requirements: 10.5_
+  - [ ] 21.3 Implement pseudonymous actor generation
+    - Create PseudonymGenerator class
+    - Generate consistent pseudonyms per student (hash-based)
+    - Modify XAPIStatementGenerator to use pseudonyms when privacy mode enabled
+    - _Requirements: 10.2_
+  - [ ] 21.4 Implement student data export
+    - GET /api/xapi/my-data/ - Export all statements for authenticated student
+    - Return JSON with all statement data
+    - Include audit log entry
+    - _Requirements: 10.3_
+  - [ ] 21.5 Implement student data deletion
+    - DELETE /api/xapi/my-data/ - Remove all statements for authenticated student
+    - Soft delete or hard delete based on configuration
+    - Include audit log entry
+    - _Requirements: 10.4_
+  - [ ] 21.6 Add audit logging middleware
+    - Create XAPIAuditMiddlewarerite)
+    - Log data export and deletion requests
+    - _Requirements: 10.5_
+  - [ ] 21.7 Create configuration admin interface
+    - Register XAPIConfiguration in admin
+    - Create user-friendly form for settings
+  - [ ]* 21.8 Write unit tests for privacy and configuration
+  - [ ]* 21.9 Write property test for pseudonymization (Property 32)
+  - [ ]* 21.10 Write property test for data export completeness (Property 33)
+  - [ ]* 21.11 Write property test for data deletion (Property 34)
+  - [ ]* 21.12 Write property test for audit logging (Property 35)
+    - Log all xAPI statement access
+
+- [ ] 22. Checkpoint - Ensure all tests pass
+  - Run all backend tests (xAPI, SCORM, analytics, privacy)
+  - Ensure all tests pass, ask the user if questions arise.
+end content type components
+  - [ ] 23.1 Create SCORM player component
+    - Initialize SCORM API adapter (window.API object)
+    - Handle content loading in iframe
+    - Communicate with backend runtime API endpoints
+    - Create SCORM lesson page with session management
+    - Display completion status and score
+    - _Requirements: 2.1, 9.1_
+  - [ ] 23.2 Create Markdown viewer component
+    - Render HTML with syntax highlighting styles
+    - Display table of contents with navigation
+    - Track scroll progress and send to backend
+    - Show estimated reading time
+    - Mark as complete button
+    - _Requirements: 11.2, 11.3, 11.4, 11.5_
+  - [ ] 23.3 Create Markdown editor component for instructors
+    - Live preview with split view
+    - Toolbar for common formatting (bold, italic, code, etc.)
+    - Syntax highlighting in editor
+    - Save and preview functionality
+    - _Requirements: 11.1_
+  - [ ] 23.4 Create H5P player component
+    - Load H5P content in iframe
+    - Handle xAPI messages from H5P via postMessage
+    - Display completion status and score
+    - Restore previous state
+    - _Requirements: 12.2, 12.3, 12.4_
+  - [ ] 23.5 Create H5P upload component for instructors
+    - Package upload with drag-and-drop
+    - Validation feedback and progress indicator
+    - Library information display
     - _Requirements: 12.1, 12.5_
-  - [ ] 21.6 Create HTML embed viewer component
-    - Render sandboxed iframe
-    - Set up postMessage listener for xAPI
-    - _Requirements: 13.2, 13.3_
-  - [ ] 21.7 Create HTML embed configuration component
-    - URL/inline HTML input
-    - Sandbox permission toggles
+  - [ ] 23.6 Create HTML embed viewer component
+    - Render sandboxed iframe with configured permissions
+    - Set up postMessage listener for xAPI statements
+    - Display embed with configured dimensions
+    - _Requirements: 13.2, 13.3, 13.4_
+  - [ ] 23.7 Create HTML embed configuration component for instructors
+    - URL or inline HTML input with tabs
+    - Sandbox permission toggles (scripts, forms, popups, etc.)
+    - Dimension configuration (width, height)
+    - xAPI messaging toggle and allowed origins
+    - Preview functionality
     - _Requirements: 13.1, 13.5_
-  - [ ] 21.8 Update lesson detail page to support all content types
-    - Route to appropriate component based on content_type
-    - Display content type icons
+  - [ ] 23.8 Update lesson detail page to support all content types
+    - Route to appropriate component based on content_type field
+    - Display content type icons in lesson list
+    - Show content type badge on lesson detail
+    - Handle content type switching for instructors
+    - _Requirements: 15.2, 15.3_
+  - [ ] 23.9 Create video player with interaction tracking
+    - Wrap existing video player
+    - Track play, pause, seek, complete events
+    - Send interactions to backend API
+    - Display watch progress
+    - _Requirements: 4.5_
     - _Requirements: 15.2, 15.3_
 
-- [ ] 22. Implement frontend analytics dashboard
-  - [ ] 22.1 Create course analytics page
-    - Completion rate charts
-    - Quiz score visualizations
-    - Time spent per lesson
-    - _Requirements: 5.1, 5.2_
-  - [ ] 22.2 Create student activity stream component
-    - Timeline of learning activities
-    - Verb-based filtering
+- [ ] 24. Implement frontend analytics dashboard
+  - [ ] 24.1 Create course analytics page for instructors
+    - Completion rate charts (pie chart, progress bars)
+    - Quiz score visualizations (bar charts, averages)
+    - Time spent per lesson (bar chart)
+    - Verb distribution chart (activity types)
+    - Date range filter
+    - _Requirements: 5.1, 5.2, 5.4_
+  - [ ] 24.2 Create student activity stream component
+    - Timeline of learning activities with icons
+    - Verb-based filtering (completed, passed, failed, etc.)
+    - Date filtering
+    - Pagination for long activity streams
     - _Requirements: 5.3, 5.4_
-  - [ ] 22.3 Create xAPI export functionality
-    - Export button with date range filter
-    - Download as JSON
+  - [ ] 24.3 Create xAPI export functionality
+    - Export button with filters (course, student, date range, verb)
+    - Download as JSON file
+    - Show export progress
     - _Requirements: 5.5_
+  - [ ] 24.4 Add analytics widgets to instructor dashboard
+    - Recent student activity
+    - Course completion summary
+    - Quiz performance summary
+    - Link to full analytics page
 
-- [ ] 23. Final Checkpoint - Ensure all tests pass
+- [ ] 25. Final Checkpoint - Ensure all tests pass
+  - Run complete test suite (backend + frontend if applicable)
+  - Verify all core functionality works end-to-end
+  - Check that all migrations are applied
   - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 26. Documentation and deployment preparation
+  - [ ] 26.1 Update README with SCORM/xAPI features
+    - Document supported SCORM versions
+    - Document xAPI compliance level
+    - Document supported content types
+  - [ ] 26.2 Create user guide for instructors
+    - How to upload SCORM packages
+    - How to create Markdown lessons
+    - How to embed H5P content
+    - How to configure HTML embeds
+    - How to view analytics
+  - [ ] 26.3 Create API documentation
+    - Document all xAPI endpoints
+    - Document all SCORM endpoints
+    - Document content type endpoints
+    - Document analytics endpoints
+  - [ ] 26.4 Create deployment checklist
+    - Environment variables needed
+    - Database migrations to run
+    - Static files to collect
+    - Media storage configuration

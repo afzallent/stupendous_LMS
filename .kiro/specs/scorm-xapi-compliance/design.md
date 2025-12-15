@@ -1497,6 +1497,26 @@ class XAPIConfiguration(models.Model):
 
 The system will use **Hypothesis** (Python) for property-based testing. Each property-based test will run a minimum of 100 iterations with randomly generated inputs.
 
+**Test Configuration:**
+All property-based tests MUST include the following Hypothesis settings to prevent infinite test loops:
+```python
+@settings(max_examples=100, deadline=None)
+```
+
+- `max_examples=100`: Limits the number of test iterations to 100
+- `deadline=None`: Disables per-test-case timeout (prevents false failures on slow systems)
+
+**Alternative Configuration for Faster Tests:**
+For tests that should complete quickly, use a deadline:
+```python
+@settings(max_examples=100, deadline=5000)  # 5 second timeout per example
+```
+
+**CRITICAL:** Never run property-based tests without explicit `@settings` decorator. This prevents:
+- Infinite test loops from complex generators
+- Excessive test execution time
+- Resource exhaustion on CI/CD systems
+
 **SCORM Property Tests:**
 - Generate random valid SCORM packages and verify successful processing
 - Generate random CMI data and verify round-trip consistency
@@ -1518,6 +1538,20 @@ The system will use **Hypothesis** (Python) for property-based testing. Each pro
 Each property-based test will include a comment tag in this format:
 ```python
 # Feature: scorm-xapi-compliance, Property X: [property description]
+```
+
+**Example Test Structure:**
+```python
+from hypothesis import given, strategies as st, settings
+
+class TestXAPIValidation:
+    @given(valid_xapi_statement())
+    @settings(max_examples=100, deadline=None)  # REQUIRED
+    def test_valid_statements_accepted(self, statement):
+        """Property: All valid statements should be accepted"""
+        validator = XAPIStatementValidator()
+        is_valid, error = validator.validate(statement)
+        assert is_valid
 ```
 
 ### Integration Testing
