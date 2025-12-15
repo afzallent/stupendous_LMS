@@ -709,10 +709,10 @@ export default function InstructorDashboard() {
                               size="sm" 
                               variant="outline" 
                               className="flex-1"
-                              onClick={() => router.push(`/instructor/create-course?edit=${course.id}`)}
+                              onClick={() => router.push(`/instructor/courses/${course.id}`)}
                             >
                               <Eye className="h-3 w-3 mr-1" />
-                              Edit
+                              View
                             </Button>
                             <Button 
                               size="sm" 

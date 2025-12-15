@@ -607,51 +607,62 @@ class LessonViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='mark-complete')
     def mark_complete(self, request, pk=None):
         """Mark a lesson as complete for the current user"""
-        lesson = self.get_object()
+        import logging
+        logger = logging.getLogger(__name__)
         
-        # Check if user is enrolled in the course
-        if not Enrollment.objects.filter(student=request.user, course=lesson.course).exists():
-            return Response(
-                {'detail': 'You must be enrolled in this course to mark lessons as complete.'},
-                status=status.HTTP_403_FORBIDDEN
+        try:
+            lesson = self.get_object()
+            
+            # Check if user is enrolled in the course
+            if not Enrollment.objects.filter(student=request.user, course=lesson.course).exists():
+                return Response(
+                    {'detail': 'You must be enrolled in this course to mark lessons as complete.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Get or create progress
+            progress, created = Progress.objects.get_or_create(
+                student=request.user,
+                lesson=lesson,
+                defaults={'completed': True, 'completed_at': timezone.now()}
             )
-        
-        # Get or create progress
-        progress, created = Progress.objects.get_or_create(
-            student=request.user,
-            lesson=lesson,
-            defaults={'completed': True, 'completed_at': timezone.now()}
-        )
-        
-        if not created and not progress.completed:
-            progress.completed = True
-            progress.completed_at = timezone.now()
-            progress.save()
-        
-        # Check if course is completed
-        course = lesson.course
-        total_lessons = course.lessons.count()
-        completed_lessons = Progress.objects.filter(
-            student=request.user,
-            lesson__course=course,
-            completed=True
-        ).count()
-        
-        course_completed = (completed_lessons == total_lessons)
-        
-        return Response({
-            'detail': 'Lesson marked as complete.',
-            'progress': {
-                'completed': progress.completed,
-                'completed_at': progress.completed_at.isoformat() if progress.completed_at else None
-            },
-            'course_progress': {
-                'completed_lessons': completed_lessons,
-                'total_lessons': total_lessons,
-                'percentage': int((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0,
-                'course_completed': course_completed
-            }
-        }, status=status.HTTP_200_OK)
+            
+            if not created and not progress.completed:
+                progress.completed = True
+                progress.completed_at = timezone.now()
+                progress.save()
+            
+            # Check if course is completed
+            course = lesson.course
+            total_lessons = course.lessons.count()
+            completed_lessons = Progress.objects.filter(
+                student=request.user,
+                lesson__course=course,
+                completed=True
+            ).count()
+            
+            course_completed = (completed_lessons == total_lessons)
+            
+            return Response({
+                'detail': 'Lesson marked as complete.',
+                'progress': {
+                    'completed': progress.completed,
+                    'completed_at': progress.completed_at.isoformat() if progress.completed_at else None
+                },
+                'course_progress': {
+                    'completed_lessons': completed_lessons,
+                    'total_lessons': total_lessons,
+                    'percentage': int((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0,
+                    'course_completed': course_completed
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error marking lesson complete: {str(e)}", exc_info=True)
+            return Response(
+                {'detail': f'Failed to mark lesson complete: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='bulk-delete-without-video')
     def bulk_delete_without_video(self, request):
