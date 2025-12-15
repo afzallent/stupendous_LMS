@@ -77,35 +77,59 @@ export default function CourseStudentsPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch course details
-      const courseRes = await fetch(`/api/courses/${courseId}`)
-      if (courseRes.ok) {
-        const courseData = await courseRes.json()
-        setCourse(courseData.data)
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const accessToken = localStorage.getItem('access_token')
+
+      if (!accessToken) {
+        console.error('No access token found')
+        setLoading(false)
+        return
       }
 
-      // Fetch student progress from existing API
-      const progressRes = await fetch(`/api/courses/student_progress?course_id=${courseId}`, {
+      // Fetch course details from Django backend
+      const courseRes = await fetch(`${API_BASE_URL}/api/courses/${courseId}/`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      if (courseRes.ok) {
+        const courseData = await courseRes.json()
+        setCourse(courseData)
+      }
+
+      // Fetch student progress from Django backend
+      console.log('Fetching student progress for course:', courseId)
+      const progressRes = await fetch(`${API_BASE_URL}/api/progress/student_progress/?course_id=${courseId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
         }
       })
       
       if (progressRes.ok) {
         const progressData = await progressRes.json()
+        console.log('Student progress data:', progressData)
         setStudentProgress(progressData)
+      } else {
+        console.error('Failed to fetch student progress:', progressRes.status)
+        const errorText = await progressRes.text()
+        console.error('Error details:', errorText)
       }
 
-      // Fetch student activity from new activity tracking API
-      const activityRes = await fetch(`/api/activity/course/${courseId}/students`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      // Fetch student activity from activity tracking API (if available)
+      try {
+        const activityRes = await fetch(`${API_BASE_URL}/api/activity/course/${courseId}/students/`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+        
+        if (activityRes.ok) {
+          const activityData = await activityRes.json()
+          setStudentActivity(activityData.data || activityData || [])
         }
-      })
-      
-      if (activityRes.ok) {
-        const activityData = await activityRes.json()
-        setStudentActivity(activityData.data || [])
+      } catch (error) {
+        // Activity API might not be available, continue without it
+        console.log('Activity API not available:', error)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -381,7 +405,20 @@ export default function CourseStudentsPage() {
             {sortedStudents.length === 0 && (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No students found</p>
+                <h3 className="text-lg font-semibold mb-2">No students enrolled yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  {filterBy !== 'all' 
+                    ? 'No students match the selected filter. Try changing the filter above.'
+                    : 'Students who enroll in this course will appear here.'}
+                </p>
+                {filterBy !== 'all' && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setFilterBy('all')}
+                  >
+                    Show All Students
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>

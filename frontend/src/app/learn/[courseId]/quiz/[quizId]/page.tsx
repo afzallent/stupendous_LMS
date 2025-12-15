@@ -92,6 +92,8 @@ export default function QuizTakingPage() {
       try {
         // Fetch quiz details
         const quizData = await djangoApi.get<any>(`/api/quizzes/${params.quizId}/`)
+        console.log('📝 Quiz data from backend:', quizData)
+        console.log('📝 Questions:', quizData.questions)
         
         // Fetch user's previous attempts
         const attemptsData = await djangoApi.get<any>(`/api/quizzes/${params.quizId}/my-attempts/`)
@@ -103,19 +105,34 @@ export default function QuizTakingPage() {
           title: quizData.title,
           description: quizData.description,
           passingScore: quizData.passing_score,
-          questions: quizData.questions.map((q: any) => ({
-            id: q.id.toString(),
-            question: q.question_text,
-            type: q.question_type === 'multiple_choice' ? 'MULTIPLE_CHOICE' :
-                  q.question_type === 'true_false' ? 'TRUE_FALSE' : 'FILL_IN_THE_BLANK',
-            options: q.options?.map((o: any) => o.option_text) || null,
-            optionsWithIds: q.options?.map((o: any) => ({
-              id: o.id.toString(),
-              option_text: o.option_text
-            })) || [],
-            points: q.points,
-            order: q.order
-          })),
+          questions: quizData.questions.map((q: any) => {
+            // Map backend question types to frontend types
+            let questionType: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'MULTIPLE_ANSWER'
+            
+            if (q.question_type === 'multiple_choice') {
+              questionType = 'MULTIPLE_CHOICE'
+            } else if (q.question_type === 'true_false') {
+              questionType = 'TRUE_FALSE'
+            } else if (q.question_type === 'short_answer') {
+              questionType = 'FILL_IN_THE_BLANK'
+            } else {
+              // Default fallback
+              questionType = 'MULTIPLE_CHOICE'
+            }
+            
+            return {
+              id: q.id.toString(),
+              question: q.question_text,
+              type: questionType,
+              options: q.options?.map((o: any) => o.option_text) || null,
+              optionsWithIds: q.options?.map((o: any) => ({
+                id: o.id.toString(),
+                option_text: o.option_text
+              })) || [],
+              points: q.points,
+              order: q.order
+            }
+          }),
           metadata: {
             timeLimit: quizData.time_limit,
             randomizeQuestions: false, // Not in backend model yet
