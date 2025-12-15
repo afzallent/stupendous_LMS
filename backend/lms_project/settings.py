@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     "media_config",
     "discussions",
     "notifications",
+    "scorm",
+    "xapi",
 ]
 
 AUTH_USER_MODEL = 'core.User'

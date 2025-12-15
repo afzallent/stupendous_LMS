@@ -169,9 +169,30 @@ class Chapter(models.Model):
 
 
 class Lesson(models.Model):
+    # Content type choices for different lesson formats
+    CONTENT_TYPE_VIDEO = 'video'
+    CONTENT_TYPE_MARKDOWN = 'markdown'
+    CONTENT_TYPE_SCORM = 'scorm'
+    CONTENT_TYPE_H5P = 'h5p'
+    CONTENT_TYPE_HTML_EMBED = 'html_embed'
+    
+    CONTENT_TYPE_CHOICES = [
+        (CONTENT_TYPE_VIDEO, 'Video'),
+        (CONTENT_TYPE_MARKDOWN, 'Markdown Document'),
+        (CONTENT_TYPE_SCORM, 'SCORM Package'),
+        (CONTENT_TYPE_H5P, 'H5P Interactive Content'),
+        (CONTENT_TYPE_HTML_EMBED, 'HTML Embed'),
+    ]
+    
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
     chapter = models.ForeignKey(Chapter, on_delete=models.SET_NULL, null=True, blank=True, related_name='lessons', help_text="Chapter this lesson belongs to")
     title = models.CharField(max_length=200)
+    content_type = models.CharField(
+        max_length=20,
+        choices=CONTENT_TYPE_CHOICES,
+        default=CONTENT_TYPE_VIDEO,
+        help_text="Type of content for this lesson"
+    )
     video_url = models.URLField(blank=True, null=True, help_text="Enter the URL of the video (e.g. YouTube embed URL)")
     video_file = models.FileField(upload_to='lesson_videos/', null=True, blank=True, help_text="Upload video file")
     order = models.PositiveIntegerField()
