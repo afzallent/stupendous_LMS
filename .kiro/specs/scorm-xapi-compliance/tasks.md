@@ -1,37 +1,26 @@
 # Implementation Plan
 
 - [x] 1. Set up project structure and dependencies
-
-
-
-
-
   - [x] 1.1 Create Django apps for SCORM and xAPI
-
-
     - Create `scorm` app with models, views, serializers directories
     - Create `xapi` app with models, views, serializers directories
     - Register apps in Django settings
     - _Requirements: 1.1, 3.1_
   - [x] 1.2 Install required Python packages
-
-
     - Add lxml, jsonschema, python-dateutil, markdown, Pygments to requirements.txt
     - Add hypothesis for property-based testing
     - _Requirements: All_
   - [x] 1.3 Add content_type field to Lesson model
-
-
     - Add content_type choice field (video, markdown, scorm, h5p, html_embed)
     - Create migration
     - _Requirements: 11.1, 12.1, 13.1_
 
-- [ ] 2. Implement xAPI data models and LRS core
-  - [ ] 2.1 Create XAPIStatement model
+- [x] 2. Implement xAPI data models and LRS core
+  - [x] 2.1 Create XAPIStatement model
     - Implement statement storage with all xAPI fields
     - Add indexes for query performance
     - _Requirements: 3.2, 3.3_
-  - [ ] 2.2 Create XAPIVerb and XAPIActivityType models
+  - [x] 2.2 Create XAPIVerb and XAPIActivityType models
     - Seed common verbs (completed, passed, failed, registered, etc.)
     - Seed activity types (lesson, course, quiz, video)
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
@@ -101,17 +90,12 @@
     - **Validates: Requirements 4.4**
 
 - [ ] 7. Implement SCORM data models
-  - [ ] 7.1 Create ScormPackage model
-    - Store package metadata, version, content path
-    - Link to Course and Lesson
-    - _Requirements: 1.1, 1.3_
-  - [ ] 7.2 Create ScormSCO model
-    - Store SCO metadata and launch URL
-    - _Requirements: 1.2_
-  - [ ] 7.3 Create ScormData model
-    - Store CMI data model values
-    - Support both SCORM 1.2 and 2004 elements
-    - _Requirements: 2.2, 9.1_
+  - [ ] 7.1 Create SCORM models (ScormPackage, ScormSCO, ScormData)
+    - Create ScormPackage model with package metadata, version, content path
+    - Create ScormSCO model with SCO metadata and launch URL
+    - Create ScormData model for CMI data storage (support SCORM 1.2 and 2004)
+    - Create migration
+    - _Requirements: 1.1, 1.2, 1.3, 2.2, 9.1_
 
 - [ ] 8. Implement SCORM package manager
   - [ ] 8.1 Create ScormPackageManager class
@@ -172,189 +156,196 @@
     - **Property 26: Progress calculation consistency**
     - **Validates: Requirements 8.4**
 
-- [ ] 12. Implement Markdown lesson support
+- [ ] 12. Implement content type models
   - [ ] 12.1 Create MarkdownLesson model
     - Store raw Markdown and cached HTML
     - Support syntax highlighting configuration
+    - Create migration
     - _Requirements: 11.1, 11.3_
-  - [ ] 12.2 Create MarkdownContentManager class
+  - [ ] 12.2 Create H5PPackage and H5PContentState models
+    - Store package metadata and extracted content path
+    - Store student state and scores
+    - Create migration
+    - _Requirements: 12.1, 12.4_
+  - [ ] 12.3 Create HTMLEmbed model
+    - Store embed configuration and sandbox settings
+    - Store xAPI messaging configuration
+    - Create migration
+    - _Requirements: 13.1, 13.5_
+  - [ ] 12.4 Create ContentInteraction model
+    - Track interactions with non-video content
+    - Store interaction type and data
+    - Link to xAPI statements
+    - Create migration
+    - _Requirements: 15.1, 15.4_
+
+- [ ] 13. Implement Markdown content manager
+  - [ ] 13.1 Create MarkdownContentManager class
     - Implement render_markdown with Pygments highlighting
     - Implement extract_toc for navigation
     - _Requirements: 11.2, 11.3, 11.4_
-  - [ ] 12.3 Create Markdown API endpoints
+  - [ ] 13.2 Create Markdown API endpoints
     - POST /api/lessons/{id}/markdown/
     - GET /api/lessons/{id}/markdown/
     - POST /api/lessons/{id}/markdown/complete/
     - _Requirements: 11.1, 11.2, 11.5_
 
-- [ ] 13. Implement H5P content support
-  - [ ] 13.1 Create H5PPackage and H5PContentState models
-    - Store package metadata and extracted content path
-    - Store student state and scores
-    - _Requirements: 12.1, 12.4_
-  - [ ] 13.2 Create H5PContentManager class
+- [ ] 14. Implement H5P content manager
+  - [ ] 14.1 Create H5PContentManager class
     - Implement validate_package method
     - Implement extract_package method
     - Implement xAPI statement processing
     - _Requirements: 12.1, 12.2_
-  - [ ] 13.3 Create H5P API endpoints
+  - [ ] 14.2 Create H5P API endpoints
     - POST /api/h5p/upload/
     - GET /api/h5p/{id}/embed/
     - POST /api/h5p/{id}/xapi/
     - POST /api/h5p/{id}/state/
     - _Requirements: 12.1, 12.2, 12.4, 12.5_
 
-- [ ] 14. Implement HTML embed support
-  - [ ] 14.1 Create HTMLEmbed model
-    - Store embed configuration and sandbox settings
-    - Store xAPI messaging configuration
-    - _Requirements: 13.1, 13.5_
-  - [ ] 14.2 Create HTMLEmbedManager class
+- [ ] 15. Implement HTML embed manager
+  - [ ] 15.1 Create HTMLEmbedManager class
     - Implement generate_iframe_html with sandbox
     - Implement postMessage xAPI validation
     - _Requirements: 13.2, 13.3, 13.4_
-  - [ ] 14.3 Create HTML embed API endpoints
+  - [ ] 15.2 Create HTML embed API endpoints
     - POST /api/lessons/{id}/html-embed/
     - GET /api/lessons/{id}/html-embed/
     - POST /api/lessons/{id}/html-embed/xapi/
     - _Requirements: 13.1, 13.4_
 
-- [ ] 15. Checkpoint - Ensure all tests pass
+- [ ] 16. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 16. Implement video interaction tracking
-  - [ ] 16.1 Create video xAPI statement generator
+- [ ] 17. Implement video interaction tracking
+  - [ ] 17.1 Create video xAPI statement generator
     - Generate statements for play, pause, seek, complete
     - Include video position in result
     - _Requirements: 4.5_
-  - [ ] 16.2 Create video tracking API endpoint
+  - [ ] 17.2 Create video tracking API endpoint
     - POST /api/lessons/{id}/video/interaction/
     - Accept interaction type and position
     - _Requirements: 4.5_
-  - [ ]* 16.3 Write property test for video interaction statements
+  - [ ]* 17.3 Write property test for video interaction statements
     - **Property 18: Video interaction statement generation**
     - **Validates: Requirements 4.5**
 
-- [ ] 17. Implement analytics engine
-  - [ ] 17.1 Create XAPIAnalytics class
+- [ ] 18. Implement analytics engine
+  - [ ] 18.1 Create XAPIAnalytics class
     - Implement get_course_completion_rate
     - Implement get_average_quiz_scores
     - Implement get_student_activity_stream
     - Implement get_time_spent_per_lesson
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ] 17.2 Create analytics API endpoints
+  - [ ] 18.2 Create analytics API endpoints
     - GET /api/analytics/course/{id}/completion-rate/
     - GET /api/analytics/course/{id}/quiz-scores/
     - GET /api/analytics/student/{id}/activity-stream/
     - GET /api/analytics/course/{id}/time-spent/
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ] 17.3 Implement xAPI data export
+  - [ ] 18.3 Implement xAPI data export
     - GET /api/analytics/export/
     - Export as JSON with filtering
     - _Requirements: 5.5_
-  - [ ]* 17.4 Write property test for activity aggregation
+  - [ ]* 18.4 Write property test for activity aggregation
     - **Property 19: Activity aggregation correctness**
     - **Validates: Requirements 5.4**
-  - [ ]* 17.5 Write property test for export completeness
+  - [ ]* 18.5 Write property test for export completeness
     - **Property 20: xAPI export completeness**
     - **Validates: Requirements 5.5**
 
-- [ ] 18. Implement privacy controls
-  - [ ] 18.1 Create XAPIConfiguration model
+- [ ] 19. Implement privacy and configuration
+  - [ ] 19.1 Create XAPIConfiguration model
     - Store privacy and tracking settings
     - Implement singleton pattern
+    - Create migration
     - _Requirements: 10.1_
-  - [ ] 18.2 Implement pseudonymous actor generation
+  - [ ] 19.2 Create XAPIAuditLog model
+    - Store access timestamp, user, operation type
+    - Create migration
+    - _Requirements: 10.5_
+  - [ ] 19.3 Implement pseudonymous actor generation
     - Generate consistent pseudonyms per student
     - Apply when privacy mode enabled
     - _Requirements: 10.2_
-  - [ ] 18.3 Implement student data export
+  - [ ] 19.4 Implement student data export
     - GET /api/xapi/my-data/
     - Export all statements for authenticated student
     - _Requirements: 10.3_
-  - [ ] 18.4 Implement student data deletion
+  - [ ] 19.5 Implement student data deletion
     - DELETE /api/xapi/my-data/
     - Remove all statements for authenticated student
     - _Requirements: 10.4_
-  - [ ]* 18.5 Write property test for pseudonymization
-    - **Property 32: Privacy mode pseudonymization**
-    - **Validates: Requirements 10.2**
-  - [ ]* 18.6 Write property test for data export completeness
-    - **Property 33: Student data export completeness**
-    - **Validates: Requirements 10.3**
-  - [ ]* 18.7 Write property test for data deletion
-    - **Property 34: Student data deletion completeness**
-    - **Validates: Requirements 10.4**
-
-- [ ] 19. Implement audit logging
-  - [ ] 19.1 Create XAPIAuditLog model
-    - Store access timestamp, user, operation type
-    - _Requirements: 10.5_
-  - [ ] 19.2 Add audit logging middleware
+  - [ ] 19.6 Add audit logging middleware
     - Log all xAPI data access
     - _Requirements: 10.5_
-  - [ ]* 19.3 Write property test for audit logging
+  - [ ]* 19.7 Write property test for pseudonymization
+    - **Property 32: Privacy mode pseudonymization**
+    - **Validates: Requirements 10.2**
+  - [ ]* 19.8 Write property test for data export completeness
+    - **Property 33: Student data export completeness**
+    - **Validates: Requirements 10.3**
+  - [ ]* 19.9 Write property test for data deletion
+    - **Property 34: Student data deletion completeness**
+    - **Validates: Requirements 10.4**
+  - [ ]* 19.10 Write property test for audit logging
     - **Property 35: xAPI access audit logging**
     - **Validates: Requirements 10.5**
 
 - [ ] 20. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 21. Implement frontend SCORM player component
-  - [ ] 21.1 Create SCORM player React component
+- [ ] 21. Implement frontend content type components
+  - [ ] 21.1 Create SCORM player component
     - Initialize SCORM API adapter
     - Handle content loading in iframe
     - Communicate with backend API
-    - _Requirements: 2.1_
-  - [ ] 21.2 Create SCORM lesson page
-    - Integrate SCORM player component
-    - Handle session management
+    - Create SCORM lesson page with session management
     - _Requirements: 2.1, 9.1_
-
-- [ ] 22. Implement frontend Markdown viewer component
-  - [ ] 22.1 Create Markdown viewer React component
+  - [ ] 21.2 Create Markdown viewer component
     - Render HTML with syntax highlighting styles
     - Display table of contents
+    - Track scroll progress
     - _Requirements: 11.2, 11.3, 11.4_
-  - [ ] 22.2 Create Markdown editor component for instructors
+  - [ ] 21.3 Create Markdown editor component for instructors
     - Live preview
     - Toolbar for common formatting
     - _Requirements: 11.1_
-
-- [ ] 23. Implement frontend H5P player component
-  - [ ] 23.1 Create H5P player React component
+  - [ ] 21.4 Create H5P player component
     - Load H5P content in iframe
     - Handle xAPI messages from H5P
     - _Requirements: 12.2, 12.3_
-  - [ ] 23.2 Create H5P upload component for instructors
+  - [ ] 21.5 Create H5P upload component for instructors
     - Package upload with validation feedback
     - Library management interface
     - _Requirements: 12.1, 12.5_
-
-- [ ] 24. Implement frontend HTML embed component
-  - [ ] 24.1 Create HTML embed viewer component
+  - [ ] 21.6 Create HTML embed viewer component
     - Render sandboxed iframe
     - Set up postMessage listener for xAPI
     - _Requirements: 13.2, 13.3_
-  - [ ] 24.2 Create HTML embed configuration component
+  - [ ] 21.7 Create HTML embed configuration component
     - URL/inline HTML input
     - Sandbox permission toggles
     - _Requirements: 13.1, 13.5_
+  - [ ] 21.8 Update lesson detail page to support all content types
+    - Route to appropriate component based on content_type
+    - Display content type icons
+    - _Requirements: 15.2, 15.3_
 
-- [ ] 25. Implement frontend analytics dashboard
-  - [ ] 25.1 Create course analytics page
+- [ ] 22. Implement frontend analytics dashboard
+  - [ ] 22.1 Create course analytics page
     - Completion rate charts
     - Quiz score visualizations
     - Time spent per lesson
     - _Requirements: 5.1, 5.2_
-  - [ ] 25.2 Create student activity stream component
+  - [ ] 22.2 Create student activity stream component
     - Timeline of learning activities
     - Verb-based filtering
     - _Requirements: 5.3, 5.4_
-  - [ ] 25.3 Create xAPI export functionality
+  - [ ] 22.3 Create xAPI export functionality
     - Export button with date range filter
     - Download as JSON
     - _Requirements: 5.5_
 
-- [ ] 26. Final Checkpoint - Ensure all tests pass
+- [ ] 23. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
