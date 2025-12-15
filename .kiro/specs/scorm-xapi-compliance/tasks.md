@@ -24,20 +24,41 @@
     - Seed common verbs (completed, passed, failed, registered, etc.)
     - Seed activity types (lesson, course, quiz, video)
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [ ]* 2.3 Write property test for xAPI statement validation
+  - [x] 2.3 Write property test for xAPI statement validation
+
+
+
+
+
+
     - **Property 10: xAPI statement validation**
     - **Validates: Requirements 3.2**
-  - [ ]* 2.4 Write property test for statement storage uniqueness
+
+  - [x] 2.4 Write property test for statement storage uniqueness
+
+
+
+
+
     - **Property 11: xAPI statement storage uniqueness**
     - **Validates: Requirements 3.3**
 
-- [ ] 3. Implement xAPI statement validation and storage
-  - [ ] 3.1 Create XAPIStatementValidator class
+- [x] 3. Implement xAPI statement validation and storage
+
+
+
+
+
+  - [x] 3.1 Create XAPIStatementValidator class
+
+
     - Validate required fields (actor, verb, object)
     - Validate IRI formats
     - Validate timestamp formats
     - _Requirements: 3.2_
-  - [ ] 3.2 Create XAPIStatementStore class
+  - [x] 3.2 Create XAPIStatementStore class
+
+
     - Implement store_statement method
     - Implement store_statements for batch operations
     - Generate UUIDs and timestamps
@@ -47,6 +68,7 @@
     - **Validates: Requirements 3.5, 6.2**
 
 - [ ] 4. Implement xAPI REST API endpoints
+
   - [ ] 4.1 Create xAPI statements endpoint
     - POST /xapi/statements/ for single/batch submission
     - GET /xapi/statements/ with query parameters
@@ -63,10 +85,12 @@
     - **Property 22: HTTP status code correctness**
     - **Validates: Requirements 6.4**
 
+
 - [ ] 5. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Implement xAPI statement generator
+
   - [ ] 6.1 Create XAPIStatementGenerator class
     - Implement generate_lesson_completed method
     - Implement generate_quiz_passed method
@@ -90,6 +114,7 @@
     - **Validates: Requirements 4.4**
 
 - [ ] 7. Implement SCORM data models
+
   - [ ] 7.1 Create SCORM models (ScormPackage, ScormSCO, ScormData)
     - Create ScormPackage model with package metadata, version, content path
     - Create ScormSCO model with SCO metadata and launch URL
@@ -98,6 +123,7 @@
     - _Requirements: 1.1, 1.2, 1.3, 2.2, 9.1_
 
 - [ ] 8. Implement SCORM package manager
+
   - [ ] 8.1 Create ScormPackageManager class
     - Implement validate_package method
     - Implement extract_manifest method
@@ -118,6 +144,7 @@
     - **Validates: Requirements 1.3**
 
 - [ ] 9. Implement SCORM runtime API
+
   - [ ] 9.1 Create ScormAPIAdapter class
     - Implement LMSInitialize
     - Implement LMSGetValue/LMSSetValue
@@ -138,6 +165,7 @@
     - **Validates: Requirements 9.1, 9.2**
 
 - [ ] 10. Checkpoint - Ensure all tests pass
+
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 11. Implement SCORM-xAPI synchronization
