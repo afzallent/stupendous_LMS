@@ -413,47 +413,96 @@ class CourseViewSet(viewsets.ModelViewSet):
         
         writer = csv.writer(response)
         writer.writerow([
-            'Course ID', 'Course Title', 'Course Description', 'Price', 'Is Free',
-            'Status', 'Lesson Order', 'Lesson Title', 'Video URL', 'Lesson Content'
+            'Course ID', 'Course Title', 'Course Description', 'Level', 'Price', 'Is Free',
+            'Status', 'Chapter Title', 'Chapter Order', 'Lesson Order', 'Lesson Title', 'Video URL', 'Lesson Content'
         ])
         
         for course in courses:
-            lessons = course.lessons.all().order_by('order')
-            if lessons.exists():
-                for lesson in lessons:
+            # Get chapters for this course
+            chapters = Chapter.objects.filter(course=course).order_by('order')
+            
+            if chapters.exists():
+                # Export lessons organized by chapters
+                for chapter in chapters:
+                    lessons = chapter.lessons.all().order_by('order')
+                    if lessons.exists():
+                        for lesson in lessons:
+                            writer.writerow([
+                                course.id,
+                                course.title,
+                                course.description,
+                                course.level,
+                                str(course.price),
+                                'Yes' if course.is_free else 'No',
+                                course.status,
+                                chapter.title,
+                                chapter.order,
+                                lesson.order,
+                                lesson.title,
+                                lesson.video_url or '',
+                                lesson.content or ''
+                            ])
+                    else:
+                        # Chapter without lessons
+                        writer.writerow([
+                            course.id,
+                            course.title,
+                            course.description,
+                            course.level,
+                            str(course.price),
+                            'Yes' if course.is_free else 'No',
+                            course.status,
+                            chapter.title,
+                            chapter.order,
+                            '',
+                            '',
+                            '',
+                            ''
+                        ])
+            else:
+                # Check for lessons without chapters (unassigned)
+                unassigned_lessons = course.lessons.filter(chapter__isnull=True).order_by('order')
+                if unassigned_lessons.exists():
+                    for lesson in unassigned_lessons:
+                        writer.writerow([
+                            course.id,
+                            course.title,
+                            course.description,
+                            course.level,
+                            str(course.price),
+                            'Yes' if course.is_free else 'No',
+                            course.status,
+                            '',  # No chapter
+                            '',
+                            lesson.order,
+                            lesson.title,
+                            lesson.video_url or '',
+                            lesson.content or ''
+                        ])
+                else:
+                    # Course without chapters or lessons
                     writer.writerow([
                         course.id,
                         course.title,
                         course.description,
+                        course.level,
                         str(course.price),
                         'Yes' if course.is_free else 'No',
                         course.status,
-                        lesson.order,
-                        lesson.title,
-                        lesson.video_url or '',
-                        lesson.content or ''
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        ''
                     ])
-            else:
-                # Course without lessons
-                writer.writerow([
-                    course.id,
-                    course.title,
-                    course.description,
-                    str(course.price),
-                    'Yes' if course.is_free else 'No',
-                    course.status,
-                    '',
-                    '',
-                    '',
-                    ''
-                ])
         
         return response
     
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated],
             parser_classes=[MultiPartParser, FormParser])
     def import_csv(self, request):
-        """Import courses with lessons from CSV"""
+        """Import courses with lessons and chapters from CSV"""
         import csv
         import io
         
@@ -484,86 +533,149 @@ class CourseViewSet(viewsets.ModelViewSet):
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
             
+            # Validate required columns
+            required_columns = ['Course Title']
+            if not all(col in reader.fieldnames for col in required_columns):
+                missing = [col for col in required_columns if col not in reader.fieldnames]
+                return Response(
+                    {'detail': f'Missing required columns: {", ".join(missing)}. Required: Course Title, Course Description, Level (optional), Chapter Title (optional), Lesson Title (optional), Video URL (optional)'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             courses_created = 0
             lessons_created = 0
             courses_updated = 0
+            chapters_created = 0
             current_course = None
             current_course_id = None
+            chapter_cache = {}  # Cache: (course_id, chapter_title) -> Chapter object
+            errors = []
             
-            for row in reader:
-                course_id = row.get('Course ID', '').strip()
-                course_title = row.get('Course Title', '').strip()
-                course_description = row.get('Course Description', '').strip()
-                price = row.get('Price', '0').strip()
-                is_free = row.get('Is Free', 'No').strip().lower() in ['yes', 'true', '1']
-                status_val = row.get('Status', 'draft').strip()
-                
-                lesson_order = row.get('Lesson Order', '').strip()
-                lesson_title = row.get('Lesson Title', '').strip()
-                video_url = row.get('Video URL', '').strip()
-                lesson_content = row.get('Lesson Content', '').strip()
-                
-                # Skip empty rows
-                if not course_title:
-                    continue
-                
-                # Check if this is a new course or continuation of previous
-                if course_id != current_course_id:
-                    # New course
-                    if course_id and course_id.isdigit():
-                        # Update existing course
-                        try:
-                            current_course = Course.objects.get(id=int(course_id), instructor=request.user)
-                            current_course.title = course_title
-                            current_course.description = course_description
-                            current_course.price = float(price) if price else 0
-                            current_course.is_free = is_free
-                            current_course.status = status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
-                            current_course.save()
-                            courses_updated += 1
-                        except Course.DoesNotExist:
-                            # Create new course if ID doesn't exist
+            for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
+                try:
+                    course_id = row.get('Course ID', '').strip()
+                    course_title = row.get('Course Title', '').strip()
+                    course_description = row.get('Course Description', '').strip()
+                    level = row.get('Level', 'Beginner').strip()
+                    price = row.get('Price', '0').strip()
+                    is_free = row.get('Is Free', 'No').strip().lower() in ['yes', 'true', '1']
+                    status_val = row.get('Status', 'draft').strip()
+                    
+                    chapter_title = row.get('Chapter Title', '').strip()
+                    chapter_order = row.get('Chapter Order', '').strip()
+                    lesson_order = row.get('Lesson Order', '').strip()
+                    lesson_title = row.get('Lesson Title', '').strip()
+                    video_url = row.get('Video URL', '').strip()
+                    lesson_content = row.get('Lesson Content', '').strip()
+                    
+                    # Skip empty rows
+                    if not course_title:
+                        continue
+                    
+                    # Validate level
+                    if level and level not in ['Beginner', 'Intermediate', 'Advanced']:
+                        errors.append(f'Row {row_num}: Invalid level "{level}". Must be Beginner, Intermediate, or Advanced.')
+                        continue
+                    
+                    # Check if this is a new course or continuation of previous
+                    if course_id != current_course_id:
+                        # New course
+                        if course_id and course_id.isdigit():
+                            # Update existing course
+                            try:
+                                current_course = Course.objects.get(id=int(course_id), instructor=request.user)
+                                current_course.title = course_title
+                                current_course.description = course_description
+                                current_course.level = level if level else 'Beginner'
+                                current_course.price = float(price) if price else 0
+                                current_course.is_free = is_free
+                                current_course.status = status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
+                                current_course.save()
+                                courses_updated += 1
+                            except Course.DoesNotExist:
+                                # Create new course if ID doesn't exist
+                                current_course = Course.objects.create(
+                                    instructor=request.user,
+                                    title=course_title,
+                                    description=course_description,
+                                    level=level if level else 'Beginner',
+                                    price=float(price) if price else 0,
+                                    is_free=is_free,
+                                    status=status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
+                                )
+                                courses_created += 1
+                        else:
+                            # Create new course
                             current_course = Course.objects.create(
                                 instructor=request.user,
                                 title=course_title,
                                 description=course_description,
+                                level=level if level else 'Beginner',
                                 price=float(price) if price else 0,
                                 is_free=is_free,
                                 status=status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
                             )
                             courses_created += 1
-                    else:
-                        # Create new course
-                        current_course = Course.objects.create(
-                            instructor=request.user,
-                            title=course_title,
-                            description=course_description,
-                            price=float(price) if price else 0,
-                            is_free=is_free,
-                            status=status_val if status_val in ['draft', 'published', 'archived'] else 'draft'
-                        )
-                        courses_created += 1
+                        
+                        current_course_id = course_id
                     
-                    current_course_id = course_id
+                    # Handle chapter if provided
+                    current_chapter = None
+                    if chapter_title and current_course:
+                        cache_key = (current_course.id, chapter_title)
+                        if cache_key in chapter_cache:
+                            current_chapter = chapter_cache[cache_key]
+                        else:
+                            # Try to find existing chapter
+                            existing_chapter = Chapter.objects.filter(
+                                course=current_course,
+                                title=chapter_title
+                            ).first()
+                            
+                            if existing_chapter:
+                                current_chapter = existing_chapter
+                            else:
+                                # Create new chapter
+                                ch_order = int(chapter_order) if chapter_order and chapter_order.isdigit() else chapters_created + 1
+                                current_chapter = Chapter.objects.create(
+                                    course=current_course,
+                                    title=chapter_title,
+                                    order=ch_order
+                                )
+                                chapters_created += 1
+                            
+                            chapter_cache[cache_key] = current_chapter
+                    
+                    # Add lesson if provided
+                    if lesson_title and current_course:
+                        order = int(lesson_order) if lesson_order and lesson_order.isdigit() else lessons_created + 1
+                        Lesson.objects.create(
+                            course=current_course,
+                            chapter=current_chapter,  # Assign to chapter if exists
+                            title=lesson_title,
+                            video_url=video_url if video_url else None,
+                            content=lesson_content if lesson_content else '',
+                            order=order
+                        )
+                        lessons_created += 1
                 
-                # Add lesson if provided
-                if lesson_title and current_course:
-                    order = int(lesson_order) if lesson_order and lesson_order.isdigit() else lessons_created + 1
-                    Lesson.objects.create(
-                        course=current_course,
-                        title=lesson_title,
-                        video_url=video_url if video_url else None,
-                        content=lesson_content if lesson_content else '',
-                        order=order
-                    )
-                    lessons_created += 1
+                except Exception as row_error:
+                    errors.append(f'Row {row_num}: {str(row_error)}')
+                    continue
             
-            return Response({
-                'detail': 'Import successful',
+            response_data = {
+                'detail': 'Import completed',
                 'courses_created': courses_created,
                 'courses_updated': courses_updated,
+                'chapters_created': chapters_created,
                 'lessons_created': lessons_created
-            }, status=status.HTTP_200_OK)
+            }
+            
+            if errors:
+                response_data['errors'] = errors
+                response_data['detail'] = f'Import completed with {len(errors)} errors'
+            
+            return Response(response_data, status=status.HTTP_200_OK)
             
         except Exception as e:
             return Response(
@@ -574,7 +686,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 class LessonViewSet(viewsets.ModelViewSet):
     """ViewSet for lesson CRUD operations"""
-    queryset = Lesson.objects.all().order_by('order')
+    queryset = Lesson.objects.all().order_by('order', 'id')
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -582,8 +694,8 @@ class LessonViewSet(viewsets.ModelViewSet):
         """Filter lessons by course"""
         course_id = self.request.query_params.get('course_id')
         if course_id:
-            return Lesson.objects.filter(course_id=course_id).order_by('order')
-        return Lesson.objects.all().order_by('order')
+            return Lesson.objects.filter(course_id=course_id).order_by('order', 'id')
+        return Lesson.objects.all().order_by('order', 'id')
 
     def perform_create(self, serializer):
         """Ensure only course owner can create lessons"""
@@ -791,6 +903,42 @@ class LessonViewSet(viewsets.ModelViewSet):
             'detail': 'Video uploaded successfully.',
             'lesson': serializer.data
         }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def fetch_youtube_info(self, request):
+        """Fetch video information from YouTube API"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            from .youtube_utils import get_video_info
+            
+            video_url = request.data.get('video_url')
+            logger.info(f"Fetching YouTube info for URL: {video_url}")
+            
+            if not video_url:
+                return Response(
+                    {'error': 'video_url is required.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Fetch video info
+            video_info = get_video_info(video_url)
+            logger.info(f"YouTube API response: {video_info}")
+            
+            if not video_info.get('success'):
+                return Response(
+                    {'error': video_info.get('error', 'Failed to fetch video information.')},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            return Response(video_info, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error in fetch_youtube_info: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Server error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class EnrollmentViewSet(viewsets.ModelViewSet):

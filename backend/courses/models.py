@@ -195,7 +195,10 @@ class Lesson(models.Model):
     )
     video_url = models.URLField(blank=True, null=True, help_text="Enter the URL of the video (e.g. YouTube embed URL)")
     video_file = models.FileField(upload_to='lesson_videos/', null=True, blank=True, help_text="Upload video file")
-    order = models.PositiveIntegerField()
+    thumbnail_url = models.URLField(blank=True, null=True, help_text="Thumbnail image URL (auto-fetched from YouTube)")
+    duration = models.CharField(max_length=20, blank=True, null=True, help_text="Video duration (e.g., 5:30)")
+    is_embeddable = models.BooleanField(default=True, help_text="Whether the video can be embedded")
+    order = models.PositiveIntegerField(default=0)
     content = models.TextField(blank=True, help_text="Additional notes or content")
 
     class Meta:

@@ -62,7 +62,7 @@ class LessonSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Lesson
-        fields = ['id', 'course', 'chapter', 'chapter_title', 'title', 'video_url', 'video_file', 'order', 'content']
+        fields = ['id', 'course', 'chapter', 'chapter_title', 'title', 'video_url', 'video_file', 'thumbnail_url', 'duration', 'is_embeddable', 'order', 'content']
         read_only_fields = ['id']
 
 
@@ -76,7 +76,9 @@ class CourseSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     lesson_count = serializers.SerializerMethodField()
+    chapter_count = serializers.SerializerMethodField()
     enrolled_count = serializers.SerializerMethodField()
+    total_duration = serializers.SerializerMethodField()
     lessons = LessonSerializer(many=True, read_only=True)
 
     class Meta:
@@ -84,16 +86,48 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'instructor', 'category', 'category_id',
                   'level', 'status', 'price', 'original_price', 'is_free', 'thumbnail',
                   'created_at', 'updated_at', 'published_at',
-                  'lesson_count', 'enrolled_count', 'lessons']
+                  'lesson_count', 'chapter_count', 'enrolled_count', 'total_duration', 'lessons']
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
 
     def get_lesson_count(self, obj):
         """Get count of lessons in course"""
         return obj.lessons.count()
 
+    def get_chapter_count(self, obj):
+        """Get count of chapters in course"""
+        return obj.chapters.count()
+
     def get_enrolled_count(self, obj):
         """Get count of enrolled students"""
         return obj.enrollments.count()
+
+    def get_total_duration(self, obj):
+        """Calculate total duration of all lessons in course"""
+        total_minutes = 0
+        for lesson in obj.lessons.all():
+            if lesson.duration:
+                # Parse duration string (e.g., "5:30" or "1:30:00")
+                parts = lesson.duration.split(':')
+                try:
+                    if len(parts) == 2:
+                        # MM:SS format
+                        total_minutes += int(parts[0]) + int(parts[1]) / 60
+                    elif len(parts) == 3:
+                        # HH:MM:SS format
+                        total_minutes += int(parts[0]) * 60 + int(parts[1]) + int(parts[2]) / 60
+                except (ValueError, IndexError):
+                    pass
+        
+        # Format as hours and minutes
+        hours = int(total_minutes // 60)
+        minutes = int(total_minutes % 60)
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+        elif minutes > 0:
+            return f"{minutes}m"
+        else:
+            return "0m"
 
 
 class CourseDetailSerializer(serializers.ModelSerializer):
@@ -107,13 +141,18 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
     is_enrolled = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
+    lesson_count = serializers.SerializerMethodField()
+    chapter_count = serializers.SerializerMethodField()
+    enrolled_count = serializers.SerializerMethodField()
+    total_duration = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'instructor', 'category', 'status',
+        fields = ['id', 'title', 'description', 'instructor', 'category', 'level', 'status',
                   'price', 'original_price', 'is_free', 'thumbnail',
                   'created_at', 'updated_at', 'published_at',
-                  'lessons', 'is_enrolled', 'progress_percentage']
+                  'lessons', 'is_enrolled', 'progress_percentage',
+                  'lesson_count', 'chapter_count', 'enrolled_count', 'total_duration']
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
 
     def get_is_enrolled(self, obj):
@@ -137,6 +176,46 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             ).count()
             return int((completed / total_lessons) * 100)
         return 0
+
+    def get_lesson_count(self, obj):
+        """Get count of lessons in course"""
+        return obj.lessons.count()
+
+    def get_chapter_count(self, obj):
+        """Get count of chapters in course"""
+        return obj.chapters.count()
+
+    def get_enrolled_count(self, obj):
+        """Get count of enrolled students"""
+        return obj.enrollments.count()
+
+    def get_total_duration(self, obj):
+        """Calculate total duration of all lessons in course"""
+        total_minutes = 0
+        for lesson in obj.lessons.all():
+            if lesson.duration:
+                # Parse duration string (e.g., "5:30" or "1:30:00")
+                parts = lesson.duration.split(':')
+                try:
+                    if len(parts) == 2:
+                        # MM:SS format
+                        total_minutes += int(parts[0]) + int(parts[1]) / 60
+                    elif len(parts) == 3:
+                        # HH:MM:SS format
+                        total_minutes += int(parts[0]) * 60 + int(parts[1]) + int(parts[2]) / 60
+                except (ValueError, IndexError):
+                    pass
+        
+        # Format as hours and minutes
+        hours = int(total_minutes // 60)
+        minutes = int(total_minutes % 60)
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+        elif minutes > 0:
+            return f"{minutes}m"
+        else:
+            return "0m"
 
 
 class ProgressSerializer(serializers.ModelSerializer):

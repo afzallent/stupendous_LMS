@@ -22,6 +22,9 @@ from .html_embed_views import (
     HTMLEmbedContentView,
     HTMLEmbedXAPIView,
 )
+from .video_views import (
+    VideoInteractionView,
+)
 
 router = DefaultRouter()
 router.register(r'courses', views.CourseViewSet, basename='course')
@@ -54,6 +57,9 @@ urlpatterns = [
     # HTML Embed content endpoints (Requirements: 13.1, 13.4, 13.5)
     path('lessons/<int:lesson_id>/html-embed/', HTMLEmbedContentView.as_view(), name='lesson-html-embed'),
     path('lessons/<int:lesson_id>/html-embed/xapi/', HTMLEmbedXAPIView.as_view(), name='lesson-html-embed-xapi'),
+    
+    # Video interaction tracking endpoints (Requirements: 4.5, 15.1)
+    path('lessons/<int:lesson_id>/video/interaction/', VideoInteractionView.as_view(), name='lesson-video-interaction'),
     
     # Router endpoints
     path('', include(router.urls)),
