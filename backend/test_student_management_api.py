@@ -9,6 +9,7 @@ Usage:
 """
 import os
 import django
+import pytest
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lms_project.settings')
@@ -21,6 +22,7 @@ from rest_framework.test import APIClient
 User = get_user_model()
 
 
+@pytest.mark.django_db
 def setup_test_data():
     """Create test data for demonstration"""
     print("🔧 Setting up test data...")
@@ -134,6 +136,7 @@ def setup_test_data():
     return trainer, students
 
 
+@pytest.mark.django_db
 def test_student_management_api():
     """Test the student management API endpoint"""
     print("\n" + "="*60)

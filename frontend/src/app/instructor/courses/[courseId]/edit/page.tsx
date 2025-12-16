@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { djangoApi } from '@/lib/django-api-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { OverviewTab, CurriculumTab, QuizzesTab, CourseData } from '@/components/course-editor'
+import { OverviewTab, CurriculumTab, QuizzesTab, SettingsTab, AnalyticsTab, CourseData, SaveStatusIndicator, PublishValidationDialog } from '@/components/course-editor'
+import { useAutoSave, SaveStatus } from '@/hooks/useAutoSave'
 import {
   BookOpen,
   ArrowLeft,
@@ -25,6 +26,12 @@ interface Course extends CourseData {
   published_at: string | null
 }
 
+/** Editable course fields for auto-save */
+interface EditableCourseData {
+  title: string
+  description: string
+}
+
 export default function CourseEditorPage() {
   const params = useParams()
   const router = useRouter()
@@ -34,8 +41,40 @@ export default function CourseEditorPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
-  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  
+  // Editable course data for auto-save
+  const [editableData, setEditableData] = useState<EditableCourseData>({
+    title: '',
+    description: '',
+  })
+
+  /**
+   * Save course data to the backend
+   * Requirements: 11.1
+   */
+  const saveCourseData = useCallback(async (data: EditableCourseData) => {
+    await djangoApi.patch(`/api/courses/${courseId}/`, data)
+  }, [courseId])
+
+  /**
+   * Auto-save hook with 3-second debounce
+   * Requirements: 11.1, 11.2, 11.3
+   */
+  const {
+    status: saveStatus,
+    lastSaved,
+    error: saveError,
+    saveNow,
+    markChanged,
+  } = useAutoSave({
+    data: editableData,
+    onSave: saveCourseData,
+    delay: 3000,
+    enabled: !!course && !loading,
+    onError: (err) => {
+      console.error('Auto-save error:', err)
+    },
+  })
 
   useEffect(() => {
     fetchCourseData()
@@ -52,12 +91,19 @@ export default function CourseEditorPage() {
       setError(null)
       const courseData = await djangoApi.get<Course>(`/api/courses/${courseId}/`)
       // Ensure default values for computed fields
-      setCourse({
+      const normalizedCourse = {
         ...courseData,
         chapter_count: courseData.chapter_count ?? 0,
         total_duration: courseData.total_duration ?? '0m',
         enrolled_count: courseData.enrolled_count ?? 0,
         lesson_count: courseData.lesson_count ?? 0,
+      }
+      setCourse(normalizedCourse)
+      
+      // Initialize editable data from course
+      setEditableData({
+        title: normalizedCourse.title,
+        description: normalizedCourse.description,
       })
     } catch (err: any) {
       console.error('Error fetching course data:', err)
@@ -77,18 +123,92 @@ export default function CourseEditorPage() {
     }
   }
 
+  /**
+   * Update editable data (triggers auto-save)
+   * Requirements: 11.1
+   */
+  const updateEditableData = useCallback((updates: Partial<EditableCourseData>) => {
+    setEditableData(prev => ({ ...prev, ...updates }))
+    // Also update the course state for immediate UI feedback
+    setCourse(prev => prev ? { ...prev, ...updates } : null)
+  }, [])
+
+  /**
+   * Update course data (for fields not in auto-save)
+   * Requirements: 11.1
+   */
+  const updateCourseData = useCallback(async (updates: Partial<CourseData>) => {
+    try {
+      // Check if we have file uploads
+      const hasFiles = Object.values(updates).some(value => value instanceof File)
+      
+      if (hasFiles) {
+        // Use FormData for file uploads
+        const formData = new FormData()
+        Object.entries(updates).forEach(([key, value]) => {
+          if (value instanceof File) {
+            formData.append(key, value)
+          } else if (value !== undefined && value !== null) {
+            formData.append(key, String(value))
+          }
+        })
+        
+        // Use fetch directly for FormData uploads
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/courses/${courseId}/`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          },
+          body: formData,
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+      } else {
+        // Use regular JSON for non-file updates
+        await djangoApi.patch(`/api/courses/${courseId}/`, updates)
+      }
+      
+      // Refresh course data to get updated URLs
+      await fetchCourseData()
+    } catch (error: any) {
+      console.error('Error updating course:', error)
+      throw error
+    }
+  }, [courseId])
+
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+
+  /**
+   * Show publish validation dialog
+   * Requirements: 11.5
+   */
+  const handlePublishClick = async () => {
+    if (!course) return
+    
+    // Save any pending changes first
+    await saveNow()
+    setShowPublishDialog(true)
+  }
+
+  /**
+   * Perform the actual publish after validation
+   * Requirements: 11.5
+   */
   const handlePublish = async () => {
     if (!course) return
     
     try {
-      setSaveStatus('saving')
+      setIsPublishing(true)
       await djangoApi.post(`/api/courses/${courseId}/publish/`)
       await fetchCourseData()
-      setSaveStatus('saved')
-      setLastSaved(new Date())
     } catch (error: any) {
       console.error('Error publishing course:', error)
-      setSaveStatus('unsaved')
+      throw error // Re-throw to let dialog handle it
+    } finally {
+      setIsPublishing(false)
     }
   }
 
@@ -96,14 +216,13 @@ export default function CourseEditorPage() {
     if (!course) return
     
     try {
-      setSaveStatus('saving')
+      setIsPublishing(true)
       await djangoApi.post(`/api/courses/${courseId}/unpublish/`)
       await fetchCourseData()
-      setSaveStatus('saved')
-      setLastSaved(new Date())
     } catch (error: any) {
       console.error('Error unpublishing course:', error)
-      setSaveStatus('unsaved')
+    } finally {
+      setIsPublishing(false)
     }
   }
 
@@ -167,17 +286,12 @@ export default function CourseEditorPage() {
                   <Badge variant={course.status === 'published' ? 'default' : 'secondary'}>
                     {course.status}
                   </Badge>
-                  {saveStatus === 'saving' && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3 w-3 animate-spin" />
-                      Saving...
-                    </span>
-                  )}
-                  {saveStatus === 'saved' && lastSaved && (
-                    <span className="text-xs text-muted-foreground">
-                      All changes saved
-                    </span>
-                  )}
+                  <SaveStatusIndicator
+                    status={saveStatus}
+                    lastSaved={lastSaved}
+                    error={saveError}
+                    showTimestamp={false}
+                  />
                 </div>
               </div>
             </div>
@@ -188,9 +302,10 @@ export default function CourseEditorPage() {
               </Button>
               <Button 
                 size="sm"
-                onClick={course.status === 'published' ? handleUnpublish : handlePublish}
+                onClick={course.status === 'published' ? handleUnpublish : handlePublishClick}
+                disabled={isPublishing}
               >
-                {course.status === 'published' ? 'Unpublish' : 'Publish'}
+                {isPublishing ? 'Publishing...' : course.status === 'published' ? 'Unpublish' : 'Publish'}
               </Button>
             </div>
           </div>
@@ -227,9 +342,10 @@ export default function CourseEditorPage() {
           <TabsContent value="overview" className="space-y-6">
             <OverviewTab
               course={course}
-              onPublish={handlePublish}
+              onPublish={handlePublishClick}
               onUnpublish={handleUnpublish}
-              isPublishing={saveStatus === 'saving'}
+              onUpdateCourse={updateCourseData}
+              isPublishing={isPublishing}
             />
           </TabsContent>
 
@@ -243,45 +359,26 @@ export default function CourseEditorPage() {
             <QuizzesTab courseId={courseId} />
           </TabsContent>
 
-          {/* Settings Tab - Placeholder */}
+          {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Course Settings</CardTitle>
-                <CardDescription>Configure course-level settings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Settings coming soon</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    This tab will allow you to configure progression, certificates, and more
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <SettingsTab courseId={courseId} />
           </TabsContent>
 
-          {/* Analytics Tab - Placeholder */}
+          {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analytics</CardTitle>
-                <CardDescription>Track course performance and student engagement</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Analytics coming soon</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    This tab will show enrollment stats, completion rates, and quiz scores
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <AnalyticsTab courseId={courseId} />
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Publish Validation Dialog - Requirements: 11.5 */}
+      <PublishValidationDialog
+        open={showPublishDialog}
+        onOpenChange={setShowPublishDialog}
+        courseId={courseId}
+        courseTitle={course.title}
+        onPublish={handlePublish}
+      />
     </div>
   )
 }

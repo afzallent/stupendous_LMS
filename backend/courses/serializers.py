@@ -86,8 +86,10 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'instructor', 'category', 'category_id',
-                  'level', 'status', 'price', 'original_price', 'is_free', 'thumbnail',
+        fields = ['id', 'title', 'description', 'markdown_description', 'instructor', 'category', 'category_id',
+                  'level', 'status', 'price', 'original_price', 'is_free', 'thumbnail', 'hero_image',
+                  'sequential_progression', 'enable_certificate', 'certificate_min_completion',
+                  'enable_discussions',
                   'created_at', 'updated_at', 'published_at',
                   'lesson_count', 'chapter_count', 'enrolled_count', 'total_duration', 'lessons']
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
@@ -153,6 +155,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         model = Course
         fields = ['id', 'title', 'description', 'instructor', 'category', 'level', 'status',
                   'price', 'original_price', 'is_free', 'thumbnail',
+                  'sequential_progression', 'enable_certificate', 'certificate_min_completion',
+                  'enable_discussions',
                   'created_at', 'updated_at', 'published_at',
                   'lessons', 'is_enrolled', 'progress_percentage',
                   'lesson_count', 'chapter_count', 'enrolled_count', 'total_duration']

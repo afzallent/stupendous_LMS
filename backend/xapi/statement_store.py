@@ -40,6 +40,10 @@ class XAPIStatementStore:
             ValidationError: If the statement is invalid
             StatementStoreError: If storage fails
         """
+        # Check if statement is a dictionary
+        if not isinstance(statement, dict):
+            raise ValidationError(f"Statement must be a dictionary, got {type(statement).__name__}")
+        
         # Validate the statement
         is_valid, error_message = self.validator.validate(statement)
         if not is_valid:
@@ -97,6 +101,9 @@ class XAPIStatementStore:
             
             return statement_ids
             
+        except ValidationError:
+            # Re-raise validation errors as-is so they return 400 status
+            raise
         except Exception as e:
             raise StatementStoreError(f"Failed to store statements: {str(e)}")
     

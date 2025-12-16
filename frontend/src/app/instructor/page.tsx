@@ -28,6 +28,7 @@ import {
   Plus,
   BarChart3,
   Eye,
+  Edit,
   MessageSquare,
   AlertCircle,
   CheckCircle,
@@ -92,7 +93,7 @@ export default function InstructorDashboard() {
 
         // Fetch instructor's courses from Django
         try {
-          const coursesResponse = await fetch(`${API_BASE_URL}/api/courses/?instructorId=${user.id}`, { headers })
+          const coursesResponse = await fetch(`${API_BASE_URL}/api/courses/my_courses/`, { headers })
           if (coursesResponse.ok) {
             const coursesData = await coursesResponse.json()
             console.log('📚 Courses from Django:', coursesData)
@@ -707,12 +708,12 @@ export default function InstructorDashboard() {
                           <div className="flex space-x-2">
                             <Button 
                               size="sm" 
-                              variant="outline" 
+                              variant="default" 
                               className="flex-1"
-                              onClick={() => router.push(`/instructor/courses/${course.id}`)}
+                              onClick={() => router.push(`/instructor/courses/${course.id}/edit`)}
                             >
-                              <Eye className="h-3 w-3 mr-1" />
-                              View
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit
                             </Button>
                             <Button 
                               size="sm" 

@@ -24,14 +24,15 @@ export interface Chapter {
 
 export interface Lesson {
   id: number
-  course_id: number
-  chapter_id: number | null
+  course: number
+  chapter: number | null  // This matches the API field name
   chapter_title?: string
   title: string
-  content_type: 'video' | 'markdown' | 'h5p' | 'html_embed' | 'scorm'
+  content_type?: 'video' | 'markdown' | 'h5p' | 'html_embed' | 'scorm'
   order: number
   // Video fields
   video_url: string | null
+  video_file?: string | null
   thumbnail_url: string | null
   duration: string | null
   is_embeddable: boolean
@@ -39,6 +40,10 @@ export interface Lesson {
   content: string
   created_at?: string
   updated_at?: string
+  
+  // Computed/legacy fields for backward compatibility
+  course_id?: number
+  chapter_id?: number | null
 }
 
 export interface Quiz {

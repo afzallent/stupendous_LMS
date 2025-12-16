@@ -72,6 +72,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "activity.middleware.ActivityTrackingMiddleware",
+    "xapi.middleware.XAPIAuditMiddleware",
 ]
 
 ROOT_URLCONF = "lms_project.urls"

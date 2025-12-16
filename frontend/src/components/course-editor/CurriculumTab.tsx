@@ -1,4 +1,5 @@
-'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use client';
 
 import { useState, useEffect, useCallback } from 'react'
 import {
@@ -82,15 +83,25 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
         djangoApi.get<Quiz[]>('/api/quizzes/', { course_id: courseId }),
       ])
 
-      setChapters(chaptersData)
-      setLessons(lessonsData)
-      setQuizzes(quizzesData)
+      // Validate that we received arrays
+      const validChapters = Array.isArray(chaptersData) ? chaptersData : []
+      const validLessons = Array.isArray(lessonsData) ? lessonsData : []
+      const validQuizzes = Array.isArray(quizzesData) ? quizzesData : []
+
+      setChapters(validChapters)
+      setLessons(validLessons)
+      setQuizzes(validQuizzes)
       
       // Expand all chapters by default
-      setExpandedChapters(new Set(chaptersData.map((c) => c.id)))
+      setExpandedChapters(new Set(validChapters.map((c) => c.id)))
     } catch (err: any) {
       console.error('Error fetching curriculum data:', err)
       setError(err.message || 'Failed to load curriculum')
+      // Set empty arrays on error
+      setChapters([])
+      setLessons([])
+      setQuizzes([])
+      setExpandedChapters(new Set())
     } finally {
       setLoading(false)
     }
@@ -100,24 +111,32 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
     fetchData()
   }, [fetchData])
 
+  /**
+   * Normalize lesson.chapter across API versions.
+   * Backend returns `chapter` (number | null). Some older UI code used `chapter_id`.
+   */
+  const getLessonChapterId = useCallback((lesson: Lesson): number | null => {
+    return lesson.chapter ?? lesson.chapter_id ?? null
+  }, [])
+
   // Calculate summary - Requirements: 8.3
   const summary: CurriculumSummary = {
     chapterCount: chapters.length,
     lessonCount: lessons.length,
     totalDuration: calculateTotalDuration(lessons),
-    unassignedCount: lessons.filter((l) => l.chapter_id === null).length,
+    unassignedCount: lessons.filter((l) => getLessonChapterId(l) === null).length,
   }
 
   // Get lessons for a specific chapter
   const getLessonsForChapter = (chapterId: number) => {
     return lessons
-      .filter((l) => l.chapter_id === chapterId)
+      .filter((l) => getLessonChapterId(l) === chapterId)
       .sort((a, b) => a.order - b.order)
   }
 
   // Get unassigned lessons
   const unassignedLessons = lessons
-    .filter((l) => l.chapter_id === null)
+    .filter((l) => getLessonChapterId(l) === null)
     .sort((a, b) => a.order - b.order)
 
   // Get quizzes for a specific chapter - Requirements: 5.3
@@ -153,10 +172,12 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
       const lesson = lessons.find(l => l.id === lessonId)
       if (!lesson) return
 
+      const lessonChapterId = getLessonChapterId(lesson)
+
       // Check if dropping on a chapter drop zone
       if (overId.startsWith('chapter-drop-')) {
         const targetChapterId = parseInt(overId.replace('chapter-drop-', ''))
-        if (lesson.chapter_id !== targetChapterId) {
+        if (lessonChapterId !== targetChapterId) {
           // Move lesson to new chapter
           await handleMoveToChapter(lessonId, targetChapterId)
         }
@@ -169,10 +190,12 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
         const overLesson = lessons.find(l => l.id === overLessonId)
         if (!overLesson) return
 
+        const overLessonChapterId = getLessonChapterId(overLesson)
+
         // If same chapter, reorder within chapter
-        if (lesson.chapter_id === overLesson.chapter_id) {
+        if (lessonChapterId === overLessonChapterId) {
           const chapterLessons = lessons
-            .filter(l => l.chapter_id === lesson.chapter_id)
+            .filter(l => getLessonChapterId(l) === lessonChapterId)
             .sort((a, b) => a.order - b.order)
           
           const oldIndex = chapterLessons.findIndex(l => l.id === lessonId)
@@ -195,7 +218,7 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
             try {
               await djangoApi.post('/api/lessons/reorder/', {
                 course_id: parseInt(courseId),
-                chapter_id: lesson.chapter_id,
+                chapter_id: lessonChapterId,
                 lessons: reorderedLessons.map((l, index) => ({
                   id: l.id,
                   order: index,
@@ -208,7 +231,9 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
           }
         } else {
           // Move to different chapter at specific position
-          await handleMoveToChapter(lessonId, overLesson.chapter_id!)
+          if (overLessonChapterId !== null) {
+            await handleMoveToChapter(lessonId, overLessonChapterId)
+          }
         }
         return
       }
@@ -304,7 +329,8 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
     setIsSaving(true)
     try {
       // Set order to be at the end of the chapter
-      const chapterLessons = lessons.filter(l => l.chapter_id === data.chapter)
+      const targetChapterId = data.chapter ?? null
+      const chapterLessons = lessons.filter(l => getLessonChapterId(l) === targetChapterId)
       const newOrder = chapterLessons.length
       await djangoApi.post('/api/lessons/', {
         ...data,
@@ -369,7 +395,7 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
 
   const openEditLessonDialog = (lesson: Lesson) => {
     setEditingLesson(lesson)
-    setLessonChapterId(lesson.chapter_id)
+    setLessonChapterId(getLessonChapterId(lesson))
     setLessonDialogOpen(true)
   }
 
@@ -559,6 +585,11 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
  * Calculate total duration from all lessons
  */
 function calculateTotalDuration(lessons: Lesson[]): string {
+  // Validate input is an array
+  if (!Array.isArray(lessons)) {
+    return '0 min'
+  }
+
   let totalMinutes = 0
 
   for (const lesson of lessons) {

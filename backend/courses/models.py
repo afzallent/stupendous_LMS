@@ -89,16 +89,28 @@ class Course(models.Model):
     
     title = models.CharField(max_length=200)
     description = models.TextField()
+    markdown_description = models.TextField(blank=True, help_text="Detailed course description in Markdown format")
     instructor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='courses_created')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='courses')
     level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='Beginner', help_text="Course difficulty level")
     thumbnail = models.ImageField(upload_to='course_thumbnails/', null=True, blank=True, help_text="Course thumbnail image")
+    hero_image = models.ImageField(upload_to='course_heroes/', null=True, blank=True, help_text="Course hero/banner image for overview page")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     
     # Pricing fields
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Course price in USD")
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Original price before discount")
     is_free = models.BooleanField(default=False, help_text="Mark course as free")
+    
+    # Course Settings (Requirements 10.1, 10.2, 10.3)
+    sequential_progression = models.BooleanField(default=False, help_text="Require students to complete lessons in order")
+    enable_certificate = models.BooleanField(default=False, help_text="Enable certificate on course completion")
+    certificate_min_completion = models.IntegerField(
+        default=100,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Minimum completion percentage required for certificate (0-100)"
+    )
+    enable_discussions = models.BooleanField(default=False, help_text="Enable discussion forums for this course")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

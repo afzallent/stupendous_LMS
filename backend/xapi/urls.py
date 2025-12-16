@@ -8,6 +8,7 @@ from xapi.views import (
     course_verb_distribution,
     export_statements
 )
+from xapi.views.privacy import export_student_data, delete_student_data
 
 app_name = 'xapi'
 
@@ -29,4 +30,8 @@ urlpatterns = [
     
     # Export endpoint
     path('export/', export_statements, name='export_statements'),
+    
+    # Privacy endpoints
+    path('my-data/', export_student_data, name='export_student_data'),
+    path('my-data/', delete_student_data, name='delete_student_data'),
 ]

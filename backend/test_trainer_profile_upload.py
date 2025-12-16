@@ -4,6 +4,7 @@ Test script for trainer profile avatar upload endpoint.
 import os
 import sys
 import django
+import pytest
 from io import BytesIO
 from PIL import Image
 
@@ -34,6 +35,7 @@ def create_test_image(format='JPEG', size=(100, 100)):
     return file
 
 
+@pytest.mark.django_db
 def test_trainer_profile_upload():
     """Test the trainer profile avatar upload endpoint"""
     print("\n" + "="*60)

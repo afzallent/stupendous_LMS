@@ -34,7 +34,17 @@ class QuizViewSet(viewsets.ModelViewSet):
         queryset = Quiz.objects.all()
         course_id = self.request.query_params.get('course_id')
         if course_id:
-            queryset = queryset.filter(course_id=course_id)
+            # Check if user has permission to view this course's quizzes
+            try:
+                from courses.models import Course
+                course = Course.objects.get(id=course_id)
+                # Allow if course is published OR user is the instructor
+                if course.status == 'published' or (self.request.user.is_authenticated and course.instructor == self.request.user):
+                    queryset = queryset.filter(course_id=course_id)
+                else:
+                    return Quiz.objects.none()
+            except Course.DoesNotExist:
+                return Quiz.objects.none()
         
         # Instructors see all quizzes, students see only active ones
         if self.request.user.is_authenticated and not self.request.user.is_instructor:

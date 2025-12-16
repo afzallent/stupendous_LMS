@@ -220,7 +220,23 @@ class CourseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter courses by query parameters and user permissions"""
         queryset = Course.objects.all().order_by('-created_at')
+
+        # IMPORTANT:
+        # For detail actions (retrieve/update/partial_update/destroy), we must NOT apply the
+        # list filtering logic below. Otherwise instructors editing a draft course will get a
+        # false 404 because drafts are filtered out.
+        #
+        # Access control is enforced by:
+        # - `retrieve()` which returns 404 for unpublished courses unless owner
+        # - `perform_update()` / `perform_destroy()` which enforce ownership
+        if (
+            self.action in {'retrieve', 'update', 'partial_update', 'destroy'}
+            and self.request.user.is_authenticated
+            and self.request.user.is_instructor
+        ):
+            return queryset
         
+        # For list actions, apply normal filtering
         # Students and anonymous users should only see published courses
         # Instructors can see their own courses regardless of status
         if not self.request.user.is_authenticated or self.request.user.is_student:
@@ -694,7 +710,16 @@ class LessonViewSet(viewsets.ModelViewSet):
         """Filter lessons by course"""
         course_id = self.request.query_params.get('course_id')
         if course_id:
-            return Lesson.objects.filter(course_id=course_id).order_by('order', 'id')
+            # Check if user has permission to view this course's lessons
+            try:
+                course = Course.objects.get(id=course_id)
+                # Allow if course is published OR user is the instructor
+                if course.status == 'published' or (self.request.user.is_authenticated and course.instructor == self.request.user):
+                    return Lesson.objects.filter(course_id=course_id).order_by('order', 'id')
+                else:
+                    return Lesson.objects.none()
+            except Course.DoesNotExist:
+                return Lesson.objects.none()
         return Lesson.objects.all().order_by('order', 'id')
 
     def perform_create(self, serializer):
@@ -1565,7 +1590,16 @@ class ChapterViewSet(viewsets.ModelViewSet):
         """Filter chapters by course"""
         course_id = self.request.query_params.get('course_id')
         if course_id:
-            return Chapter.objects.filter(course_id=course_id).order_by('order')
+            # Check if user has permission to view this course's chapters
+            try:
+                course = Course.objects.get(id=course_id)
+                # Allow if course is published OR user is the instructor
+                if course.status == 'published' or (self.request.user.is_authenticated and course.instructor == self.request.user):
+                    return Chapter.objects.filter(course_id=course_id).order_by('order')
+                else:
+                    return Chapter.objects.none()
+            except Course.DoesNotExist:
+                return Chapter.objects.none()
         return Chapter.objects.all().order_by('course', 'order')
     
     def perform_create(self, serializer):

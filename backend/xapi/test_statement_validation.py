@@ -253,6 +253,67 @@ def valid_xapi_statement(draw):
 
 
 @composite
+def valid_student(draw):
+    """Generate a valid student user"""
+    from core.models import User
+    
+    username = draw(st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789_'))
+    email = draw(st.emails())
+    
+    user = User.objects.create_user(
+        username=f"student_{username}_{uuid.uuid4().hex[:8]}",
+        email=email,
+        password='testpass123',
+        is_student=True
+    )
+    return user
+
+
+@composite
+def valid_course(draw):
+    """Generate a valid course"""
+    from courses.models import Course
+    from core.models import User
+    
+    # Create instructor
+    instructor_username = draw(st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789_'))
+    instructor = User.objects.create_user(
+        username=f"instructor_{instructor_username}_{uuid.uuid4().hex[:8]}",
+        email=f"instructor_{uuid.uuid4().hex[:8]}@example.com",
+        password='testpass123',
+        is_instructor=True
+    )
+    
+    # Create course
+    course_title = draw(st.text(min_size=5, max_size=50))
+    course = Course.objects.create(
+        title=course_title,
+        description=draw(st.text(min_size=10, max_size=200)),
+        instructor=instructor
+    )
+    return course
+
+
+@composite
+def valid_lesson(draw, course=None):
+    """Generate a valid lesson"""
+    from courses.models import Lesson
+    
+    if course is None:
+        course = draw(valid_course())
+    
+    lesson_title = draw(st.text(min_size=5, max_size=50))
+    lesson = Lesson.objects.create(
+        course=course,
+        title=lesson_title,
+        description=draw(st.text(min_size=10, max_size=200)),
+        video_url='https://example.com/video.mp4',
+        order=draw(st.integers(min_value=1, max_value=10))
+    )
+    return lesson
+
+
+@composite
 def invalid_xapi_statement(draw):
     """Generate an invalid xAPI statement"""
     # Choose a type of invalidity
@@ -1830,3 +1891,786 @@ class TestXAPIHTTPStatusCodes:
                 uuid.UUID(statement_id)
             except (ValueError, TypeError):
                 pytest.fail(f"Response should contain valid UUIDs, got {statement_id}")
+
+
+
+# ============================================================================
+# Hypothesis Strategies for Lesson Completion Tests
+# ============================================================================
+
+@composite
+def valid_student(draw):
+    """Generate a valid student user"""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    username = f'student_{uuid.uuid4().hex[:8]}'
+    email = f'{username}@example.com'
+    first_name = draw(st.text(min_size=1, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'))
+    last_name = draw(st.text(min_size=1, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'))
+    
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password='testpass123',
+        first_name=first_name,
+        last_name=last_name,
+        is_student=True
+    )
+    
+    return user
+
+
+@composite
+def valid_course(draw):
+    """Generate a valid course"""
+    from courses.models import Course
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    # Create instructor
+    instructor_username = f'instructor_{uuid.uuid4().hex[:8]}'
+    instructor = User.objects.create_user(
+        username=instructor_username,
+        email=f'{instructor_username}@example.com',
+        password='testpass123',
+        is_instructor=True
+    )
+    
+    title = draw(st.text(min_size=5, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz '))
+    description = draw(st.text(min_size=10, max_size=500, alphabet='abcdefghijklmnopqrstuvwxyz '))
+    
+    course = Course.objects.create(
+        title=title,
+        description=description,
+        instructor=instructor
+    )
+    
+    return course
+
+
+@composite
+def valid_lesson(draw, course=None):
+    """Generate a valid lesson"""
+    from courses.models import Lesson
+    
+    if course is None:
+        course = draw(valid_course())
+    
+    title = draw(st.text(min_size=5, max_size=200, alphabet='abcdefghijklmnopqrstuvwxyz '))
+    content = draw(st.text(min_size=10, max_size=1000, alphabet='abcdefghijklmnopqrstuvwxyz '))
+    order = draw(st.integers(min_value=1, max_value=100))
+    
+    lesson = Lesson.objects.create(
+        course=course,
+        title=title,
+        content=content,
+        order=order
+    )
+    
+    return lesson
+
+
+@pytest.mark.django_db
+class TestLessonCompletionStatementGeneration:
+    """
+    Property-based tests for lesson completion statement generation
+    
+    Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+    Validates: Requirements 4.1
+    
+    Property 14: For any lesson marked as completed by a student, an xAPI statement should be 
+    generated with verb "http://adlnet.gov/expapi/verbs/completed" and the correct actor and 
+    object identifiers.
+    """
+    
+    @given(st.data())
+    @settings(max_examples=100, deadline=None)
+    def test_lesson_completion_generates_statement_with_completed_verb(self, data):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any lesson marked as completed by a student, an xAPI statement should be 
+        generated with verb "http://adlnet.gov/expapi/verbs/completed".
+        
+        This test verifies that when a lesson is completed, the generated xAPI statement
+        uses the correct "completed" verb IRI.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        lesson = data.draw(valid_lesson())
+        
+        # Generate lesson completion statement
+        generator = XAPIStatementGenerator()
+        statement = generator.generate_lesson_completed(student, lesson)
+        
+        # Verify the statement was created
+        assert statement is not None, "Statement should be created"
+        assert statement.statement_id is not None, "Statement should have a UUID"
+        
+        # Verify the verb is "completed"
+        assert statement.verb_id == "http://adlnet.gov/expapi/verbs/completed", \
+            f"Statement should have 'completed' verb, got {statement.verb_id}"
+        
+        # Verify verb display
+        assert "en-US" in statement.verb_display, "Verb should have en-US display"
+        assert statement.verb_display["en-US"] == "completed", \
+            f"Verb display should be 'completed', got {statement.verb_display['en-US']}"
+        
+        # Clean up
+        statement.delete()
+        lesson.delete()
+        lesson.course.instructor.delete()
+        lesson.course.delete()
+        student.delete()
+    
+    @given(st.data())
+    @settings(max_examples=100, deadline=None)
+    def test_lesson_completion_statement_has_correct_actor(self, data):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any lesson marked as completed by a student, the generated xAPI statement
+        should have the correct actor identifier matching the student.
+        
+        This test verifies that the actor in the statement correctly identifies the student.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        lesson = data.draw(valid_lesson())
+        
+        # Generate lesson completion statement
+        generator = XAPIStatementGenerator()
+        statement = generator.generate_lesson_completed(student, lesson)
+        
+        # Verify the actor information
+        assert statement.actor_name is not None, "Actor should have a name"
+        
+        # Verify actor mbox if email exists
+        if student.email:
+            assert statement.actor_mbox == student.email, \
+                f"Actor mbox should match student email: {statement.actor_mbox} != {student.email}"
+        
+        # Verify actor account
+        assert statement.actor_account_name == str(student.id), \
+            f"Actor account name should match student ID: {statement.actor_account_name} != {student.id}"
+        
+        # Verify actor JSON contains correct information
+        actor_json = statement.actor_json
+        assert actor_json["objectType"] == "Agent", "Actor should be an Agent"
+        
+        if student.email:
+            assert actor_json.get("mbox") == f"mailto:{student.email}", \
+                f"Actor JSON mbox should match student email"
+        
+        assert actor_json.get("account", {}).get("name") == str(student.id), \
+            "Actor JSON account name should match student ID"
+        
+        # Clean up
+        statement.delete()
+        lesson.delete()
+        lesson.course.instructor.delete()
+        lesson.course.delete()
+        student.delete()
+    
+    @given(st.data())
+    @settings(max_examples=100, deadline=None)
+    def test_lesson_completion_statement_has_correct_object(self, data):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any lesson marked as completed by a student, the generated xAPI statement
+        should have the correct object identifier matching the lesson.
+        
+        This test verifies that the object in the statement correctly identifies the lesson.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        lesson = data.draw(valid_lesson())
+        
+        # Generate lesson completion statement
+        generator = XAPIStatementGenerator()
+        statement = generator.generate_lesson_completed(student, lesson)
+        
+        # Verify the object information
+        assert statement.object_type == "Activity", \
+            f"Object should be an Activity, got {statement.object_type}"
+        
+        # Verify object ID contains lesson and course IDs
+        expected_id_pattern = f"/courses/{lesson.course.id}/lessons/{lesson.id}"
+        assert expected_id_pattern in statement.object_id, \
+            f"Object ID should contain course and lesson IDs: {statement.object_id}"
+        
+        # Verify object JSON
+        object_json = statement.object_json
+        assert object_json["objectType"] == "Activity", "Object should be an Activity"
+        assert expected_id_pattern in object_json["id"], \
+            f"Object JSON ID should contain course and lesson IDs"
+        
+        # Verify object definition
+        assert "definition" in object_json, "Object should have a definition"
+        definition = object_json["definition"]
+        
+        assert "name" in definition, "Object definition should have a name"
+        assert "en-US" in definition["name"], "Object name should have en-US language"
+        assert definition["name"]["en-US"] == lesson.title, \
+            f"Object name should match lesson title: {definition['name']['en-US']} != {lesson.title}"
+        
+        assert "type" in definition, "Object definition should have a type"
+        assert definition["type"] == "http://adlnet.gov/expapi/activities/lesson", \
+            f"Object type should be lesson activity type, got {definition['type']}"
+        
+        # Clean up
+        statement.delete()
+        lesson.delete()
+        lesson.course.instructor.delete()
+        lesson.course.delete()
+        student.delete()
+    
+    @given(st.data())
+    @settings(max_examples=100, deadline=None)
+    def test_lesson_completion_statement_has_completion_result(self, data):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any lesson marked as completed by a student, the generated xAPI statement
+        should have a result indicating completion.
+        
+        This test verifies that the statement includes a result with completion=true.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        lesson = data.draw(valid_lesson())
+        
+        # Generate lesson completion statement
+        generator = XAPIStatementGenerator()
+        statement = generator.generate_lesson_completed(student, lesson)
+        
+        # Verify result indicates completion
+        assert statement.result_completion is True, \
+            f"Result should indicate completion, got {statement.result_completion}"
+        
+        # Verify result JSON
+        assert statement.result_json is not None, "Statement should have result JSON"
+        result_json = statement.result_json
+        
+        assert "completion" in result_json, "Result should have completion field"
+        assert result_json["completion"] is True, \
+            f"Result completion should be True, got {result_json['completion']}"
+        
+        # Clean up
+        statement.delete()
+        lesson.delete()
+        lesson.course.instructor.delete()
+        lesson.course.delete()
+        student.delete()
+    
+    @given(st.data())
+    @settings(max_examples=100, deadline=None)
+    def test_lesson_completion_statement_links_to_models(self, data):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any lesson marked as completed by a student, the generated xAPI statement
+        should be linked to the student, course, and lesson models for synchronization.
+        
+        This test verifies that the statement maintains foreign key relationships.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        lesson = data.draw(valid_lesson())
+        
+        # Generate lesson completion statement
+        generator = XAPIStatementGenerator()
+        statement = generator.generate_lesson_completed(student, lesson)
+        
+        # Verify model links
+        assert statement.user == student, \
+            f"Statement should link to student: {statement.user} != {student}"
+        
+        assert statement.course == lesson.course, \
+            f"Statement should link to course: {statement.course} != {lesson.course}"
+        
+        assert statement.lesson == lesson, \
+            f"Statement should link to lesson: {statement.lesson} != {lesson}"
+        
+        # Clean up
+        statement.delete()
+        lesson.delete()
+        lesson.course.instructor.delete()
+        lesson.course.delete()
+        student.delete()
+    
+    @given(st.data())
+    @settings(max_examples=100, deadline=None)
+    def test_lesson_completion_statement_includes_course_context(self, data):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any lesson marked as completed by a student, the generated xAPI statement
+        should include context information about the parent course.
+        
+        This test verifies that the statement includes proper context with course information.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        lesson = data.draw(valid_lesson())
+        
+        # Generate lesson completion statement
+        generator = XAPIStatementGenerator()
+        statement = generator.generate_lesson_completed(student, lesson)
+        
+        # Verify context exists
+        assert statement.context_json is not None, "Statement should have context"
+        context = statement.context_json
+        
+        # Verify context activities
+        assert "contextActivities" in context, "Context should have contextActivities"
+        assert "parent" in context["contextActivities"], "Context should have parent activities"
+        
+        parent_activities = context["contextActivities"]["parent"]
+        assert len(parent_activities) > 0, "Should have at least one parent activity"
+        
+        # Verify parent is the course
+        parent = parent_activities[0]
+        assert parent["objectType"] == "Activity", "Parent should be an Activity"
+        
+        expected_course_id = f"/courses/{lesson.course.id}"
+        assert expected_course_id in parent["id"], \
+            f"Parent ID should contain course ID: {parent['id']}"
+        
+        assert "definition" in parent, "Parent should have definition"
+        assert "name" in parent["definition"], "Parent definition should have name"
+        assert "en-US" in parent["definition"]["name"], "Parent name should have en-US"
+        assert parent["definition"]["name"]["en-US"] == lesson.course.title, \
+            f"Parent name should match course title"
+        
+        assert parent["definition"]["type"] == "http://adlnet.gov/expapi/activities/course", \
+            f"Parent type should be course activity type"
+        
+        # Clean up
+        statement.delete()
+        lesson.delete()
+        lesson.course.instructor.delete()
+        lesson.course.delete()
+        student.delete()
+    
+    @given(st.data(), st.text(min_size=5, max_size=20, alphabet='PT0123456789HMS'))
+    @settings(max_examples=50, deadline=None)
+    def test_lesson_completion_with_duration_includes_duration_in_result(self, data, duration):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any lesson marked as completed by a student with a duration,
+        the generated xAPI statement should include the duration in the result.
+        
+        This test verifies that duration information is properly included when provided.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        lesson = data.draw(valid_lesson())
+        
+        # Generate lesson completion statement with duration
+        generator = XAPIStatementGenerator()
+        statement = generator.generate_lesson_completed(student, lesson, duration=duration)
+        
+        # Verify duration is stored
+        assert statement.result_duration == duration, \
+            f"Result should include duration: {statement.result_duration} != {duration}"
+        
+        # Verify duration in result JSON
+        assert statement.result_json is not None, "Statement should have result JSON"
+        result_json = statement.result_json
+        
+        assert "duration" in result_json, "Result should have duration field"
+        assert result_json["duration"] == duration, \
+            f"Result duration should match: {result_json['duration']} != {duration}"
+        
+        # Clean up
+        statement.delete()
+        lesson.delete()
+        lesson.course.instructor.delete()
+        lesson.course.delete()
+        student.delete()
+    
+    @given(st.data())
+    @settings(max_examples=50, deadline=None)
+    def test_multiple_lesson_completions_generate_unique_statements(self, data):
+        """
+        Feature: scorm-xapi-compliance, Property 14: Lesson completion statement generation
+        
+        Property: For any set of lesson completions, each should generate a unique xAPI statement
+        with a unique UUID.
+        
+        This test verifies that multiple completions generate distinct statements.
+        """
+        from xapi.statement_generator import XAPIStatementGenerator
+        
+        # Generate test data
+        student = data.draw(valid_student())
+        course = data.draw(valid_course())
+        
+        # Create multiple lessons
+        num_lessons = data.draw(st.integers(min_value=2, max_value=5))
+        lessons = []
+        for i in range(num_lessons):
+            lesson = data.draw(valid_lesson(course=course))
+            lessons.append(lesson)
+        
+        # Generate completion statements for all lessons
+        generator = XAPIStatementGenerator()
+        statements = []
+        for lesson in lessons:
+            statement = generator.generate_lesson_completed(student, lesson)
+            statements.append(statement)
+        
+        # Verify all statements have unique UUIDs
+        statement_ids = [stmt.statement_id for stmt in statements]
+        assert len(statement_ids) == len(set(statement_ids)), \
+            "All statements should have unique UUIDs"
+        
+        # Verify all statements reference different lessons
+        lesson_ids = [stmt.lesson.id for stmt in statements]
+        assert len(lesson_ids) == len(set(lesson_ids)), \
+            "All statements should reference different lessons"
+        
+        # Clean up
+        for statement in statements:
+            statement.delete()
+        for lesson in lessons:
+            lesson.delete()
+        course.instructor.delete()
+        course.delete()
+        student.delete()
+
+
+@pytest.mark.django_db
+class TestXAPIAuthenticationEnforcement:
+    """
+    Property-based tests for xAPI authentication enforcement
+    
+    Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+    Validates: Requirements 3.4
+    
+    Property 12: For any xAPI endpoint request without valid authentication credentials,
+    the system should return a 401 Unauthorized response.
+    """
+    
+    @given(valid_xapi_statement())
+    @settings(max_examples=100, deadline=None)
+    def test_post_statements_without_auth_returns_401(self, statement):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI POST /statements/ request without authentication,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that POST requests to the statements endpoint
+        without valid authentication credentials are rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Attempt to submit statement without authentication
+        response = client.post(
+            '/xapi/statements/',
+            data=statement,
+            format='json'
+        )
+        
+        # Verify 401 Unauthorized status
+        assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+            f"Unauthenticated POST /statements/ should return 401, got {response.status_code}"
+    
+    @given(st.uuids())
+    @settings(max_examples=100, deadline=None)
+    def test_get_statements_without_auth_returns_401(self, statement_id):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI GET /statements/ request without authentication,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that GET requests to the statements endpoint
+        without valid authentication credentials are rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Attempt to retrieve statement without authentication
+        response = client.get(
+            f'/xapi/statements/?statementId={statement_id}'
+        )
+        
+        # Verify 401 Unauthorized status
+        assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+            f"Unauthenticated GET /statements/ should return 401, got {response.status_code}"
+    
+    @given(valid_xapi_statement(), st.uuids())
+    @settings(max_examples=100, deadline=None)
+    def test_put_statements_without_auth_returns_401(self, statement, statement_id):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI PUT /statements/ request without authentication,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that PUT requests to the statements endpoint
+        without valid authentication credentials are rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Attempt to store statement with specific ID without authentication
+        response = client.put(
+            f'/xapi/statements/?statementId={statement_id}',
+            data=statement,
+            format='json'
+        )
+        
+        # Verify 401 Unauthorized status
+        assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+            f"Unauthenticated PUT /statements/ should return 401, got {response.status_code}"
+    
+    @given(st.integers(min_value=1, max_value=1000))
+    @settings(max_examples=100, deadline=None)
+    def test_analytics_endpoints_without_auth_return_401(self, course_id):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI analytics endpoint request without authentication,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that analytics endpoints without valid authentication
+        credentials are rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Test all analytics endpoints
+        analytics_endpoints = [
+            f'/xapi/analytics/course/{course_id}/completion-rate/',
+            f'/xapi/analytics/course/{course_id}/quiz-scores/',
+            f'/xapi/analytics/course/{course_id}/time-spent/',
+            f'/xapi/analytics/course/{course_id}/verb-distribution/',
+        ]
+        
+        for endpoint in analytics_endpoints:
+            response = client.get(endpoint)
+            
+            # Verify 401 Unauthorized status
+            assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+                f"Unauthenticated GET {endpoint} should return 401, got {response.status_code}"
+    
+    @given(st.integers(min_value=1, max_value=1000))
+    @settings(max_examples=100, deadline=None)
+    def test_student_activity_stream_without_auth_returns_401(self, user_id):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI student activity stream request without authentication,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that student activity stream endpoint without valid
+        authentication credentials is rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Attempt to access student activity stream without authentication
+        response = client.get(
+            f'/xapi/analytics/student/{user_id}/activity-stream/'
+        )
+        
+        # Verify 401 Unauthorized status
+        assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+            f"Unauthenticated GET /analytics/student/{{id}}/activity-stream/ should return 401, got {response.status_code}"
+    
+    def test_export_statements_without_auth_returns_401(self):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI export endpoint request without authentication,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that export endpoint without valid authentication
+        credentials is rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Attempt to export statements without authentication
+        response = client.get('/xapi/export/')
+        
+        # Verify 401 Unauthorized status (or 404 if endpoint not yet implemented)
+        # Both are acceptable as they prevent unauthorized access
+        assert response.status_code in [http_status.HTTP_401_UNAUTHORIZED, http_status.HTTP_404_NOT_FOUND], \
+            f"Unauthenticated GET /export/ should return 401 or 404, got {response.status_code}"
+    
+    @given(st.sampled_from(['GET', 'DELETE']))
+    @settings(max_examples=100, deadline=None)
+    def test_privacy_endpoints_without_auth_return_401(self, http_method):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI privacy endpoint request without authentication,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that privacy endpoints (data export/deletion) without
+        valid authentication credentials are rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Attempt to access privacy endpoint without authentication
+        if http_method == 'GET':
+            response = client.get('/xapi/my-data/')
+        else:  # DELETE
+            response = client.delete('/xapi/my-data/')
+        
+        # Verify 401 Unauthorized status
+        assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+            f"Unauthenticated {http_method} /my-data/ should return 401, got {response.status_code}"
+    
+    @given(st.text(min_size=1, max_size=50), st.text(min_size=1, max_size=50))
+    @settings(max_examples=100, deadline=None)
+    def test_invalid_credentials_return_401(self, username, password):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI request with invalid authentication credentials,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that requests with invalid credentials (non-existent user
+        or wrong password) are rejected with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        from django.contrib.auth import get_user_model
+        import base64
+        
+        User = get_user_model()
+        
+        # Ensure this user doesn't exist
+        assume(not User.objects.filter(username=username).exists())
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Create Basic Auth header with invalid credentials
+        credentials = f'{username}:{password}'
+        encoded = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+        
+        # Attempt to submit statement with invalid credentials
+        statement = {
+            'actor': {
+                'objectType': 'Agent',
+                'name': 'Test User',
+                'mbox': 'mailto:test@example.com'
+            },
+            'verb': {
+                'id': 'http://adlnet.gov/expapi/verbs/completed',
+                'display': {'en-US': 'completed'}
+            },
+            'object': {
+                'objectType': 'Activity',
+                'id': 'http://example.com/activity/1'
+            }
+        }
+        
+        response = client.post(
+            '/xapi/statements/',
+            data=statement,
+            format='json',
+            HTTP_AUTHORIZATION=f'Basic {encoded}'
+        )
+        
+        # Verify 401 Unauthorized status
+        assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+            f"Request with invalid credentials should return 401, got {response.status_code}"
+    
+    @given(st.text(min_size=10, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'))
+    @settings(max_examples=100, deadline=None)
+    def test_invalid_token_returns_401(self, invalid_token):
+        """
+        Feature: scorm-xapi-compliance, Property 12: xAPI authentication enforcement
+        
+        Property: For any xAPI request with an invalid authentication token,
+        the response should be 401 Unauthorized.
+        
+        This test verifies that requests with invalid tokens are rejected
+        with a 401 status code.
+        """
+        from rest_framework.test import APIClient
+        from rest_framework import status as http_status
+        from rest_framework.authtoken.models import Token
+        
+        # Ensure this token doesn't exist
+        assume(not Token.objects.filter(key=invalid_token).exists())
+        
+        # Create unauthenticated client
+        client = APIClient()
+        
+        # Attempt to submit statement with invalid token
+        statement = {
+            'actor': {
+                'objectType': 'Agent',
+                'name': 'Test User',
+                'mbox': 'mailto:test@example.com'
+            },
+            'verb': {
+                'id': 'http://adlnet.gov/expapi/verbs/completed',
+                'display': {'en-US': 'completed'}
+            },
+            'object': {
+                'objectType': 'Activity',
+                'id': 'http://example.com/activity/1'
+            }
+        }
+        
+        response = client.post(
+            '/xapi/statements/',
+            data=statement,
+            format='json',
+            HTTP_AUTHORIZATION=f'Token {invalid_token}'
+        )
+        
+        # Verify 401 Unauthorized status
+        assert response.status_code == http_status.HTTP_401_UNAUTHORIZED, \
+            f"Request with invalid token should return 401, got {response.status_code}"
+

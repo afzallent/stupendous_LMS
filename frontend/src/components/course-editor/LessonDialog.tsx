@@ -27,6 +27,8 @@ import { VideoEditor, VideoContent } from './VideoEditor'
 import { MarkdownEditor } from './MarkdownEditor'
 import { H5PEditor, H5PContent, H5PPackage } from './H5PEditor'
 import { HTMLEmbedEditor, HTMLEmbedContent } from './HTMLEmbedEditor'
+import { ValidatedInput, ValidatedTextarea } from './ValidatedInput'
+import { validateLesson, getFieldError, ValidationError } from '@/lib/course-validation'
 
 interface LessonDialogProps {
   open: boolean
@@ -73,6 +75,7 @@ export function LessonDialog({
   const [content, setContent] = useState('')
   const [duration, setDuration] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
   
   // Advanced editor states
   const [videoContent, setVideoContent] = useState<VideoContent>({
@@ -135,29 +138,32 @@ export function LessonDialog({
         setHtmlEmbedContent({ html: '', css: '', js: '' })
       }
       setError(null)
+      setValidationErrors([])
     }
   }, [open, lesson])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setValidationErrors([])
 
-    if (!title.trim()) {
-      setError('Lesson title is required')
+    // Get the video URL based on editor mode
+    const effectiveVideoUrl = useAdvancedEditors ? videoContent.url : videoUrl
+    const effectiveContent = contentType === 'html_embed' && useAdvancedEditors 
+      ? JSON.stringify(htmlEmbedContent) 
+      : content
+
+    // Validate fields - Requirements: 11.4
+    const validation = validateLesson({
+      title,
+      content_type: contentType,
+      video_url: effectiveVideoUrl,
+      content: effectiveContent,
+    })
+    
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors)
       return
-    }
-
-    // Validate content type specific fields
-    if (useAdvancedEditors) {
-      if (contentType === 'video' && !videoContent.url.trim()) {
-        setError('Video URL is required for video lessons')
-        return
-      }
-    } else {
-      if (contentType === 'video' && !videoUrl.trim()) {
-        setError('Video URL is required for video lessons')
-        return
-      }
     }
 
     try {
@@ -214,17 +220,17 @@ export function LessonDialog({
 
           <ScrollArea className="max-h-[70vh]">
             <div className="grid gap-4 py-4 pr-4">
-              {/* Title */}
-              <div className="grid gap-2">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Introduction to React"
-                  disabled={isLoading}
-                />
-              </div>
+              {/* Title - Requirements: 11.4 */}
+              <ValidatedInput
+                id="title"
+                label="Title"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., Introduction to React"
+                disabled={isLoading}
+                error={getFieldError(validationErrors, 'title')}
+              />
 
               {/* Content Type Selection - Requirements: 4.1 */}
               <div className="grid gap-2">

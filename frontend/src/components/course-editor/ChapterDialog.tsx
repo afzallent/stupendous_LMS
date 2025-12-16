@@ -10,10 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -22,6 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Chapter, ChapterInput } from './types'
+import { ValidatedInput, ValidatedTextarea } from './ValidatedInput'
+import { validateChapter, getFieldError, ValidationError } from '@/lib/course-validation'
 
 interface ChapterDialogProps {
   open: boolean
@@ -52,6 +52,7 @@ export function ChapterDialog({
   const [isLocked, setIsLocked] = useState(false)
   const [prerequisiteChapterId, setPrerequisiteChapterId] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
 
   const isEditing = !!chapter
 
@@ -70,6 +71,7 @@ export function ChapterDialog({
         setPrerequisiteChapterId('')
       }
       setError(null)
+      setValidationErrors([])
     }
   }, [open, chapter])
 
@@ -81,9 +83,12 @@ export function ChapterDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setValidationErrors([])
 
-    if (!title.trim()) {
-      setError('Chapter title is required')
+    // Validate fields - Requirements: 11.4
+    const validation = validateChapter({ title, description })
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors)
       return
     }
 
@@ -120,30 +125,29 @@ export function ChapterDialog({
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            {/* Title - Requirements: 3.1 */}
-            <div className="grid gap-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Introduction to the Course"
-                disabled={isLoading}
-              />
-            </div>
+            {/* Title - Requirements: 3.1, 11.4 */}
+            <ValidatedInput
+              id="title"
+              label="Title"
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g., Introduction to the Course"
+              disabled={isLoading}
+              error={getFieldError(validationErrors, 'title')}
+            />
 
             {/* Description - Requirements: 3.1 */}
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of what this chapter covers..."
-                rows={3}
-                disabled={isLoading}
-              />
-            </div>
+            <ValidatedTextarea
+              id="description"
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description of what this chapter covers..."
+              rows={3}
+              disabled={isLoading}
+              helpText="Optional: Brief description of what this chapter covers"
+            />
 
             {/* Lock Settings - Requirements: 6.1, 6.2, 6.5 */}
             <div className="space-y-4 pt-2 border-t">

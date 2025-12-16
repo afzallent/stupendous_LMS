@@ -72,14 +72,22 @@ export function QuizzesTab({ courseId }: QuizzesTabProps) {
         djangoApi.get<Quiz[]>('/api/quizzes/', { course_id: courseId }),
       ])
 
-      setChapters(chaptersData)
-      setQuizzes(quizzesData)
+      // Validate that we received arrays
+      const validChapters = Array.isArray(chaptersData) ? chaptersData : []
+      const validQuizzes = Array.isArray(quizzesData) ? quizzesData : []
+
+      setChapters(validChapters)
+      setQuizzes(validQuizzes)
       
       // Expand all chapters by default
-      setExpandedChapters(new Set(chaptersData.map((c) => c.id)))
+      setExpandedChapters(new Set(validChapters.map((c) => c.id)))
     } catch (err: any) {
       console.error('Error fetching quiz data:', err)
       setError(err.message || 'Failed to load quizzes')
+      // Set empty arrays on error
+      setChapters([])
+      setQuizzes([])
+      setExpandedChapters(new Set())
     } finally {
       setLoading(false)
     }
