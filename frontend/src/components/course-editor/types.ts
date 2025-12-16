@@ -11,6 +11,7 @@ export interface Chapter {
   order: number
   is_locked: boolean
   prerequisite_chapter_id: number | null
+  prerequisite_chapter_title?: string | null
   prerequisite_chapter?: Chapter | null
   created_at: string
   updated_at: string

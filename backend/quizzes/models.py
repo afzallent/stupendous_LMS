@@ -7,6 +7,7 @@ from courses.models import Course, Lesson
 class Quiz(models.Model):
     """Quiz model for assessments"""
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='quizzes')
+    chapter = models.ForeignKey('courses.Chapter', on_delete=models.CASCADE, null=True, blank=True, related_name='quizzes')
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, null=True, blank=True, related_name='quizzes')
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)

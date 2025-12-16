@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { OverviewTab, CurriculumTab, CourseData } from '@/components/course-editor'
+import { OverviewTab, CurriculumTab, QuizzesTab, CourseData } from '@/components/course-editor'
 import {
   BookOpen,
   ArrowLeft,
@@ -238,23 +238,9 @@ export default function CourseEditorPage() {
             <CurriculumTab courseId={courseId} />
           </TabsContent>
 
-          {/* Quizzes Tab - Placeholder */}
+          {/* Quizzes Tab */}
           <TabsContent value="quizzes" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quizzes</CardTitle>
-                <CardDescription>Manage quizzes for your course</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <FileQuestion className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Quiz management coming soon</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    This tab will allow you to create and manage chapter quizzes
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <QuizzesTab courseId={courseId} />
           </TabsContent>
 
           {/* Settings Tab - Placeholder */}

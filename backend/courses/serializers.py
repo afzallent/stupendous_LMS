@@ -34,12 +34,15 @@ class ChapterSerializer(serializers.ModelSerializer):
     """Serializer for course chapters/sections"""
     lesson_count = serializers.SerializerMethodField()
     is_unlocked = serializers.SerializerMethodField()
+    prerequisite_chapter_id = serializers.IntegerField(source='prerequisite_chapter.id', read_only=True, allow_null=True)
+    prerequisite_chapter_title = serializers.CharField(source='prerequisite_chapter.title', read_only=True, allow_null=True)
     
     class Meta:
         model = Chapter
         fields = ['id', 'course', 'title', 'description', 'order', 'is_locked', 
-                  'prerequisite_chapter', 'lesson_count', 'is_unlocked', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+                  'prerequisite_chapter', 'prerequisite_chapter_id', 'prerequisite_chapter_title',
+                  'lesson_count', 'is_unlocked', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'prerequisite_chapter_id', 'prerequisite_chapter_title']
     
     def get_lesson_count(self, obj):
         return obj.lessons.count()

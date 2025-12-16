@@ -16,15 +16,16 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, BookOpen, Clock, Layers, AlertCircle } from 'lucide-react'
 import { djangoApi } from '@/lib/django-api-client'
-import { Chapter, Lesson, ChapterInput, CurriculumSummary } from './types'
+import { Chapter, Lesson, Quiz, ChapterInput, LessonInput, CurriculumSummary } from './types'
 import { ChapterCard } from './ChapterCard'
 import { ChapterDialog } from './ChapterDialog'
+import { LessonDialog } from './LessonDialog'
 import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 import { UnassignedLessons } from './UnassignedLessons'
 
@@ -42,6 +43,7 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
   // State
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [lessons, setLessons] = useState<Lesson[]>([])
+  const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set())
@@ -52,6 +54,13 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingChapter, setDeletingChapter] = useState<Chapter | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  
+  // Lesson dialog state - Requirements: 4.1, 4.6
+  const [lessonDialogOpen, setLessonDialogOpen] = useState(false)
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
+  const [lessonChapterId, setLessonChapterId] = useState<number | null>(null)
+  const [deleteLessonDialogOpen, setDeleteLessonDialogOpen] = useState(false)
+  const [deletingLesson, setDeletingLesson] = useState<Lesson | null>(null)
 
   // DnD sensors
   const sensors = useSensors(
@@ -67,13 +76,15 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
       setLoading(true)
       setError(null)
 
-      const [chaptersData, lessonsData] = await Promise.all([
+      const [chaptersData, lessonsData, quizzesData] = await Promise.all([
         djangoApi.get<Chapter[]>('/api/chapters/', { course_id: courseId }),
         djangoApi.get<Lesson[]>('/api/lessons/', { course_id: courseId }),
+        djangoApi.get<Quiz[]>('/api/quizzes/', { course_id: courseId }),
       ])
 
       setChapters(chaptersData)
       setLessons(lessonsData)
+      setQuizzes(quizzesData)
       
       // Expand all chapters by default
       setExpandedChapters(new Set(chaptersData.map((c) => c.id)))
@@ -109,6 +120,11 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
     .filter((l) => l.chapter_id === null)
     .sort((a, b) => a.order - b.order)
 
+  // Get quizzes for a specific chapter - Requirements: 5.3
+  const getQuizzesForChapter = (chapterId: number) => {
+    return quizzes.filter((q) => q.chapter_id === chapterId)
+  }
+
   // Toggle chapter expansion
   const toggleChapter = (chapterId: number) => {
     setExpandedChapters((prev) => {
@@ -122,32 +138,107 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
     })
   }
 
-  // Handle chapter drag end - Requirements: 3.2
+  // Handle drag end - Requirements: 3.2, 4.6
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
-    if (over && active.id !== over.id) {
+    if (!over) return
+
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    // Check if dragging a lesson
+    if (activeId.startsWith('lesson-')) {
+      const lessonId = parseInt(activeId.replace('lesson-', ''))
+      const lesson = lessons.find(l => l.id === lessonId)
+      if (!lesson) return
+
+      // Check if dropping on a chapter drop zone
+      if (overId.startsWith('chapter-drop-')) {
+        const targetChapterId = parseInt(overId.replace('chapter-drop-', ''))
+        if (lesson.chapter_id !== targetChapterId) {
+          // Move lesson to new chapter
+          await handleMoveToChapter(lessonId, targetChapterId)
+        }
+        return
+      }
+
+      // Check if dropping on another lesson
+      if (overId.startsWith('lesson-')) {
+        const overLessonId = parseInt(overId.replace('lesson-', ''))
+        const overLesson = lessons.find(l => l.id === overLessonId)
+        if (!overLesson) return
+
+        // If same chapter, reorder within chapter
+        if (lesson.chapter_id === overLesson.chapter_id) {
+          const chapterLessons = lessons
+            .filter(l => l.chapter_id === lesson.chapter_id)
+            .sort((a, b) => a.order - b.order)
+          
+          const oldIndex = chapterLessons.findIndex(l => l.id === lessonId)
+          const newIndex = chapterLessons.findIndex(l => l.id === overLessonId)
+          
+          if (oldIndex !== newIndex) {
+            const reorderedLessons = arrayMove(chapterLessons, oldIndex, newIndex)
+            
+            // Update local state
+            const updatedLessons = lessons.map(l => {
+              const reorderedIndex = reorderedLessons.findIndex(rl => rl.id === l.id)
+              if (reorderedIndex !== -1) {
+                return { ...l, order: reorderedIndex }
+              }
+              return l
+            })
+            setLessons(updatedLessons)
+
+            // Persist to backend
+            try {
+              await djangoApi.post('/api/lessons/reorder/', {
+                course_id: parseInt(courseId),
+                chapter_id: lesson.chapter_id,
+                lessons: reorderedLessons.map((l, index) => ({
+                  id: l.id,
+                  order: index,
+                })),
+              })
+            } catch (err: any) {
+              console.error('Error reordering lessons:', err)
+              fetchData()
+            }
+          }
+        } else {
+          // Move to different chapter at specific position
+          await handleMoveToChapter(lessonId, overLesson.chapter_id!)
+        }
+        return
+      }
+    }
+
+    // Handle chapter reordering
+    if (activeId !== overId && !activeId.startsWith('lesson-')) {
       const oldIndex = chapters.findIndex((c) => c.id === active.id)
       const newIndex = chapters.findIndex((c) => c.id === over.id)
 
-      const newChapters = arrayMove(chapters, oldIndex, newIndex)
-      
-      // Update local state immediately for responsiveness
-      setChapters(newChapters)
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newChapters = arrayMove(chapters, oldIndex, newIndex)
+        
+        // Update local state immediately for responsiveness
+        setChapters(newChapters)
 
-      // Persist to backend
-      try {
-        await djangoApi.post('/api/chapters/reorder/', {
-          course_id: parseInt(courseId),
-          chapters: newChapters.map((c, index) => ({
-            id: c.id,
-            order: index,
-          })),
-        })
-      } catch (err: any) {
-        console.error('Error reordering chapters:', err)
-        // Revert on error
-        fetchData()
+        // Persist to backend
+        try {
+          await djangoApi.post('/api/chapters/reorder/', {
+            course_id: parseInt(courseId),
+            chapters: newChapters.map((c, index) => ({
+              id: c.id,
+              order: index,
+            })),
+          })
+        } catch (err: any) {
+          console.error('Error reordering chapters:', err)
+          // Revert on error
+          fetchData()
+        }
       }
     }
   }
@@ -208,6 +299,51 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
     }
   }
 
+  // Lesson CRUD operations - Requirements: 4.1, 4.6
+  const handleCreateLesson = async (data: LessonInput) => {
+    setIsSaving(true)
+    try {
+      // Set order to be at the end of the chapter
+      const chapterLessons = lessons.filter(l => l.chapter_id === data.chapter)
+      const newOrder = chapterLessons.length
+      await djangoApi.post('/api/lessons/', {
+        ...data,
+        order: newOrder,
+      })
+      await fetchData()
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUpdateLesson = async (data: LessonInput) => {
+    if (!editingLesson) return
+    
+    setIsSaving(true)
+    try {
+      await djangoApi.patch(`/api/lessons/${editingLesson.id}/`, data)
+      await fetchData()
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteLesson = async () => {
+    if (!deletingLesson) return
+    
+    setIsSaving(true)
+    try {
+      await djangoApi.delete(`/api/lessons/${deletingLesson.id}/`)
+      await fetchData()
+      setDeleteLessonDialogOpen(false)
+      setDeletingLesson(null)
+    } catch (err: any) {
+      console.error('Error deleting lesson:', err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   // Open dialogs
   const openAddChapterDialog = () => {
     setEditingChapter(null)
@@ -222,6 +358,24 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
   const openDeleteChapterDialog = (chapter: Chapter) => {
     setDeletingChapter(chapter)
     setDeleteDialogOpen(true)
+  }
+
+  // Lesson dialog handlers - Requirements: 4.1
+  const openAddLessonDialog = (chapterId: number | null) => {
+    setEditingLesson(null)
+    setLessonChapterId(chapterId)
+    setLessonDialogOpen(true)
+  }
+
+  const openEditLessonDialog = (lesson: Lesson) => {
+    setEditingLesson(lesson)
+    setLessonChapterId(lesson.chapter_id)
+    setLessonDialogOpen(true)
+  }
+
+  const openDeleteLessonDialog = (lesson: Lesson) => {
+    setDeletingLesson(lesson)
+    setDeleteLessonDialogOpen(true)
   }
 
   // Loading state
@@ -318,14 +472,16 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
                   key={chapter.id}
                   chapter={chapter}
                   lessons={getLessonsForChapter(chapter.id)}
+                  quizzes={getQuizzesForChapter(chapter.id)}
+                  courseId={courseId}
                   isExpanded={expandedChapters.has(chapter.id)}
                   onToggle={() => toggleChapter(chapter.id)}
                   onEdit={() => openEditChapterDialog(chapter)}
                   onDelete={() => openDeleteChapterDialog(chapter)}
-                  onAddLesson={() => {
-                    // TODO: Implement add lesson dialog
-                    console.log('Add lesson to chapter:', chapter.id)
-                  }}
+                  onAddLesson={() => openAddLessonDialog(chapter.id)}
+                  onEditLesson={openEditLessonDialog}
+                  onDeleteLesson={openDeleteLessonDialog}
+                  enableLessonDrag={true}
                 />
               ))}
             </div>
@@ -350,6 +506,8 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
         lessons={unassignedLessons}
         chapters={chapters}
         onMoveToChapter={handleMoveToChapter}
+        onEditLesson={openEditLessonDialog}
+        onDeleteLesson={openDeleteLessonDialog}
       />
 
       {/* Chapter Dialog */}
@@ -370,6 +528,27 @@ export function CurriculumTab({ courseId }: CurriculumTabProps) {
         title="Delete Chapter"
         description={`Are you sure you want to delete "${deletingChapter?.title}"? Lessons in this chapter will be moved to "Unassigned".`}
         onConfirm={handleDeleteChapter}
+        isLoading={isSaving}
+      />
+
+      {/* Lesson Dialog - Requirements: 4.1 */}
+      <LessonDialog
+        open={lessonDialogOpen}
+        onOpenChange={setLessonDialogOpen}
+        lesson={editingLesson}
+        courseId={parseInt(courseId)}
+        chapterId={lessonChapterId}
+        onSave={editingLesson ? handleUpdateLesson : handleCreateLesson}
+        isLoading={isSaving}
+      />
+
+      {/* Delete Lesson Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteLessonDialogOpen}
+        onOpenChange={setDeleteLessonDialogOpen}
+        title="Delete Lesson"
+        description={`Are you sure you want to delete "${deletingLesson?.title}"? This action cannot be undone.`}
+        onConfirm={handleDeleteLesson}
         isLoading={isSaving}
       />
     </div>

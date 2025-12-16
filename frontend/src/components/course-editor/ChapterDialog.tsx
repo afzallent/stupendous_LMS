@@ -88,12 +88,13 @@ export function ChapterDialog({
     }
 
     try {
+      // When unlocking, always clear the prerequisite - Requirements: 6.5
       const data: ChapterInput = {
         course: courseId,
         title: title.trim(),
         description: description.trim() || undefined,
         is_locked: isLocked,
-        prerequisite_chapter: prerequisiteChapterId ? parseInt(prerequisiteChapterId) : null,
+        prerequisite_chapter: isLocked && prerequisiteChapterId ? parseInt(prerequisiteChapterId) : null,
       }
 
       await onSave(data)
@@ -144,7 +145,7 @@ export function ChapterDialog({
               />
             </div>
 
-            {/* Lock Settings - Requirements: 6.1, 6.2 */}
+            {/* Lock Settings - Requirements: 6.1, 6.2, 6.5 */}
             <div className="space-y-4 pt-2 border-t">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -156,7 +157,13 @@ export function ChapterDialog({
                 <Switch
                   id="is-locked"
                   checked={isLocked}
-                  onCheckedChange={setIsLocked}
+                  onCheckedChange={(checked) => {
+                    setIsLocked(checked)
+                    // Clear prerequisite when unlocking - Requirements: 6.5
+                    if (!checked) {
+                      setPrerequisiteChapterId('')
+                    }
+                  }}
                   disabled={isLoading}
                 />
               </div>

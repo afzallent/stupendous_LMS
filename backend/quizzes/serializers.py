@@ -43,13 +43,14 @@ class QuestionBankSerializer(serializers.ModelSerializer):
 class QuizSerializer(serializers.ModelSerializer):
     """Serializer for quiz list"""
     question_count = serializers.SerializerMethodField()
+    chapter_id = serializers.IntegerField(source='chapter.id', read_only=True, allow_null=True)
     
     class Meta:
         model = Quiz
-        fields = ['id', 'course', 'lesson', 'title', 'description', 
+        fields = ['id', 'course', 'chapter', 'chapter_id', 'lesson', 'title', 'description', 
                   'passing_score', 'time_limit', 'max_attempts', 'is_active',
                   'question_count', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'chapter_id']
     
     def get_question_count(self, obj):
         return obj.questions.count()
@@ -60,14 +61,15 @@ class QuizDetailSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
     question_count = serializers.SerializerMethodField()
     total_points = serializers.SerializerMethodField()
+    chapter_id = serializers.IntegerField(source='chapter.id', read_only=True, allow_null=True)
     
     class Meta:
         model = Quiz
-        fields = ['id', 'course', 'lesson', 'title', 'description', 
+        fields = ['id', 'course', 'chapter', 'chapter_id', 'lesson', 'title', 'description', 
                   'passing_score', 'time_limit', 'max_attempts', 'is_active',
                   'questions', 'question_count', 'total_points', 
                   'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'chapter_id']
     
     def get_question_count(self, obj):
         return obj.questions.count()

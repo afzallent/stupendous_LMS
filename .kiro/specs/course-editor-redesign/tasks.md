@@ -92,54 +92,77 @@
     - Handle loading and error states
     - _Requirements: 2.1_
 
-- [-] 5. Build Curriculum Tab - Chapter Management
+- [x] 5. Build Curriculum Tab - Chapter Management
 
 
 
-  - [-] 5.1 Create CurriculumTab component structure
+
+
+  - [x] 5.1 Create CurriculumTab component structure
+
 
     - Summary bar with chapter/lesson counts
     - Expandable chapter cards
     - Unassigned lessons section
     - _Requirements: 8.1, 8.3, 8.4, 8.5_
-  - [ ] 5.2 Implement chapter CRUD operations
+
+  - [x] 5.2 Implement chapter CRUD operations
+
     - Add Chapter button and dialog
     - Edit chapter title/description
     - Delete chapter with confirmation
     - _Requirements: 3.1, 3.3, 3.4_
-  - [ ] 5.3 Implement chapter drag-and-drop reordering
+
+  - [x] 5.3 Implement chapter drag-and-drop reordering
+
     - Use dnd-kit or similar library
     - Persist order to backend
     - _Requirements: 3.2_
   - [ ]* 5.4 Write property test for chapter order consistency
     - **Property 1: Chapter Order Consistency**
     - **Validates: Requirements 3.2**
-  - [ ] 5.5 Display chapter metadata
+
+  - [x] 5.5 Display chapter metadata
+
     - Show lesson count, duration, lock status
     - _Requirements: 3.5, 6.3_
   - [ ]* 5.6 Write property test for chapter lesson count accuracy
     - **Property 4: Chapter Lesson Count Accuracy**
     - **Validates: Requirements 3.5**
 
-- [ ] 6. Checkpoint - Ensure chapter management works
+
+- [x] 6. Checkpoint - Ensure chapter management works
+
+
+
 
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Build Curriculum Tab - Lesson Management
+- [x] 7. Build Curriculum Tab - Lesson Management
 
-  - [ ] 7.1 Create LessonItem component
+
+
+
+
+  - [x] 7.1 Create LessonItem component
+
+
     - Display content type icon, title, duration
     - Edit and delete actions
     - _Requirements: 4.7, 8.2_
   - [ ]* 7.2 Write property test for content type icon display
     - **Property 11: Content Type Icon Display**
     - **Validates: Requirements 4.7**
-  - [ ] 7.3 Implement lesson CRUD operations
+
+  - [x] 7.3 Implement lesson CRUD operations
+
     - Add Lesson button with content type selection
     - Edit lesson dialog
     - Delete lesson with confirmation
     - _Requirements: 4.1, 4.6_
-  - [ ] 7.4 Implement lesson drag-and-drop
+
+  - [x] 7.4 Implement lesson drag-and-drop
+
     - Reorder within chapter
     - Move between chapters
     - _Requirements: 4.6_
@@ -147,30 +170,50 @@
     - **Property 2: Lesson Chapter Assignment**
     - **Validates: Requirements 7.3**
 
-- [ ] 8. Build Unassigned Lessons Section
+- [x] 8. Build Unassigned Lessons Section
 
-  - [ ] 8.1 Create UnassignedLessons component
+
+
+
+
+  - [x] 8.1 Create UnassignedLessons component
+
+
     - Display lessons with chapter_id = null
     - "Move to Chapter" dropdown for each lesson
     - _Requirements: 7.1, 7.2_
-  - [ ] 8.2 Implement move to chapter functionality
+
+  - [x] 8.2 Implement move to chapter functionality
+
     - Update lesson chapter_id on selection
     - Refresh curriculum display
     - _Requirements: 7.3, 7.4_
-  - [ ] 8.3 Hide section when no unassigned lessons
+
+  - [x] 8.3 Hide section when no unassigned lessons
+
     - Conditional rendering based on lesson count
     - _Requirements: 7.5_
   - [ ]* 8.4 Write property test for unassigned lessons visibility
     - **Property 3: Unassigned Lessons Visibility**
     - **Validates: Requirements 7.1, 7.5**
 
-- [ ] 9. Checkpoint - Ensure lesson management works
+- [x] 9. Checkpoint - Ensure lesson management works
+
+
+
+
 
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Implement Content Type Editors
+- [x] 10. Implement Content Type Editors
 
-  - [ ] 10.1 Create VideoEditor component
+
+
+
+
+  - [x] 10.1 Create VideoEditor component
+
+
     - YouTube URL input with Fetch Info button
     - Duration, thumbnail display
     - Embeddability warning
@@ -178,57 +221,84 @@
   - [ ]* 10.2 Write property test for YouTube URL detection
     - **Property 7: YouTube URL Detection**
     - **Validates: Requirements 9.1**
-  - [ ] 10.3 Create MarkdownEditor component
+
+  - [x] 10.3 Create MarkdownEditor component
+
     - Rich markdown editor with preview
     - _Requirements: 4.3_
-  - [ ] 10.4 Create H5PEditor component
+
+  - [x] 10.4 Create H5PEditor component
+
     - Upload H5P package or select from library
     - _Requirements: 4.4_
-  - [ ] 10.5 Create HTMLEmbedEditor component
+
+  - [x] 10.5 Create HTMLEmbedEditor component
+
     - Code editor for HTML/CSS/JS
     - Preview capability
     - _Requirements: 4.5_
 
-- [ ] 11. Build Quizzes Tab
 
-  - [ ] 11.1 Create QuizzesTab component
+- [x] 11. Build Quizzes Tab
+
+  - [x] 11.1 Create QuizzesTab component
+
+
     - List quizzes by chapter
     - Add Quiz button per chapter
     - _Requirements: 5.1, 5.3_
-  - [ ] 11.2 Implement quiz creation dialog
+
+  - [x] 11.2 Implement quiz creation dialog
     - Title, passing score, time limit, max attempts
     - _Requirements: 5.2_
-  - [ ] 11.3 Display quiz in chapter curriculum
+
+  - [x] 11.3 Display quiz in chapter curriculum
     - Show quiz as special item at chapter end
     - Quiz icon and title
     - _Requirements: 5.3_
   - [ ]* 11.4 Write property test for quiz display in chapter
     - **Property 6: Quiz Display in Chapter**
     - **Validates: Requirements 5.3**
-  - [ ] 11.5 Link to quiz editor
+
+  - [x] 11.5 Link to quiz editor
+
     - Navigate to quiz question management
     - _Requirements: 5.4_
 
-- [ ] 12. Checkpoint - Ensure quiz integration works
+
+- [x] 12. Checkpoint - Ensure quiz integration works
+
+
+
 
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. Implement Progressive Chapter Unlocking
 
-  - [ ] 13.1 Add chapter locking settings UI
+- [-] 13. Implement Progressive Chapter Unlocking
+
+
+  - [x] 13.1 Add chapter locking settings UI
+
+
     - Toggle for "Lock until previous chapter completed"
     - Prerequisite chapter dropdown
     - _Requirements: 6.1, 6.2_
-  - [ ] 13.2 Display lock icon on locked chapters
+  - [x] 13.2 Display lock icon on locked chapters
+
+
     - Visual indicator in chapter header
     - _Requirements: 6.3_
   - [ ]* 13.3 Write property test for locked chapter icon display
     - **Property 5: Locked Chapter Icon Display**
     - **Validates: Requirements 6.3**
-  - [ ] 13.4 Show prerequisite information
+  - [x] 13.4 Show prerequisite information
+
+
     - Display which chapter is prerequisite
     - _Requirements: 6.4_
-  - [ ] 13.5 Implement unlock functionality
+  - [x] 13.5 Implement unlock functionality
+
+
     - Remove prerequisite on toggle off
     - _Requirements: 6.5_
 
@@ -268,6 +338,7 @@
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 17. Update Instructor Dashboard
+
   - [ ] 17.1 Update course card Edit button
     - Link to `/instructor/courses/{id}/edit`
     - _Requirements: 12.1, 12.2_
@@ -282,6 +353,7 @@
     - _Requirements: 12.5_
 
 - [ ] 18. Build Analytics Tab (Optional)
+
   - [ ]* 18.1 Create AnalyticsTab component
     - Student enrollment count
     - Completion rates by chapter
@@ -289,6 +361,7 @@
     - _Requirements: 2.2_
 
 - [ ] 19. Verify CSV Import Structure
+
   - [ ] 19.1 Test CSV import displays correctly in new editor
     - Import CSV with chapters and lessons
     - Verify structure in Curriculum tab
@@ -298,4 +371,5 @@
     - **Validates: Requirements 2.4**
 
 - [ ] 20. Final Checkpoint - Ensure all tests pass
+
   - Ensure all tests pass, ask the user if questions arise.

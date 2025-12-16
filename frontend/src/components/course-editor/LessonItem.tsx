@@ -1,5 +1,7 @@
 'use client'
 
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -32,8 +34,7 @@ interface LessonItemProps {
   lesson: Lesson
   onEdit?: () => void
   onDelete?: () => void
-  isDragging?: boolean
-  showDragHandle?: boolean
+  isDraggable?: boolean
 }
 
 /**
@@ -60,6 +61,7 @@ function getContentTypeIconComponent(contentType: Lesson['content_type']) {
 /**
  * LessonItem component displays a single lesson within a chapter
  * Shows content type icon, title, duration, and actions
+ * Supports drag-and-drop for reordering
  * 
  * Requirements: 4.7, 8.2
  */
@@ -67,24 +69,47 @@ export function LessonItem({
   lesson,
   onEdit,
   onDelete,
-  isDragging = false,
-  showDragHandle = false,
+  isDraggable = false,
 }: LessonItemProps) {
   const IconComponent = getContentTypeIconComponent(lesson.content_type)
   const contentTypeLabel = getContentTypeLabel(lesson.content_type)
 
+  // Use sortable hook for drag-and-drop
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: `lesson-${lesson.id}`,
+    disabled: !isDraggable,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
   return (
     <TooltipProvider>
       <div
+        ref={setNodeRef}
+        style={style}
         className={`
           flex items-center gap-2 py-2 px-2 rounded-md
           hover:bg-muted/50 transition-colors group
-          ${isDragging ? 'opacity-50 bg-muted' : ''}
+          ${isDragging ? 'opacity-50 bg-muted shadow-lg z-50' : ''}
         `}
       >
-        {/* Drag Handle (optional) */}
-        {showDragHandle && (
-          <div className="cursor-grab active:cursor-grabbing p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Drag Handle */}
+        {isDraggable && (
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
             <GripVertical className="h-3 w-3 text-muted-foreground" />
           </div>
         )}

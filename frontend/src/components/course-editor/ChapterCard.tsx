@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,12 +28,14 @@ import {
   BookOpen,
   FileQuestion,
 } from 'lucide-react'
-import { Chapter, Lesson } from './types'
+import { Chapter, Lesson, Quiz } from './types'
 import { LessonItem } from './LessonItem'
 
 interface ChapterCardProps {
   chapter: Chapter
   lessons: Lesson[]
+  quizzes?: Quiz[]
+  courseId?: string
   isExpanded: boolean
   onToggle: () => void
   onEdit: () => void
@@ -42,6 +45,7 @@ interface ChapterCardProps {
   onEditLesson?: (lesson: Lesson) => void
   onDeleteLesson?: (lesson: Lesson) => void
   isDragging?: boolean
+  enableLessonDrag?: boolean
 }
 
 /**
@@ -53,6 +57,8 @@ interface ChapterCardProps {
 export function ChapterCard({
   chapter,
   lessons,
+  quizzes = [],
+  courseId,
   isExpanded,
   onToggle,
   onEdit,
@@ -62,6 +68,7 @@ export function ChapterCard({
   onEditLesson,
   onDeleteLesson,
   isDragging = false,
+  enableLessonDrag = false,
 }: ChapterCardProps) {
   const {
     attributes,
@@ -71,6 +78,15 @@ export function ChapterCard({
     transition,
   } = useSortable({ id: chapter.id })
 
+  // Make chapter a droppable area for lessons - Requirements: 4.6
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: `chapter-drop-${chapter.id}`,
+    data: {
+      type: 'chapter',
+      chapterId: chapter.id,
+    },
+  })
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -78,6 +94,9 @@ export function ChapterCard({
 
   const lessonCount = lessons.length
   const totalDuration = calculateTotalDuration(lessons)
+  
+  // Generate lesson IDs for sortable context
+  const lessonIds = lessons.map(l => `lesson-${l.id}`)
 
   return (
     <Card
@@ -126,6 +145,13 @@ export function ChapterCard({
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {totalDuration}
+                    </span>
+                  )}
+                  {/* Prerequisite Info - Requirements: 6.4 */}
+                  {chapter.is_locked && chapter.prerequisite_chapter_title && (
+                    <span className="flex items-center gap-1 text-amber-600">
+                      <Lock className="h-3 w-3" />
+                      Requires: {chapter.prerequisite_chapter_title}
                     </span>
                   )}
                 </div>
@@ -188,22 +214,47 @@ export function ChapterCard({
                 {chapter.description}
               </p>
             )}
+            
+            {/* Prerequisite Info - Requirements: 6.4 */}
+            {chapter.is_locked && chapter.prerequisite_chapter_title && (
+              <div className="flex items-center gap-2 text-sm text-amber-600 mb-3 pl-10 py-2 bg-amber-50 rounded-md">
+                <Lock className="h-4 w-4" />
+                <span>
+                  Locked until <strong>{chapter.prerequisite_chapter_title}</strong> is completed
+                </span>
+              </div>
+            )}
 
-            {/* Lessons List */}
-            <div className="space-y-1 pl-10">
-              {lessons.length === 0 ? (
+            {/* Lessons List with Drag-and-Drop - Requirements: 4.6 */}
+            <div 
+              ref={setDroppableRef}
+              className={`space-y-1 pl-10 min-h-[40px] rounded-md transition-colors ${
+                isOver ? 'bg-primary/10 border-2 border-dashed border-primary/30' : ''
+              }`}
+            >
+              {lessons.length === 0 && quizzes.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">
-                  No lessons in this chapter yet.
+                  {isOver ? 'Drop lesson here' : 'No lessons in this chapter yet.'}
                 </p>
               ) : (
-                lessons.map((lesson) => (
-                  <LessonItem
-                    key={lesson.id}
-                    lesson={lesson}
-                    onEdit={() => onEditLesson?.(lesson)}
-                    onDelete={() => onDeleteLesson?.(lesson)}
-                  />
-                ))
+                <>
+                  <SortableContext items={lessonIds} strategy={verticalListSortingStrategy}>
+                    {lessons.map((lesson) => (
+                      <LessonItem
+                        key={lesson.id}
+                        lesson={lesson}
+                        onEdit={() => onEditLesson?.(lesson)}
+                        onDelete={() => onDeleteLesson?.(lesson)}
+                        isDraggable={enableLessonDrag}
+                      />
+                    ))}
+                  </SortableContext>
+                  
+                  {/* Quizzes displayed at end of chapter - Requirements: 5.3 */}
+                  {quizzes.map((quiz) => (
+                    <QuizItem key={quiz.id} quiz={quiz} courseId={courseId} />
+                  ))}
+                </>
               )}
             </div>
 
@@ -258,6 +309,45 @@ function calculateTotalDuration(lessons: Lesson[]): string | null {
     return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
   }
   return `${minutes}m`
+}
+
+/**
+ * QuizItem component displays a quiz as a special item at the end of a chapter
+ * Requirements: 5.3
+ */
+interface QuizItemProps {
+  quiz: Quiz
+  courseId?: string
+}
+
+function QuizItem({ quiz, courseId }: QuizItemProps) {
+  return (
+    <div className="flex items-center gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors border-l-2 border-primary/50 ml-2">
+      {/* Quiz Icon - Requirements: 5.3 */}
+      <div className="flex-shrink-0">
+        <FileQuestion className="h-4 w-4 text-primary" />
+      </div>
+
+      {/* Quiz Info */}
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-medium truncate">{quiz.title}</span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{quiz.question_count || 0} questions</span>
+          <span>•</span>
+          <span>{quiz.passing_score}% to pass</span>
+        </div>
+      </div>
+
+      {/* Link to quiz editor - Requirements: 5.4 */}
+      {courseId && (
+        <Button variant="ghost" size="sm" asChild>
+          <a href={`/instructor/courses/${courseId}/quizzes/${quiz.id}`}>
+            Edit
+          </a>
+        </Button>
+      )}
+    </div>
+  )
 }
 
 export default ChapterCard
