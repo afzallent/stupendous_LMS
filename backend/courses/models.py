@@ -233,3 +233,28 @@ class Progress(models.Model):
     def __str__(self):
         status = "Completed" if self.completed else "In Progress"
         return f"{self.student.username} - {self.lesson.title} ({status})"
+
+
+# Import content type models for convenience
+from .content_models import (
+    MarkdownLesson,
+    H5PPackage,
+    H5PContentState,
+    HTMLEmbed,
+    ContentInteraction,
+)
+
+__all__ = [
+    'Coupon',
+    'Category',
+    'Course',
+    'Chapter',
+    'Lesson',
+    'Enrollment',
+    'Progress',
+    'MarkdownLesson',
+    'H5PPackage',
+    'H5PContentState',
+    'HTMLEmbed',
+    'ContentInteraction',
+]
