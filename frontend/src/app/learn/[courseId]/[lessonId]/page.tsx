@@ -1,61 +1,103 @@
 "use client"
 
-import { useState, useRef, useEffect, use } from "react"
+import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
-  Play, 
-  Pause, 
-  Volume2, 
-  VolumeX, 
-  Maximize, 
-  Minimize,
-  SkipBack,
-  SkipForward,
   Clock,
   CheckCircle,
   Circle,
   BookOpen,
   MessageCircle,
   FileText,
-  HelpCircle,
-  Award,
   ChevronLeft,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Video,
+  FileCode,
+  Package,
+  Puzzle,
+  Code
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
 import { CourseCompletionModal } from "@/components/course-completion-modal"
+import { ContentTypeRouter } from "@/components/lessons/ContentTypeRouter"
+
+// Content type configuration with icons and labels
+const CONTENT_TYPE_CONFIG: Record<string, { icon: React.ElementType; label: string; color: string }> = {
+  video: { icon: Video, label: 'Video', color: 'bg-blue-500' },
+  markdown: { icon: FileCode, label: 'Document', color: 'bg-green-500' },
+  scorm: { icon: Package, label: 'SCORM', color: 'bg-purple-500' },
+  h5p: { icon: Puzzle, label: 'Interactive', color: 'bg-orange-500' },
+  html_embed: { icon: Code, label: 'HTML', color: 'bg-pink-500' },
+}
+
+// Type for content types
+type ContentType = 'video' | 'markdown' | 'scorm' | 'h5p' | 'html_embed'
+
+interface LessonData {
+  id: string
+  title: string
+  description: string
+  content_type: ContentType
+  video_url?: string
+  video_file?: string
+  content?: string
+  order: number
+  scorm_package_id?: string
+  h5p_package_id?: string
+  completed: boolean
+  chapter: {
+    id: string
+    title: string
+    order: number
+  }
+}
+
+interface CourseData {
+  id: string
+  title: string
+  instructor: string
+  totalLessons: number
+  completedLessons: number
+  progress: number
+}
+
+interface CurriculumLesson {
+  id: string
+  title: string
+  duration: string
+  completed: boolean
+  current: boolean
+  content_type: ContentType
+}
+
+interface CurriculumChapter {
+  id: string
+  title: string
+  order: number
+  lessons: CurriculumLesson[]
+}
 
 export default function LearnPage({ params }: { params: Promise<{ courseId: string; lessonId: string }> }) {
   const router = useRouter()
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [playbackSpeed, setPlaybackSpeed] = useState(1)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
-  const [videoSize, setVideoSize] = useState<"large" | "small">("large") // Video size toggle
 
   // Unwrap the params Promise using React.use()
   const { courseId, lessonId } = use(params)
 
   // State for real data from API
-  const [course, setCourse] = useState<any>(null)
-  const [currentLesson, setCurrentLesson] = useState<any>(null)
-  const [curriculum, setCurriculum] = useState<any[]>([])
+  const [course, setCourse] = useState<CourseData | null>(null)
+  const [currentLesson, setCurrentLesson] = useState<LessonData | null>(null)
+  const [curriculum, setCurriculum] = useState<CurriculumChapter[]>([])
   const [loading, setLoading] = useState(true)
   
   // Course completion modal state
@@ -86,45 +128,34 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
           progress: 0 // TODO: Calculate from progress
         })
         
-        // Map lesson data
-        console.log('Raw lesson data:', lessonData)
-        console.log('video_url field:', lessonData.video_url)
-        console.log('video_file field:', lessonData.video_file)
-        
+        // Process video URL for YouTube embeds
         let videoUrl = lessonData.video_url || lessonData.video_file || ''
-        
-        // Trim whitespace
         if (videoUrl) {
           videoUrl = videoUrl.trim()
-        }
-        
-        const isYouTube = videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))
-        
-        // Convert YouTube watch URL to embed URL
-        if (isYouTube && videoUrl) {
-          if (videoUrl.includes('watch?v=')) {
-            const videoId = videoUrl.split('watch?v=')[1]?.split('&')[0]
-            videoUrl = `https://www.youtube.com/embed/${videoId}`
-          } else if (videoUrl.includes('youtu.be/')) {
-            const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0]
-            videoUrl = `https://www.youtube.com/embed/${videoId}`
+          if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+            if (videoUrl.includes('watch?v=')) {
+              const videoId = videoUrl.split('watch?v=')[1]?.split('&')[0]
+              videoUrl = `https://www.youtube.com/embed/${videoId}`
+            } else if (videoUrl.includes('youtu.be/')) {
+              const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0]
+              videoUrl = `https://www.youtube.com/embed/${videoId}`
+            }
           }
         }
         
-        console.log('Original URL:', lessonData.video_url)
-        console.log('Processed Video URL:', videoUrl)
-        console.log('Is YouTube:', isYouTube)
-        console.log('Video URL exists:', !!videoUrl)
-        
+        // Map lesson data with content type
+        const contentType = lessonData.content_type || 'video'
         setCurrentLesson({
-          id: lessonData.id,
+          id: lessonData.id.toString(),
           title: lessonData.title,
           description: lessonData.content || '',
-          duration: 0, // Django doesn't store duration yet
-          videoUrl: videoUrl,
-          isYouTube: isYouTube,
-          completed: false, // TODO: Check from progress
+          content_type: contentType as ContentType,
+          video_url: videoUrl,
+          content: lessonData.content,
           order: lessonData.order,
+          scorm_package_id: lessonData.scorm_package_id,
+          h5p_package_id: lessonData.h5p_package_id,
+          completed: false, // TODO: Check from progress
           chapter: {
             id: courseData.id.toString(),
             title: courseData.title,
@@ -141,9 +172,10 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
           lessons: lessons.map((lesson: any) => ({
             id: lesson.id.toString(),
             title: lesson.title,
-            duration: '0:00', // Duration not stored yet
-            completed: false, // TODO: Check from progress
-            current: lesson.id.toString() === lessonId
+            duration: '0:00',
+            completed: false,
+            current: lesson.id.toString() === lessonId,
+            content_type: lesson.content_type || 'video'
           }))
         }])
         
@@ -162,93 +194,18 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
     fetchData()
   }, [courseId, lessonId])
 
-  // TODO: Fetch from API when backend is ready
+  // Resources and discussions (TODO: Fetch from API)
   const resources: any[] = []
   const discussions: any[] = []
 
-  // Video controls
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
-        videoRef.current.play()
-      }
-      setIsPlaying(!isPlaying)
-    }
-  }
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted
-      setIsMuted(!isMuted)
-    }
-  }
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime)
-    }
-  }
-
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration)
-    }
-  }
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value)
-    if (videoRef.current) {
-      videoRef.current.currentTime = time
-      setCurrentTime(time)
-    }
-  }
-
-  const skipTime = (seconds: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds))
-    }
-  }
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen()
-      setIsFullscreen(true)
-    } else {
-      document.exitFullscreen()
-      setIsFullscreen(false)
-    }
-  }
-
-  const changePlaybackSpeed = (speed: number) => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed
-      setPlaybackSpeed(speed)
-    }
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
   const markLessonComplete = async () => {
-    // In a real app, this would update the progress in the database
-    console.log("Lesson marked as complete")
-    
-    // Get user from localStorage (in a real app, this would come from auth context)
     const storedUser = localStorage.getItem('user')
     if (!storedUser) {
       console.error('User not found')
       return
     }
     
-    const user = JSON.parse(storedUser)
-    
     try {
-      // Mark lesson as complete in Django
       const data = await djangoApi.post<any>(`/api/lessons/${lessonId}/mark-complete/`)
       console.log('Progress updated:', data)
       
@@ -259,7 +216,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
       
       // Check if course is completed
       if (data.course_progress?.course_completed) {
-        // Show immediate celebration
         toast({
           title: "🎉 Course Completed!",
           description: `Amazing! You've finished all ${data.course_progress.total_lessons} lessons!`,
@@ -272,15 +228,13 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
             course_id: courseId
           })
           
-          // Show certificate success and completion modal
           setTimeout(() => {
             toast({
               title: "📜 Certificate Generated!",
-              description: `Your completion certificate for "${course.title}" is ready!`,
+              description: `Your completion certificate for "${course?.title}" is ready!`,
               duration: 5000
             })
             
-            // Show the beautiful completion modal with confetti
             setCompletedCertificateId(certificateResponse.certificate_id || certificateResponse.id)
             setShowCompletionModal(true)
           }, 2000)
@@ -290,22 +244,30 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
           setTimeout(() => {
             toast({
               title: "📜 Certificate Available",
-              description: `Visit your profile to generate your completion certificate for "${course.title}".`,
+              description: `Visit your profile to generate your completion certificate for "${course?.title}".`,
               duration: 5000
             })
-            
-            // Show completion modal even without certificate ID
             setShowCompletionModal(true)
           }, 2000)
         }
       }
     } catch (error) {
       console.error('Error updating progress:', error)
-      alert('Failed to update progress. Please try again.')
+      toast({
+        title: "Error",
+        description: "Failed to update progress. Please try again.",
+        variant: "destructive"
+      })
     }
   }
 
-  // Helper function to check if current lesson is the first lesson
+  // Handle content completion from ContentTypeRouter
+  const handleContentCompletion = (data: any) => {
+    console.log('Content completed:', data)
+    markLessonComplete()
+  }
+
+  // Navigation helpers
   const isFirstLesson = () => {
     if (curriculum.length === 0) return true
     const firstChapter = curriculum[0]
@@ -313,7 +275,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
     return firstChapter.lessons[0].id === lessonId
   }
 
-  // Helper function to check if current lesson is the last lesson
   const isLastLesson = () => {
     if (curriculum.length === 0) return true
     const lastChapter = curriculum[curriculum.length - 1]
@@ -322,7 +283,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   }
 
   const navigateLesson = (direction: "prev" | "next") => {
-    // Find current lesson in curriculum
     let currentChapterIndex = -1
     let currentLessonIndex = -1
     
@@ -337,23 +297,18 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
     
     if (currentChapterIndex === -1) return
     
-    type LessonType = typeof curriculum[0]['lessons'][0]
-    let nextLesson: LessonType | null = null
+    let nextLesson: CurriculumLesson | null = null
     
     if (direction === "next") {
-      // Try next lesson in current chapter
       if (currentLessonIndex < curriculum[currentChapterIndex].lessons.length - 1) {
         nextLesson = curriculum[currentChapterIndex].lessons[currentLessonIndex + 1]
       } else if (currentChapterIndex < curriculum.length - 1) {
-        // First lesson of next chapter
         nextLesson = curriculum[currentChapterIndex + 1].lessons[0]
       }
     } else {
-      // Try previous lesson in current chapter
       if (currentLessonIndex > 0) {
         nextLesson = curriculum[currentChapterIndex].lessons[currentLessonIndex - 1]
       } else if (currentChapterIndex > 0) {
-        // Last lesson of previous chapter
         const prevChapter = curriculum[currentChapterIndex - 1]
         nextLesson = prevChapter.lessons[prevChapter.lessons.length - 1]
       }
@@ -365,7 +320,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   }
 
   const handleBackToCourse = () => {
-    // Navigate back to course overview
     router.push(`/learn/${courseId}`)
   }
 
@@ -376,7 +330,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   }
 
   const handleDownloadCertificate = () => {
-    // In a real implementation, this would trigger PDF download
     if (completedCertificateId) {
       toast({
         title: "Download Started",
@@ -386,7 +339,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   }
 
   const handleShareCertificate = () => {
-    // In a real implementation, this would open sharing options
     if (completedCertificateId) {
       navigator.clipboard.writeText(`${window.location.origin}/certificates/${completedCertificateId}`)
       toast({
@@ -400,13 +352,17 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
   useEffect(() => {
     const timer = setTimeout(() => {
       if (notes.trim()) {
-        // In a real app, this would save notes to the database
         console.log("Saving notes:", notes)
       }
     }, 2000)
 
     return () => clearTimeout(timer)
   }, [notes])
+
+  // Get content type config
+  const getContentTypeConfig = (type: ContentType) => {
+    return CONTENT_TYPE_CONFIG[type] || CONTENT_TYPE_CONFIG.video
+  }
 
   if (loading || !course || !currentLesson) {
     return (
@@ -418,6 +374,9 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
       </div>
     )
   }
+
+  const contentConfig = getContentTypeConfig(currentLesson.content_type)
+  const ContentIcon = contentConfig.icon
 
   return (
     <div className="min-h-screen bg-background">
@@ -448,220 +407,35 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
       <div className="flex flex-col lg:flex-row">
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Video Section - Large Mode */}
-          {videoSize === "large" && (
-          <div className="relative bg-black">
-            {/* Video Player */}
-            <div className="relative aspect-video">
-              {currentLesson.videoUrl ? (
-                currentLesson.isYouTube ? (
-                  <iframe
-                    className="w-full h-full"
-                    src={currentLesson.videoUrl}
-                    title={currentLesson.title}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full"
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={() => {
-                      setIsPlaying(false)
-                      markLessonComplete()
-                    }}
-                  >
-                    <source src={currentLesson.videoUrl} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                )
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-muted">
-                  <div className="text-center">
-                    <Play className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-lg font-medium text-muted-foreground">No video available</p>
-                    <p className="text-sm text-muted-foreground">The instructor hasn't uploaded a video for this lesson yet</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Video Size Toggle Button */}
-              <div className="absolute top-4 right-4 z-10 hidden md:block">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setVideoSize("small")}
-                  className="bg-black/50 hover:bg-black/70 text-white border-white/20"
-                >
-                  <Minimize className="h-4 w-4 mr-2" />
-                  Minimize
-                </Button>
-              </div>
-
-              {/* Video Controls Overlay - Only show for non-YouTube videos */}
-              {!currentLesson.isYouTube && currentLesson.videoUrl && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                <div className="flex items-center space-x-4 text-white">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={togglePlay}
-                    className="text-white hover:text-white hover:bg-white/20"
-                  >
-                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                  
-                  <div className="flex items-center space-x-2 text-sm">
-                    <span>{formatTime(currentTime)}</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max={duration}
-                      value={currentTime}
-                      onChange={handleSeek}
-                      className="w-64 md:w-96"
-                    />
-                    <span>{formatTime(duration)}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 ml-auto">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => skipTime(-10)}
-                      className="text-white hover:text-white hover:bg-white/20"
-                    >
-                      <SkipBack className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => skipTime(10)}
-                      className="text-white hover:text-white hover:bg-white/20"
-                    >
-                      <SkipForward className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={toggleMute}
-                      className="text-white hover:text-white hover:bg-white/20"
-                    >
-                      {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                    </Button>
-                    <select
-                      value={playbackSpeed}
-                      onChange={(e) => changePlaybackSpeed(parseFloat(e.target.value))}
-                      className="bg-transparent text-white text-sm border border-white/30 rounded px-2 py-1"
-                    >
-                      <option value="0.5">0.5x</option>
-                      <option value="0.75">0.75x</option>
-                      <option value="1">1x</option>
-                      <option value="1.25">1.25x</option>
-                      <option value="1.5">1.5x</option>
-                      <option value="2">2x</option>
-                    </select>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={toggleFullscreen}
-                      className="text-white hover:text-white hover:bg-white/20"
-                    >
-                      {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              )}
-            </div>
+          {/* Content Area - Uses ContentTypeRouter */}
+          <div className="bg-muted/30">
+            <ContentTypeRouter
+              contentType={currentLesson.content_type}
+              lessonId={currentLesson.id}
+              courseId={courseId}
+              videoUrl={currentLesson.video_url}
+              title={currentLesson.title}
+              scormPackageId={currentLesson.scorm_package_id}
+              h5pPackageId={currentLesson.h5p_package_id}
+              initialContent={currentLesson.content}
+              onCompletion={handleContentCompletion}
+            />
           </div>
-          )}
-
-          {/* Small Inline Video Mode - YouTube default size */}
-          {videoSize === "small" && currentLesson.videoUrl && (
-            <div className="relative bg-black p-4 border-b">
-              <div className="max-w-2xl mx-auto">
-                {/* Video Player */}
-                <div className="relative aspect-video rounded-lg overflow-hidden shadow-lg">
-                  {currentLesson.isYouTube ? (
-                    <iframe
-                      className="w-full h-full"
-                      src={currentLesson.videoUrl}
-                      title={currentLesson.title}
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      ref={videoRef}
-                      className="w-full h-full"
-                      onTimeUpdate={handleTimeUpdate}
-                      onLoadedMetadata={handleLoadedMetadata}
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                      onEnded={() => {
-                        setIsPlaying(false)
-                        markLessonComplete()
-                      }}
-                    >
-                      <source src={currentLesson.videoUrl} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                  )}
-                  
-                  {/* Maximize Button */}
-                  <div className="absolute top-2 right-2 z-10">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setVideoSize("large")}
-                      className="bg-black/70 hover:bg-black/90 text-white border-white/20"
-                    >
-                      <Maximize className="h-4 w-4 mr-2" />
-                      Expand
-                    </Button>
-                  </div>
-                  
-                  {/* Mini controls for non-YouTube videos */}
-                  {!currentLesson.isYouTube && (
-                    <div className="absolute bottom-2 left-2 flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={togglePlay}
-                        className="bg-black/70 hover:bg-black/90 text-white h-8 w-8 p-0"
-                      >
-                        {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleMute}
-                        className="bg-black/70 hover:bg-black/90 text-white h-8 w-8 p-0"
-                      >
-                        {isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Lesson Content */}
           <div className="flex-1">
             <div className="flex flex-col h-full">
               {/* Lesson Header */}
-              <div className="border-b p-6">
+              <div className="border-b p-6 bg-background">
                 <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h1 className="text-2xl font-bold mb-2">{currentLesson.title}</h1>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h1 className="text-2xl font-bold">{currentLesson.title}</h1>
+                      <Badge className={`${contentConfig.color} text-white`}>
+                        <ContentIcon className="h-3 w-3 mr-1" />
+                        {contentConfig.label}
+                      </Badge>
+                    </div>
                     <p className="text-muted-foreground">{currentLesson.description}</p>
                   </div>
                   <div className="flex items-center space-x-4">
@@ -686,8 +460,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                     <span>Chapter {currentLesson.chapter.order}: {currentLesson.chapter.title}</span>
                     <span>•</span>
                     <span>Lesson {currentLesson.order}</span>
-                    <span>•</span>
-                    <span>{formatTime(currentLesson.duration)}</span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -728,57 +500,50 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
               {/* Tabs */}
               <div className="flex-1 flex flex-col min-h-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-                  <TabsList className="grid w-full grid-cols-4 m-4 flex-shrink-0">
+                  <TabsList className="grid w-full grid-cols-3 m-4 flex-shrink-0">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="notes">Notes</TabsTrigger>
                     <TabsTrigger value="resources">Resources</TabsTrigger>
-                    <TabsTrigger value="discussion">Discussion</TabsTrigger>
                   </TabsList>
 
                   <div className="p-4 flex-1 overflow-y-auto">
                     <TabsContent value="overview" className="space-y-6">
                       <Card>
                         <CardHeader>
-                          <CardTitle>Lesson Content</CardTitle>
+                          <CardTitle>About This Lesson</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="prose prose-sm max-w-none">
-                            <h3>HTML Document Structure</h3>
-                            <p>
-                              Every HTML document follows a basic structure that includes several key elements. 
-                              Understanding this structure is fundamental to creating well-formed web pages.
-                            </p>
-                            <h4>The Basic Structure</h4>
-                            <p>
-                              An HTML document starts with a doctype declaration, followed by the root <code>&lt;html&gt;</code> element, 
-                              which contains a <code>&lt;head&gt;</code> section and a <code>&lt;body&gt;</code> section.
-                            </p>
-                            <pre>
-                              <code>{`<!DOCTYPE html>
-<html>
-<head>
-    <title>Page Title</title>
-</head>
-<body>
-    <h1>My First Heading</h1>
-    <p>My first paragraph.</p>
-</body>
-</html>`}</code>
-                            </pre>
+                          <div className="space-y-4">
+                            <div className="flex items-start gap-3">
+                              <ContentIcon className={`h-5 w-5 mt-0.5 ${contentConfig.color.replace('bg-', 'text-')}`} />
+                              <div>
+                                <h4 className="font-medium mb-1">Content Type: {contentConfig.label}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {currentLesson.content_type === 'video' && 'Watch the video to learn the concepts covered in this lesson.'}
+                                  {currentLesson.content_type === 'markdown' && 'Read through the document and take notes as needed.'}
+                                  {currentLesson.content_type === 'scorm' && 'Complete the interactive SCORM package to progress.'}
+                                  {currentLesson.content_type === 'h5p' && 'Interact with the H5P content to learn and practice.'}
+                                  {currentLesson.content_type === 'html_embed' && 'Explore the embedded content to complete this lesson.'}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {currentLesson.description && (
+                              <div className="prose prose-sm max-w-none">
+                                <p>{currentLesson.description}</p>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
 
                       <Card>
                         <CardHeader>
-                          <CardTitle>Lesson Quiz</CardTitle>
+                          <CardTitle>Learning Objectives</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                              Test your understanding with this quick quiz. You need 70% to pass.
-                            </p>
-                            <Button>Start Quiz</Button>
+                          <div className="text-sm text-muted-foreground">
+                            <p>Complete this lesson to progress through the course.</p>
                           </div>
                         </CardContent>
                       </Card>
@@ -791,7 +556,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                         </CardHeader>
                         <CardContent>
                           <Textarea
-                            placeholder="Take notes while watching the video..."
+                            placeholder="Take notes while learning..."
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             className="min-h-[300px]"
@@ -833,21 +598,6 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                         </CardContent>
                       </Card>
                     </TabsContent>
-
-                    <TabsContent value="discussion" className="space-y-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Lesson Discussion</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-center py-8">
-                            <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                            <p className="text-muted-foreground mb-2">Discussion feature coming soon</p>
-                            <p className="text-sm text-muted-foreground">Ask questions and interact with other students</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
                   </div>
                 </Tabs>
               </div>
@@ -878,35 +628,40 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
                       {chapter.order}. {chapter.title}
                     </h4>
                     <div className="space-y-1 ml-4">
-                      {chapter.lessons.map((lesson) => (
-                        <div
-                          key={lesson.id}
-                          onClick={() => {
-                            if (lesson.id !== currentLesson.id) {
-                              router.push(`/learn/${courseId}/${lesson.id}`)
-                            }
-                          }}
-                          className={`flex items-center justify-between p-2 rounded text-sm cursor-pointer transition-colors ${
-                            lesson.id === currentLesson.id
-                              ? "bg-primary text-primary-foreground"
-                              : lesson.completed
-                              ? "text-muted-foreground hover:bg-muted"
-                              : "hover:bg-muted"
-                          }`}
-                        >
-                          <div className="flex items-center space-x-2">
-                            {lesson.completed ? (
-                              <CheckCircle className="h-4 w-4" />
-                            ) : (
-                              <Circle className="h-4 w-4" />
-                            )}
-                            <span className={lesson.id === currentLesson.id ? "font-medium" : ""}>
-                              {lesson.title}
-                            </span>
+                      {chapter.lessons.map((lesson) => {
+                        const lessonConfig = getContentTypeConfig(lesson.content_type)
+                        const LessonIcon = lessonConfig.icon
+                        
+                        return (
+                          <div
+                            key={lesson.id}
+                            onClick={() => {
+                              if (lesson.id !== currentLesson.id) {
+                                router.push(`/learn/${courseId}/${lesson.id}`)
+                              }
+                            }}
+                            className={`flex items-center justify-between p-2 rounded text-sm cursor-pointer transition-colors ${
+                              lesson.id === currentLesson.id
+                                ? "bg-primary text-primary-foreground"
+                                : lesson.completed
+                                ? "text-muted-foreground hover:bg-muted"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              {lesson.completed ? (
+                                <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                              ) : (
+                                <Circle className="h-4 w-4 flex-shrink-0" />
+                              )}
+                              <span className={`truncate ${lesson.id === currentLesson.id ? "font-medium" : ""}`}>
+                                {lesson.title}
+                              </span>
+                            </div>
+                            <LessonIcon className="h-3 w-3 ml-2 flex-shrink-0 opacity-60" />
                           </div>
-                          <span className="text-xs">{lesson.duration}</span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 ))}

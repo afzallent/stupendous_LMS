@@ -1,7 +1,139 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { Tabs } from '@radix-ui/react-tabs'
+import { TabsContent } from '@radix-ui/react-tabs'
+import { Card } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
+import { Button } from 'react-day-picker'
+import { Trash2 } from 'lucide-react'
+import { Button } from 'react-day-picker'
+import { Button } from 'react-day-picker'
+import { Users } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { Button } from 'react-day-picker'
+import { Edit } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { Clock } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
+import { FileQuestion } from 'lucide-react'
+import { CardContent } from '@/components/ui/card'
+import { CardHeader } from '@/components/ui/card'
+import { Badge } from 'lucide-react'
+import { Badge } from 'lucide-react'
+import { CardDescription } from '@/components/ui/card'
+import { CardDescription } from '@/components/ui/card'
+import { CardTitle } from '@/components/ui/card'
+import { CardTitle } from '@/components/ui/card'
+import { CardHeader } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
+import { Button } from 'react-day-picker'
+import { Plus } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { FileQuestion } from 'lucide-react'
+import { CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
+import { Button } from 'react-day-picker'
+import { Plus } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { TabsContent } from '@radix-ui/react-tabs'
+import { TabsContent } from '@radix-ui/react-tabs'
+import { Card } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
+import { Button } from 'react-day-picker'
+import { Plus } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { Clock } from 'lucide-react'
+import { Play } from 'lucide-react'
+import { CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
+import { Button } from 'react-day-picker'
+import { Plus } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { BookOpen } from 'lucide-react'
+import { CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
+import { Button } from 'react-day-picker'
+import { Plus } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { Button } from 'react-day-picker'
+import { Trash2 } from 'lucide-react'
+import { Button } from 'react-day-picker'
+import { TabsContent } from '@radix-ui/react-tabs'
+import { TabsList } from '@radix-ui/react-tabs'
+import { TabsTrigger } from '@radix-ui/react-tabs'
+import { TabsTrigger } from '@radix-ui/react-tabs'
+import { TabsTrigger } from '@radix-ui/react-tabs'
+import { TabsTrigger } from '@radix-ui/react-tabs'
+import { TabsList } from '@radix-ui/react-tabs'
+import { Tabs } from '@radix-ui/react-tabs'
+import { Button } from 'react-day-picker'
+import { Trash2 } from 'lucide-react'
+import { Button } from 'react-day-picker'
+import { Button } from 'react-day-picker'
+import { Users } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { Button } from 'react-day-picker'
+import { Edit } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+import { FileQuestion } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
+import { Users } from 'lucide-react'
+import { Badge } from 'lucide-react'
+import { Badge } from 'lucide-react'
+import { Button } from 'react-day-picker'
+import { ArrowLeft } from 'lucide-react'
+import router from 'next/router'
+import { Button } from 'react-day-picker'
+
+/**
+ * Redirect page: /instructor/courses/[id] -> /instructor/courses/[id]/edit
+ * 
+ * This page exists for backward compatibility. The old course detail page
+ * has been replaced by the new Course Editor at /instructor/courses/[id]/edit.
+ * 
+ * Requirements: 2.5, 13.4
+ */
+export default function InstructorCourseRedirectPage() {
+  const params = useParams()
+  const router = useRouter()
+  const courseId = params.courseId as string
+
+  useEffect(() => {
+    // Redirect to the new Course Editor page
+    router.replace(`/instructor/courses/${courseId}/edit`)
+  }, [courseId, router])
+
+  // Show a brief loading state while redirecting
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Redirecting to Course Editor...</p>
+      </div>
+    </div>
+  )
+}
+
+// Keep the old component code below for reference during migration
+// This can be removed once the new Course Editor is fully implemented
+
+/*
+import { useState, useEffect } from 'react'
 import { djangoApi } from '@/lib/django-api-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -427,3 +559,4 @@ export default function InstructorCoursePage() {
     </div>
   )
 }
+*/
