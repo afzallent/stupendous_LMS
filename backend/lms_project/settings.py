@@ -93,21 +93,27 @@ WSGI_APPLICATION = "lms_project.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# Using PostgreSQL ONLY - no SQLite fallback
+
+DB_ENGINE = config('DB_ENGINE', default='django.db.backends.sqlite3')
 
 DATABASES = {
     "default": {
-        "ENGINE": config('DB_ENGINE'),
-        "NAME": config('DB_NAME'),
-        "USER": config('DB_USER'),
-        "PASSWORD": config('DB_PASSWORD'),
-        "HOST": config('DB_HOST'),
-        "PORT": config('DB_PORT'),
+        "ENGINE": DB_ENGINE,
+        "NAME": config('DB_NAME', default=str(BASE_DIR / 'db.sqlite3')),
+    }
+}
+
+# Add PostgreSQL-specific settings only if using PostgreSQL
+if 'postgresql' in DB_ENGINE:
+    DATABASES["default"].update({
+        "USER": config('DB_USER', default=''),
+        "PASSWORD": config('DB_PASSWORD', default=''),
+        "HOST": config('DB_HOST', default=''),
+        "PORT": config('DB_PORT', default=''),
         "OPTIONS": {
             "sslmode": config('DB_SSL_MODE', default='prefer'),
         },
-    }
-}
+    })
 
 
 # Password validation
