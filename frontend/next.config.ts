@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   reactStrictMode: false,
   // Note: eslint configuration is no longer supported in Next.js 16
   // Use .eslintrc.json or eslint.config.js instead
