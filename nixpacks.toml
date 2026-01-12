@@ -1,0 +1,6 @@
+# Tell Nixpacks to use the Dockerfile instead of auto-detection
+[phases.build]
+cmds = []
+
+[start]
+cmd = "echo 'Use Dockerfile for deployment'"
