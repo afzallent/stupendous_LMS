@@ -1,13 +1,18 @@
-# Backend-only Dockerfile for Django LMS (v2 - no frontend)
+# Backend-only Dockerfile for Django LMS (v3 - optimized)
 FROM python:3.12-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies in one layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy and install Python dependencies
 COPY backend/requirements.txt .
