@@ -103,3 +103,36 @@ export function useAuth() {
   }
   return context
 }
+
+// Higher-order component for protected routes
+export function withAuth<P extends object>(
+  Component: React.ComponentType<P>,
+  requiredRole?: 'student' | 'instructor' | 'admin'
+) {
+  return function AuthenticatedComponent(props: P) {
+    const { user, loading } = useAuth()
+    const router = useRouter()
+
+    useEffect(() => {
+      if (!loading && !user) {
+        router.push('/auth/login')
+      } else if (!loading && user && requiredRole) {
+        if (requiredRole === 'instructor' && !user.is_instructor) {
+          router.push('/')
+        } else if (requiredRole === 'student' && !user.is_student) {
+          router.push('/')
+        }
+      }
+    }, [user, loading, router])
+
+    if (loading) {
+      return <div>Loading...</div>
+    }
+
+    if (!user) {
+      return null
+    }
+
+    return <Component {...props} />
+  }
+}
