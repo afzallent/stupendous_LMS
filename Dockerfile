@@ -1,4 +1,4 @@
-# Backend-only Dockerfile for Django LMS
+# Backend-only Dockerfile for Django LMS (v2 - no frontend)
 FROM python:3.12-slim
 
 WORKDIR /app
