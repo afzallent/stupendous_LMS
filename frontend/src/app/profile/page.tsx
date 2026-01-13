@@ -43,6 +43,30 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
+  // Language options matching backend User.LANGUAGE_CHOICES
+  const languageOptions = [
+    { value: 'en', label: 'English' },
+    { value: 'hi', label: 'Hindi' },
+    { value: 'es', label: 'Spanish' },
+    { value: 'fr', label: 'French' },
+    { value: 'de', label: 'German' },
+    { value: 'pt', label: 'Portuguese' },
+    { value: 'ja', label: 'Japanese' },
+    { value: 'ko', label: 'Korean' },
+    { value: 'zh', label: 'Chinese' },
+    { value: 'ar', label: 'Arabic' },
+    { value: 'ru', label: 'Russian' },
+    { value: 'it', label: 'Italian' },
+    { value: 'ta', label: 'Tamil' },
+    { value: 'te', label: 'Telugu' },
+    { value: 'bn', label: 'Bengali' },
+    { value: 'mr', label: 'Marathi' },
+    { value: 'gu', label: 'Gujarati' },
+    { value: 'kn', label: 'Kannada' },
+    { value: 'ml', label: 'Malayalam' },
+    { value: 'pa', label: 'Punjabi' },
+  ]
+
   const [profileData, setProfileData] = useState({
     name: "",
     email: "",
@@ -50,7 +74,8 @@ export default function ProfilePage() {
     phone: "",
     location: "",
     website: "",
-    avatar: null as File | null
+    avatar: null as File | null,
+    preferred_language: "en"
   })
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -87,7 +112,8 @@ export default function ProfilePage() {
         phone: userData.phone || "",
         location: userData.location || "",
         website: userData.website || "",
-        avatar: null
+        avatar: null,
+        preferred_language: userData.preferred_language || "en"
       })
     } else {
       // Redirect to login if no user
@@ -108,7 +134,8 @@ export default function ProfilePage() {
         bio: profileData.bio,
         phone: profileData.phone,
         location: profileData.location,
-        website: profileData.website
+        website: profileData.website,
+        preferred_language: profileData.preferred_language
       })
 
       // Update localStorage with new data
@@ -510,6 +537,28 @@ export default function ProfilePage() {
                         onChange={(e) => setProfileData(prev => ({ ...prev, website: e.target.value }))}
                         placeholder="https://yourwebsite.com"
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="preferred_language">Preferred Language</Label>
+                      <Select
+                        value={profileData.preferred_language}
+                        onValueChange={(value) => setProfileData(prev => ({ ...prev, preferred_language: value }))}
+                      >
+                        <SelectTrigger id="preferred_language">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languageOptions.map((lang) => (
+                            <SelectItem key={lang.value} value={lang.value}>
+                              {lang.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Sets the interface language and captions for video lessons
+                      </p>
                     </div>
 
                     <div className="flex justify-end">

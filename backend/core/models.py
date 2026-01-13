@@ -9,6 +9,30 @@ class User(AbstractUser):
     
     Adds role flags (student/instructor) and profile fields.
     """
+    # Language choices for player interface
+    LANGUAGE_CHOICES = [
+        ('en', 'English'),
+        ('hi', 'Hindi'),
+        ('es', 'Spanish'),
+        ('fr', 'French'),
+        ('de', 'German'),
+        ('pt', 'Portuguese'),
+        ('ja', 'Japanese'),
+        ('ko', 'Korean'),
+        ('zh', 'Chinese'),
+        ('ar', 'Arabic'),
+        ('ru', 'Russian'),
+        ('it', 'Italian'),
+        ('ta', 'Tamil'),
+        ('te', 'Telugu'),
+        ('bn', 'Bengali'),
+        ('mr', 'Marathi'),
+        ('gu', 'Gujarati'),
+        ('kn', 'Kannada'),
+        ('ml', 'Malayalam'),
+        ('pa', 'Punjabi'),
+    ]
+    
     # Role flags
     is_student = models.BooleanField(default=False, help_text="Designates whether this user is a student.")
     is_instructor = models.BooleanField(default=False, help_text="Designates whether this user is an instructor.")
@@ -52,6 +76,12 @@ class User(AbstractUser):
         blank=True,
         null=True,
         help_text="Areas of expertise (comma-separated for trainers)"
+    )
+    preferred_language = models.CharField(
+        max_length=5,
+        choices=LANGUAGE_CHOICES,
+        default='en',
+        help_text="Preferred language for video player interface and captions"
     )
     
     # Timestamps

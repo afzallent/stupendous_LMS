@@ -23,9 +23,13 @@ import {
   Lock,
   AlertTriangle,
   Loader2,
-  FileQuestion
+  FileQuestion,
+  GraduationCap,
+  BarChart3,
+  PlayCircle
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { djangoApi } from "@/lib/django-api-client"
@@ -159,6 +163,7 @@ interface CourseData {
     id: string
     name: string
     email: string
+    avatar_url?: string
   }
   thumbnail: string | null
   price: number
@@ -186,13 +191,11 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null)
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false)
 
-  // Unwrap the params Promise using React.use()
   const { courseId } = use(params)
 
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
-        // Get user from localStorage
         const storedUser = localStorage.getItem('user')
         if (!storedUser) {
           setAuthError('Please log in to access this course.')
@@ -205,7 +208,6 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
         const userData = JSON.parse(storedUser)
         setUser(userData)
         
-        // Fetch course data with progress
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const accessToken = localStorage.getItem('access_token')
         
@@ -243,7 +245,6 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
         const data = await courseResponse.json()
         setCourseData(data)
         
-        // Set enrollment data
         setEnrollment({
           id: 'enrollment-' + courseId,
           courseId: courseId,
@@ -263,19 +264,17 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
     fetchCourseData()
   }, [courseId, router])
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Verifying course access...</p>
+          <p className="text-muted-foreground">Loading course...</p>
         </div>
       </div>
     )
   }
 
-  // Show authentication error
   if (authError) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -292,7 +291,6 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
     )
   }
 
-  // Show enrollment error
   if (enrollmentError) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -312,26 +310,16 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
     )
   }
 
-  // Return early if no course data loaded yet
-  if (!courseData) {
-    return null
-  }
+  if (!courseData) return null
 
-  const handleBackToDashboard = () => {
-    router.push('/learn')
-  }
-
-  const handleStartLesson = (lessonId: string) => {
-    router.push(`/learn/${courseId}/${lessonId}`)
-  }
-
+  const handleBackToDashboard = () => router.push('/learn')
+  const handleStartLesson = (lessonId: string) => router.push(`/learn/${courseId}/${lessonId}`)
   const handleContinueLearning = () => {
     if (courseData.next_lesson) {
       router.push(`/learn/${courseId}/${courseData.next_lesson.id}`)
     }
   }
 
-  // Group lessons into a single chapter for display
   const curriculum = [
     {
       id: "chapter-1",
@@ -350,303 +338,335 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
 
   const handleGenerateCertificate = async () => {
     if (!user || !enrollment) return
-
     setIsGeneratingCertificate(true)
     try {
-      // Generate certificate using Django API
-      const certificateResponse = await djangoApi.post<any>('/api/certificates/', {
-        course_id: courseId
-      })
-      
+      const certificateResponse = await djangoApi.post<any>('/api/certificates/', { course_id: courseId })
       toast({
         title: "🎉 Certificate Generated!",
         description: `Your completion certificate for "${courseData.title}" is ready!`,
         duration: 5000
       })
-      
-      // Navigate to certificates page to view the certificate
-      setTimeout(() => {
-        router.push('/profile/certificates')
-      }, 2000)
-      
+      setTimeout(() => router.push('/profile/certificates'), 2000)
     } catch (error: any) {
       console.error('Certificate generation error:', error)
-      
-      // Handle specific error cases
       if (error.response?.status === 400) {
-        const errorMessage = error.response.data?.detail || 'Course not completed yet'
-        toast({
-          title: "Cannot Generate Certificate",
-          description: errorMessage,
-          variant: "destructive"
-        })
-      } else if (error.response?.status === 403) {
-        toast({
-          title: "Access Denied",
-          description: "You must be enrolled in this course to get a certificate.",
-          variant: "destructive"
-        })
+        toast({ title: "Cannot Generate Certificate", description: error.response.data?.detail || 'Course not completed yet', variant: "destructive" })
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to generate certificate. Please try again.",
-          variant: "destructive"
-        })
+        toast({ title: "Error", description: "Failed to generate certificate. Please try again.", variant: "destructive" })
       }
     } finally {
       setIsGeneratingCertificate(false)
     }
   }
 
+  // Get thumbnail URL
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const thumbnailUrl = courseData.thumbnail 
+    ? (courseData.thumbnail.startsWith('http') ? courseData.thumbnail : `${API_BASE_URL}${courseData.thumbnail}`)
+    : null
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4">
+      <header className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/learn" className="flex items-center space-x-2">
-                <BookOpen className="h-8 w-8 text-primary" />
-                <span className="text-2xl font-bold">CourseCompass</span>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={handleBackToDashboard}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </div>
+            <Link href="/learn" className="flex items-center space-x-2">
+              <BookOpen className="h-7 w-7 text-primary" />
+              <span className="text-xl font-bold">CourseCompass</span>
+            </Link>
+            <Button variant="ghost" size="sm" onClick={handleBackToDashboard}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Course Header */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-2">
-            <div className="mb-6">
-              <h1 className="text-3xl font-bold mb-4">{courseData.title}</h1>
-              <p className="text-lg text-muted-foreground mb-4">{courseData.description}</p>
+      {/* Hero Section with Course Thumbnail */}
+      <div className="relative">
+        {/* Background gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/80 to-primary/70 dark:from-primary/80 dark:via-primary/70 dark:to-primary/60" />
+        
+        {/* Thumbnail as background */}
+        {thumbnailUrl && (
+          <div className="absolute inset-0">
+            <Image
+              src={thumbnailUrl}
+              alt={courseData.title}
+              fill
+              className="object-cover opacity-20"
+              priority
+            />
+          </div>
+        )}
+
+        <div className="relative container mx-auto px-4 py-12 md:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+            {/* Course Info */}
+            <div className="lg:col-span-2 text-white">
+              <Badge className="mb-4 bg-white/20 text-white border-white/30 hover:bg-white/30">
+                {courseData.status}
+              </Badge>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
+                {courseData.title}
+              </h1>
+              <p className="text-lg md:text-xl text-white/90 mb-6 max-w-2xl">
+                {courseData.description}
+              </p>
               
-              <div className="flex items-center space-x-6 text-sm text-muted-foreground mb-4">
-                <div className="flex items-center space-x-1">
-                  <BookOpen className="h-4 w-4" />
+              {/* Course Stats */}
+              <div className="flex flex-wrap items-center gap-6 mb-8 text-white/90">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
                   <span>{courseData.total_lessons} lessons</span>
                 </div>
-                <Badge variant="secondary">{courseData.status}</Badge>
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  <span>{courseData.progress_percentage}% complete</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  <span>Enrolled {courseData.enrolled_at ? new Date(courseData.enrolled_at).toLocaleDateString() : 'N/A'}</span>
+                </div>
               </div>
 
-              <div className="flex items-center space-x-4 mb-6">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback>{courseData.instructor.name.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
+              {/* Instructor */}
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12 border-2 border-white/30">
+                  <AvatarImage src={courseData.instructor.avatar_url} />
+                  <AvatarFallback className="bg-white/20 text-white">
+                    {courseData.instructor.name.split(' ').map((n: string) => n[0]).join('')}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-medium">{courseData.instructor.name}</h3>
-                  <p className="text-sm text-muted-foreground">Course Instructor</p>
+                  <p className="font-medium">{courseData.instructor.name}</p>
+                  <p className="text-sm text-white/70">Course Instructor</p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Progress Card */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle>Your Progress</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>{courseData.completed_lessons} of {courseData.total_lessons} lessons</span>
-                    <span>{courseData.progress_percentage}%</span>
+            {/* Course Thumbnail Card */}
+            <div className="lg:col-span-1">
+              <Card className="overflow-hidden shadow-2xl border-0">
+                {thumbnailUrl ? (
+                  <div className="relative aspect-video">
+                    <Image
+                      src={thumbnailUrl}
+                      alt={courseData.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer" onClick={handleContinueLearning}>
+                      <PlayCircle className="h-16 w-16 text-white" />
+                    </div>
                   </div>
-                  <Progress value={courseData.progress_percentage} className="w-full" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Enrolled</p>
-                    <p className="font-medium">{courseData.enrolled_at ? new Date(courseData.enrolled_at).toLocaleDateString() : 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Status</p>
-                    <p className="font-medium">{courseData.progress_percentage === 100 ? 'Completed' : 'In Progress'}</p>
-                  </div>
-                </div>
-
-                {courseData.next_lesson && (
-                  <div className="pt-4 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">Next Lesson:</p>
-                    <p className="font-medium text-sm mb-3">{courseData.next_lesson.title}</p>
-                    <Button onClick={handleContinueLearning} className="w-full">
-                      <Play className="h-4 w-4 mr-2" />
-                      Continue Learning
-                    </Button>
+                ) : (
+                  <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                    <GraduationCap className="h-16 w-16 text-primary/40" />
                   </div>
                 )}
+                <CardContent className="p-5">
+                  {/* Progress */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">{courseData.completed_lessons} of {courseData.total_lessons} lessons</span>
+                      <span className="font-semibold text-primary">{courseData.progress_percentage}%</span>
+                    </div>
+                    <Progress value={courseData.progress_percentage} className="h-2" />
+                  </div>
 
-                {courseData.progress_percentage === 100 && (
-                  <div className="pt-4 border-t">
+                  {/* CTA Button */}
+                  {courseData.next_lesson ? (
+                    <Button onClick={handleContinueLearning} className="w-full" size="lg">
+                      <Play className="h-5 w-5 mr-2" />
+                      Continue Learning
+                    </Button>
+                  ) : courseData.progress_percentage === 100 ? (
                     <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={handleGenerateCertificate}
+                      onClick={handleGenerateCertificate} 
+                      className="w-full" 
+                      size="lg"
                       disabled={isGeneratingCertificate}
                     >
                       {isGeneratingCertificate ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generating Certificate...
-                        </>
+                        <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Generating...</>
                       ) : (
-                        <>
-                          <Award className="h-4 w-4 mr-2" />
-                          Get Certificate
-                        </>
+                        <><Award className="h-5 w-5 mr-2" />Get Certificate</>
                       )}
                     </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  ) : (
+                    <Button onClick={() => handleStartLesson(courseData.lessons[0]?.id)} className="w-full" size="lg">
+                      <Play className="h-5 w-5 mr-2" />
+                      Start Course
+                    </Button>
+                  )}
+
+                  {/* Next Lesson Info */}
+                  {courseData.next_lesson && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-xs text-muted-foreground mb-1">Next up:</p>
+                      <p className="text-sm font-medium truncate">{courseData.next_lesson.title}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Course Content */}
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="curriculum" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-            <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          <TabsList className="bg-white dark:bg-slate-800 border shadow-sm p-1">
+            <TabsTrigger value="curriculum" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+              Curriculum
+            </TabsTrigger>
+            <TabsTrigger value="quizzes" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+              Quizzes
+            </TabsTrigger>
+            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+              Reviews
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="curriculum" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Course Content</CardTitle>
-                <CardDescription>
-                  {courseData.total_lessons} lessons
-                </CardDescription>
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Course Content</CardTitle>
+                    <CardDescription>{courseData.total_lessons} lessons • {courseData.completed_lessons} completed</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-sm">
+                    {courseData.progress_percentage}% Complete
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {curriculum.map((chapter) => (
-                    <div key={chapter.id} className="border rounded-lg">
-                      <div className="p-4 bg-muted/30">
-                        <h3 className="font-semibold">
-                          Chapter {chapter.order}: {chapter.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {chapter.lessons.length} lessons
-                        </p>
-                      </div>
-                      <div className="divide-y">
-                        {chapter.lessons.map((lesson) => (
-                          <div key={lesson.id} className="p-4 hover:bg-muted/20 transition-colors">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                {lesson.completed ? (
-                                  <CheckCircle className="h-5 w-5 text-green-600" />
-                                ) : lesson.isNext ? (
-                                  <Play className="h-5 w-5 text-primary" />
-                                ) : (
-                                  <Circle className="h-5 w-5 text-muted-foreground" />
-                                )}
-                                <div>
-                                  <h4 className="font-medium">{lesson.title}</h4>
-                                  <p className="text-sm text-muted-foreground">{lesson.description}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-4">
-                                <span className="text-sm text-muted-foreground">{lesson.duration}</span>
-                                <Button 
-                                  variant={lesson.isNext ? "default" : "outline"} 
-                                  size="sm"
-                                  onClick={() => handleStartLesson(lesson.id)}
-                                >
-                                  {lesson.completed ? "Review" : lesson.isNext ? "Continue" : "Start"}
-                                </Button>
-                              </div>
+              <CardContent className="p-0">
+                {curriculum.map((chapter) => (
+                  <div key={chapter.id}>
+                    <div className="p-4 bg-slate-100/50 dark:bg-slate-800/30 border-b">
+                      <h3 className="font-semibold text-sm text-muted-foreground">
+                        Chapter {chapter.order}: {chapter.title}
+                      </h3>
+                    </div>
+                    <div className="divide-y">
+                      {chapter.lessons.map((lesson, index) => (
+                        <div 
+                          key={lesson.id} 
+                          className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${lesson.isNext ? 'bg-primary/5 border-l-4 border-l-primary' : ''}`}
+                          onClick={() => handleStartLesson(lesson.id)}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                              lesson.completed 
+                                ? 'bg-green-100 dark:bg-green-900/30' 
+                                : lesson.isNext 
+                                  ? 'bg-primary/10' 
+                                  : 'bg-slate-100 dark:bg-slate-800'
+                            }`}>
+                              {lesson.completed ? (
+                                <CheckCircle className="h-5 w-5 text-green-600" />
+                              ) : lesson.isNext ? (
+                                <Play className="h-5 w-5 text-primary" />
+                              ) : (
+                                <span className="text-sm font-medium text-muted-foreground">{index + 1}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`font-medium ${lesson.isNext ? 'text-primary' : ''}`}>{lesson.title}</h4>
+                              <p className="text-sm text-muted-foreground truncate">{lesson.description}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm text-muted-foreground">{lesson.duration || '0:00'}</span>
+                              <Button 
+                                variant={lesson.isNext ? "default" : "ghost"} 
+                                size="sm"
+                                className={lesson.isNext ? '' : 'opacity-0 group-hover:opacity-100'}
+                              >
+                                {lesson.completed ? "Review" : lesson.isNext ? "Continue" : "Start"}
+                              </Button>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="quizzes" className="space-y-6">
+          <TabsContent value="quizzes">
             <QuizzesTab courseId={courseId} />
           </TabsContent>
 
           <TabsContent value="overview" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>What you'll learn</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-start space-x-2">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                    <span className="text-sm">Build modern React applications from scratch</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-primary" />
+                    What you'll learn
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {['Build modern applications from scratch', 'Master core concepts and best practices', 'Implement real-world projects', 'Work with APIs and external data'].map((item, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{item}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-start space-x-2">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                    <span className="text-sm">Master React hooks and state management</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                    <span className="text-sm">Implement routing with React Router</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                    <span className="text-sm">Work with APIs and external data</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Course Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Status</p>
-                    <p className="font-medium">{courseData.status}</p>
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Course Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Status</p>
+                      <p className="font-semibold">{courseData.status}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Lessons</p>
+                      <p className="font-semibold">{courseData.total_lessons}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Price</p>
+                      <p className="font-semibold">{courseData.price > 0 ? `$${courseData.price}` : 'Free'}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Updated</p>
+                      <p className="font-semibold">{new Date(courseData.updated_at).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Total Lessons</p>
-                    <p className="font-medium">{courseData.total_lessons}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Price</p>
-                    <p className="font-medium">${courseData.price}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Updated</p>
-                    <p className="font-medium">{new Date(courseData.updated_at).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
-          <TabsContent value="reviews" className="space-y-6">
-            <Card>
+          <TabsContent value="reviews">
+            <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle>Student Reviews</CardTitle>
-                <CardDescription>
-                  Reviews feature coming soon
-                </CardDescription>
+                <CardDescription>Reviews feature coming soon</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-12 text-muted-foreground">
+                  <Star className="h-12 w-12 mx-auto mb-4 opacity-20" />
                   <p>Course reviews will be available soon.</p>
                 </div>
               </CardContent>

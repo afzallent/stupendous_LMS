@@ -17,7 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 
-            'is_student', 'is_instructor', 'is_staff', 'avatar_url'
+            'is_student', 'is_instructor', 'is_staff', 'avatar_url', 'preferred_language'
         ]
         read_only_fields = ['id', 'avatar_url', 'is_staff']
     
@@ -42,12 +42,17 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     location = serializers.CharField(required=False, allow_blank=True, max_length=100)
     website = serializers.URLField(required=False, allow_blank=True)
     notification_preferences = serializers.JSONField(required=False)
+    preferred_language = serializers.ChoiceField(
+        choices=User.LANGUAGE_CHOICES,
+        required=False,
+        help_text="Preferred language for video player interface and captions"
+    )
     
     class Meta:
         model = User
         fields = [
             'first_name', 'last_name', 'bio', 'phone', 
-            'location', 'website', 'notification_preferences'
+            'location', 'website', 'notification_preferences', 'preferred_language'
         ]
     
     def update(self, instance, validated_data):
