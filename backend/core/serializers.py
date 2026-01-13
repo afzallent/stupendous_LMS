@@ -223,8 +223,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Custom JWT token serializer that includes user data.
     
     Returns access token, refresh token, and user profile information on successful login.
-    Accepts both username and email for authentication.
+    Accepts email for authentication (standard modern approach).
     """
+    # Override default username field to accept email
+    username_field = 'email'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Remove username field and add email field
+        self.fields.pop('username', None)
+        self.fields['email'] = serializers.EmailField(required=True)
     
     @classmethod
     def get_token(cls, user):
@@ -237,36 +245,31 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        # Support both username and email login
-        username = attrs.get('username')
+        # Get email and password from request
+        email = attrs.get('email')
         password = attrs.get('password')
         
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"🔐 Login attempt: username={username}")
+        logger.info(f"🔐 Login attempt: email={email}")
         
-        # Try to find user by username first, then by email
+        # Find user by email
         user = None
         try:
-            user = User.objects.get(username=username)
-            logger.info(f"✅ Found user by username: {user.username}")
+            user = User.objects.get(email=email)
+            logger.info(f"✅ Found user by email: {user.email}")
         except User.DoesNotExist:
-            logger.info(f"❌ User not found by username, trying email...")
-            try:
-                user = User.objects.get(email=username)
-                logger.info(f"✅ Found user by email: {user.username}")
-            except User.DoesNotExist:
-                logger.error(f"❌ User not found by username or email: {username}")
-                raise serializers.ValidationError('Invalid credentials')
+            logger.error(f"❌ User not found by email: {email}")
+            raise serializers.ValidationError('Invalid credentials')
         
         # Verify password
         if not user.check_password(password):
-            logger.error(f"❌ Invalid password for user: {user.username}")
+            logger.error(f"❌ Invalid password for user: {user.email}")
             raise serializers.ValidationError('Invalid credentials')
         
         # Check if user is active
         if not user.is_active:
-            logger.error(f"❌ User account disabled: {user.username}")
+            logger.error(f"❌ User account disabled: {user.email}")
             raise serializers.ValidationError('User account is disabled')
         
         logger.info(f"✅ Login successful for user: {user.username}")
