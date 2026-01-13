@@ -105,16 +105,37 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     instructor = UserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
     lessons = LessonSerializer(many=True, read_only=True)
+    lesson_count = serializers.SerializerMethodField()
+    enrolled_count = serializers.SerializerMethodField()
     is_enrolled = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
+    duration = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'instructor', 'category', 'status',
+        fields = ['id', 'title', 'description', 'instructor', 'category', 'level', 'status',
                   'price', 'original_price', 'is_free', 'thumbnail',
                   'created_at', 'updated_at', 'published_at',
-                  'lessons', 'is_enrolled', 'progress_percentage']
+                  'lessons', 'lesson_count', 'enrolled_count', 'duration',
+                  'is_enrolled', 'progress_percentage']
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
+
+    def get_lesson_count(self, obj):
+        """Get count of lessons in course"""
+        return obj.lessons.count()
+
+    def get_enrolled_count(self, obj):
+        """Get count of enrolled students"""
+        return obj.enrollments.count()
+
+    def get_duration(self, obj):
+        """Calculate total duration of all lessons"""
+        # For now, estimate based on lesson count (avg 10 min per lesson)
+        lesson_count = obj.lessons.count()
+        total_minutes = lesson_count * 10  # Estimate 10 minutes per lesson
+        hours = total_minutes // 60
+        minutes = total_minutes % 60
+        return f"{hours}h {minutes}m"
 
     def get_is_enrolled(self, obj):
         """Check if current user is enrolled"""
