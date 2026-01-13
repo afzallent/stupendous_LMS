@@ -18,7 +18,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   signup: (data: SignupData) => Promise<void>
   updateUser: (user: User) => void
@@ -58,13 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const login = async (email: string, password: string) => {
-    const response = await djangoApi.post<{ access: string; user: User }>('/api/auth/login/', {
-      email,
-      password,
-    })
-    localStorage.setItem('token', response.access)
-    setUser(response.user)
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await djangoApi.post<{ access: string; user: User }>('/api/auth/login/', {
+        email,
+        password,
+      })
+      localStorage.setItem('token', response.access)
+      setUser(response.user)
+      return true
+    } catch (error) {
+      console.error('Login error:', error)
+      return false
+    }
   }
 
   const logout = async () => {
