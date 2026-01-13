@@ -96,7 +96,7 @@ export function CertificateTemplate({
                   Certificate ID: {certificateId}
                 </Badge>
                 <p className="text-xs text-gray-500">
-                  Verify at: coursecompass.com/verify
+                  Verify at: {typeof window !== 'undefined' ? window.location.host : 'learn.5stars.dev'}/certificates/{certificateId}
                 </p>
               </div>
             </div>

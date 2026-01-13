@@ -54,8 +54,6 @@ export default function RootLayout({
         {/* Preconnect to API server for faster data fetching */}
         <link rel="preconnect" href={apiUrl} />
         <link rel="dns-prefetch" href={apiUrl} />
-        {/* Preload critical fonts */}
-        <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body
         className={`${inter.variable} font-sans antialiased bg-background text-foreground`}
