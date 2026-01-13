@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await djangoApi.post<{ access: string; user: User }>('/api/auth/login/', {
-      email,
+      username: email,  // Backend accepts username field for both username and email
       password,
     })
     localStorage.setItem('token', response.access)
