@@ -60,11 +60,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await djangoApi.post<{ access: string; user: User }>('/api/auth/login/', {
+      const response = await djangoApi.post<{ access: string; refresh?: string; user: User }>('/api/auth/login/', {
         email,
         password,
       })
+      // Store tokens with both key names for compatibility
       localStorage.setItem('token', response.access)
+      localStorage.setItem('access_token', response.access)
+      if (response.refresh) {
+        localStorage.setItem('refresh_token', response.refresh)
+      }
+      // Store user data for pages that check localStorage directly
+      const userWithRole = {
+        ...response.user,
+        role: response.user.is_instructor ? 'TRAINER' : (response.user.is_student ? 'STUDENT' : 'ADMIN')
+      }
+      localStorage.setItem('user', JSON.stringify(userWithRole))
       setUser(response.user)
       return true
     } catch (error) {
@@ -79,7 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       // Ignore errors on logout
     }
+    // Clear all auth-related localStorage items
     localStorage.removeItem('token')
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user')
     setUser(null)
     router.push('/auth/login')
   }
