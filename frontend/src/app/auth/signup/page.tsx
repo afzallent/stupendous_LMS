@@ -37,17 +37,19 @@ export default function SignupPage() {
     setIsLoading(true)
     try {
       // Use the auth context signup method which uses djangoApi
-      const success = await signup(signupForm.name, signupForm.email, signupForm.password)
+      await signup({
+        username: signupForm.name,
+        email: signupForm.email,
+        password: signupForm.password,
+        password_confirm: signupForm.confirmPassword,
+        is_student: true  // Default new signups to student role
+      })
       
-      if (success) {
-        // Redirect to student dashboard (new signups default to STUDENT)
-        router.push('/learn')
-      } else {
-        alert('Signup failed. Please check your information and try again.')
-      }
-    } catch (error) {
+      // Redirect to student dashboard
+      router.push('/learn')
+    } catch (error: any) {
       console.error('Signup error:', error)
-      alert('Signup failed. Please try again.')
+      alert(error?.message || 'Signup failed. Please try again.')
     } finally {
       setIsLoading(false)
     }

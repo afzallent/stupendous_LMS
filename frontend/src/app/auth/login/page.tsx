@@ -270,34 +270,38 @@ function AuthPageContent() {
       setLoading(true)
       
       // Use the auth context signup method which uses djangoApi
-      const success = await signup(signupForm.name, signupForm.email, signupForm.password)
+      await signup({
+        username: signupForm.name,
+        email: signupForm.email,
+        password: signupForm.password,
+        password_confirm: signupForm.confirmPassword,
+        is_student: true  // Default new signups to student role
+      })
       
-      if (success) {
-        toast({
-          title: "Account Created",
-          description: "Welcome to CourseCompass! Redirecting to your dashboard..."
-        })
+      toast({
+        title: "Account Created",
+        description: "Welcome to CourseCompass! Redirecting to your dashboard..."
+      })
         
-        // Redirect to student dashboard (new signups default to STUDENT)
-        router.push('/learn')
-        setSignupForm({
-          name: "",
-          email: "",
-          password: "",
-          confirmPassword: "",
-          agreeToTerms: false
-        })
-      } else {
-        toast({
-          title: "Signup Failed",
-          description: "Failed to create account",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
+      // Redirect to student dashboard (new signups default to STUDENT)
+      router.push('/learn')
+      setSignupForm({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        agreeToTerms: false
+      })
+    } catch (error: any) {
       // Gracefully handle network errors to prevent Turbopack crashes
       const errorMsg = error instanceof Error ? error.message : 'Unable to connect to our services'
       console.error('Signup error:', errorMsg, error)
+      
+      toast({
+        title: "Signup Failed",
+        description: errorMsg || "Failed to create account",
+        variant: "destructive"
+      })
       
       // Check if it's a network error
       const isNetworkError = errorMsg.includes('fetch') || 

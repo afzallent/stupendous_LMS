@@ -28,8 +28,7 @@ interface SignupData {
   email: string
   username: string
   password: string
-  first_name: string
-  last_name: string
+  password_confirm: string
   is_student?: boolean
   is_instructor?: boolean
 }
