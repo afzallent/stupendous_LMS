@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { djangoApi } from '@/lib/django-api-client'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Slider } from '@/components/ui/slider'
 import { useToast } from '@/components/ui/use-toast'
-import { Trash2, Plus, Save, ArrowLeft, GripVertical } from 'lucide-react'
+import { Trash2, Plus, Save, ArrowLeft, GripVertical, Loader2 } from 'lucide-react'
 
 type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'MULTIPLE_ANSWER'
 
@@ -40,7 +40,7 @@ interface QuizData {
   questions: Question[]
 }
 
-export default function CreateQuizPage() {
+function CreateQuizContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const lessonId = searchParams.get('lessonId')
@@ -778,5 +778,13 @@ export default function CreateQuizPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function CreateQuizPage() {
+  return (
+    <Suspense fallback={<div className="container max-w-6xl py-8 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <CreateQuizContent />
+    </Suspense>
   )
 }

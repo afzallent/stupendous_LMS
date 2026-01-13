@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { djangoApi } from '@/lib/django-api-client'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 
 interface Course {
   id: number
@@ -26,7 +26,7 @@ interface LessonData {
   order: number
 }
 
-export default function CreateLessonPage() {
+function CreateLessonContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const courseId = searchParams.get('courseId')
@@ -277,5 +277,13 @@ export default function CreateLessonPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function CreateLessonPage() {
+  return (
+    <Suspense fallback={<div className="container max-w-4xl py-8 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <CreateLessonContent />
+    </Suspense>
   )
 }
