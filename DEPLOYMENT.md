@@ -28,13 +28,14 @@ GitHub Repo: afzallent/stupendous_LMS
 **Environment Variables:**
 ```
 DB_ENGINE=django.db.backends.postgresql
-DB_NAME=lms
+DB_NAME=postgres
 DB_USER=postgres
 DB_PASSWORD=<your-password>
-DB_HOST=<postgres-host>
+DB_HOST=<coolify-postgres-internal-hostname>
 DB_PORT=5432
 SECRET_KEY=<generate-secure-key>
-ALLOWED_HOSTS=<your-backend-domain>
+ALLOWED_HOSTS=localhost,127.0.0.1,lms.5stars.dev
+CORS_ALLOWED_ORIGINS=http://localhost:3000,https://learn.5stars.dev
 DEBUG=False
 ```
 
@@ -51,7 +52,7 @@ DEBUG=False
 
 **Environment Variables:**
 ```
-NEXT_PUBLIC_API_URL=https://<your-backend-domain>
+NEXT_PUBLIC_API_URL=https://lms.5stars.dev
 ```
 
 ## How It Works
@@ -104,10 +105,10 @@ Enable "Auto Deploy on Push" in Coolify for both applications. With Watch Paths 
 
 ## URLs
 
-After deployment:
-- **Backend API**: `https://<backend-domain>/api/`
-- **Django Admin**: `https://<backend-domain>/admin/`
-- **Frontend**: `https://<frontend-domain>/`
+Production URLs:
+- **Backend API**: `https://lms.5stars.dev/api/`
+- **Django Admin**: `https://lms.5stars.dev/admin/`
+- **Frontend**: `https://learn.5stars.dev/`
 
 ## Test Users (Seeded Automatically)
 
