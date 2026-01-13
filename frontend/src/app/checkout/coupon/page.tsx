@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,7 @@ import {
 import Link from "next/link"
 import { toast } from "@/hooks/use-toast"
 
-export default function CouponEnrollmentPage() {
+function CouponEnrollmentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const courseId = searchParams.get('courseId')
@@ -255,5 +255,13 @@ export default function CouponEnrollmentPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CouponEnrollmentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <CouponEnrollmentContent />
+    </Suspense>
   )
 }
