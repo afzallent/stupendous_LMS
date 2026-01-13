@@ -21,6 +21,9 @@ urlpatterns = [
     # Course detail with progress
     path('courses/<int:course_id>/with-progress/', views.CourseDetailWithProgressView.as_view(), name='course-with-progress'),
     
+    # Platform stats endpoint
+    path('platform-stats/', views.PlatformStatsView.as_view(), name='platform-stats'),
+    
     # Router endpoints
     path('', include(router.urls)),
     

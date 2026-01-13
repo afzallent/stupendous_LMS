@@ -9,6 +9,7 @@ import { Inter } from "next/font/google";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap", // Optimize font loading
 });
 
 export const metadata: Metadata = {
@@ -44,8 +45,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const apiDomain = new URL(apiUrl).hostname;
+  
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Preconnect to API server for faster data fetching */}
+        <link rel="preconnect" href={apiUrl} />
+        <link rel="dns-prefetch" href={apiUrl} />
+        {/* Preload critical fonts */}
+        <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      </head>
       <body
         className={`${inter.variable} font-sans antialiased bg-background text-foreground`}
       >

@@ -1033,6 +1033,55 @@ class ProgressViewSet(viewsets.ModelViewSet):
         return Response(student_progress_data)
 
 
+# Platform Stats API (public endpoint for homepage)
+class PlatformStatsView(APIView):
+    """Public platform statistics for homepage"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        """Get platform-wide statistics"""
+        from certificates.models import Certificate
+        
+        # Total students (users with is_student=True)
+        total_students = User.objects.filter(is_student=True).count()
+        
+        # Total published courses
+        total_courses = Course.objects.filter(status='published').count()
+        
+        # Total certificates issued
+        try:
+            total_certificates = Certificate.objects.count()
+        except:
+            total_certificates = 0
+        
+        # Calculate success rate (completed enrollments / total enrollments)
+        total_enrollments = Enrollment.objects.count()
+        if total_enrollments > 0:
+            # Count enrollments where student completed all lessons
+            completed_enrollments = 0
+            for enrollment in Enrollment.objects.select_related('course').all():
+                course = enrollment.course
+                total_lessons = course.lessons.count()
+                if total_lessons > 0:
+                    completed_lessons = Progress.objects.filter(
+                        student=enrollment.student,
+                        lesson__course=course,
+                        completed=True
+                    ).count()
+                    if completed_lessons == total_lessons:
+                        completed_enrollments += 1
+            success_rate = f"{int((completed_enrollments / total_enrollments) * 100)}%"
+        else:
+            success_rate = "0%"
+        
+        return Response({
+            'total_students': total_students,
+            'total_courses': total_courses,
+            'total_certificates': total_certificates,
+            'success_rate': success_rate
+        })
+
+
 # Student Dashboard API
 class StudentDashboardView(APIView):
     """Student dashboard with enrolled courses and progress"""

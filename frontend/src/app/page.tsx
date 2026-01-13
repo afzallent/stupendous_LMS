@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,11 +40,19 @@ interface Stat {
   color: string
 }
 
+// Default stats to show immediately (prevents layout shift)
+const DEFAULT_STATS: Stat[] = [
+  { icon: 'Users', label: 'Active Students', value: '—', color: 'text-blue-500' },
+  { icon: 'BookOpen', label: 'Total Courses', value: '—', color: 'text-purple-500' },
+  { icon: 'Award', label: 'Certificates', value: '—', color: 'text-green-500' },
+  { icon: 'TrendingUp', label: 'Success Rate', value: '—', color: 'text-yellow-500' }
+]
+
 export default function Home() {
   const router = useRouter()
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [stats, setStats] = useState<Stat[]>([])
+  const [stats, setStats] = useState<Stat[]>(DEFAULT_STATS)
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
@@ -58,9 +66,11 @@ export default function Home() {
       try {
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         
-        const [coursesRes, categoriesRes] = await Promise.all([
+        // Fetch all data in parallel for better performance
+        const [coursesRes, categoriesRes, statsRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/courses/?featured=true&limit=6`),
-          fetch(`${API_BASE_URL}/api/categories/`)
+          fetch(`${API_BASE_URL}/api/categories/`),
+          fetch(`${API_BASE_URL}/api/platform-stats/`).catch(() => null)
         ])
 
         const coursesData = await coursesRes.json()
@@ -91,24 +101,16 @@ export default function Home() {
           courses: cat.course_count || 0
         })) || []
 
-        // Fetch platform stats from Django API
-        try {
-          const statsResponse = await fetch(`${API_BASE_URL}/api/platform-stats/`)
-          if (statsResponse.ok) {
-            const statsData = await statsResponse.json()
-            const platformStats = [
-              { icon: 'Users', label: 'Active Students', value: statsData.total_students?.toString() || '0', color: 'text-blue-500' },
-              { icon: 'BookOpen', label: 'Total Courses', value: statsData.total_courses?.toString() || '0', color: 'text-purple-500' },
-              { icon: 'Award', label: 'Certificates', value: statsData.total_certificates?.toString() || '0', color: 'text-green-500' },
-              { icon: 'TrendingUp', label: 'Success Rate', value: statsData.success_rate?.toString() || '0%', color: 'text-yellow-500' }
-            ]
-            setStats(platformStats)
-          } else {
-            setStats([])
-          }
-        } catch (error) {
-          console.error('Error fetching platform stats:', error)
-          setStats([])
+        // Handle platform stats (fetched in parallel)
+        if (statsRes && statsRes.ok) {
+          const statsData = await statsRes.json()
+          const platformStats = [
+            { icon: 'Users', label: 'Active Students', value: statsData.total_students?.toString() || '0', color: 'text-blue-500' },
+            { icon: 'BookOpen', label: 'Total Courses', value: statsData.total_courses?.toString() || '0', color: 'text-purple-500' },
+            { icon: 'Award', label: 'Certificates', value: statsData.total_certificates?.toString() || '0', color: 'text-green-500' },
+            { icon: 'TrendingUp', label: 'Success Rate', value: statsData.success_rate?.toString() || '0%', color: 'text-yellow-500' }
+          ]
+          setStats(platformStats)
         }
 
         setFeaturedCourses(mappedCourses)
