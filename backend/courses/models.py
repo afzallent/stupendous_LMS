@@ -174,6 +174,7 @@ class Lesson(models.Model):
     title = models.CharField(max_length=200)
     video_url = models.URLField(blank=True, null=True, help_text="Enter the URL of the video (e.g. YouTube embed URL)")
     video_file = models.FileField(upload_to='lesson_videos/', null=True, blank=True, help_text="Upload video file")
+    duration = models.PositiveIntegerField(null=True, blank=True, help_text="Duration in minutes")
     order = models.PositiveIntegerField()
     content = models.TextField(blank=True, help_text="Additional notes or content")
 

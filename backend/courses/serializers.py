@@ -62,7 +62,7 @@ class LessonSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Lesson
-        fields = ['id', 'course', 'chapter', 'chapter_title', 'title', 'video_url', 'video_file', 'order', 'content']
+        fields = ['id', 'course', 'chapter', 'chapter_title', 'title', 'video_url', 'video_file', 'duration', 'order', 'content']
         read_only_fields = ['id']
 
 
@@ -130,9 +130,15 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
     def get_duration(self, obj):
         """Calculate total duration of all lessons"""
-        # For now, estimate based on lesson count (avg 10 min per lesson)
-        lesson_count = obj.lessons.count()
-        total_minutes = lesson_count * 10  # Estimate 10 minutes per lesson
+        total_minutes = 0
+        for lesson in obj.lessons.all():
+            if lesson.duration:
+                total_minutes += lesson.duration
+        
+        # If no durations set, estimate based on lesson count (avg 10 min per lesson)
+        if total_minutes == 0:
+            total_minutes = obj.lessons.count() * 10
+        
         hours = total_minutes // 60
         minutes = total_minutes % 60
         return f"{hours}h {minutes}m"
