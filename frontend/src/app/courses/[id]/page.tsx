@@ -32,11 +32,13 @@ import {
   Gift
 } from "lucide-react"
 import { useCart } from "@/contexts/cart-context"
+import { useAuth } from "@/lib/auth"
 import { toast } from "@/hooks/use-toast"
 
 export default function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { addToCart, isInCart, getCartItemCount } = useCart()
+  const { user, isAuthenticated } = useAuth()
   const [expandedChapters, setExpandedChapters] = useState<string[]>([])
   const [course, setCourse] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -54,6 +56,10 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
         if (response.ok) {
           const data = await response.json()
           
+          // Parse price values safely
+          const price = parseFloat(data.price) || 0
+          const originalPrice = parseFloat(data.original_price) || price * 1.2 || 0
+          
           // Map Django response to frontend format
           const mappedCourse = {
             id: data.id,
@@ -62,13 +68,14 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
             instructor: {
               name: data.instructor?.username || 'Unknown',
               bio: data.instructor?.bio || '',
-              avatar: data.instructor?.avatar || '/api/placeholder/100/100',
+              avatar: data.instructor?.avatar || null,
               rating: 4.8, // Default rating
               students: data.enrolled_count || 0,
               courses: 1 // Would need separate API call
             },
-            price: data.price || 49.99,
-            originalPrice: data.original_price || (data.price ? data.price * 1.2 : 59.99),
+            price: price,
+            originalPrice: originalPrice,
+            isFree: data.is_free || price === 0,
             rating: data.rating || 4.5,
             reviewCount: data.review_count || 0,
             students: data.enrolled_count || 0,
@@ -78,7 +85,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
             category: data.category?.name || 'General',
             language: data.language || 'English',
             lastUpdated: data.updated_at ? new Date(data.updated_at).toLocaleDateString() : 'N/A',
-            thumbnail: data.thumbnail || '/api/placeholder/800/450',
+            thumbnail: data.thumbnail || null,
             enrolled: data.is_enrolled || false,
             progress: data.progress_percentage || 0,
             learningOutcomes: data.learning_outcomes || [],
@@ -307,33 +314,55 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <Card className="overflow-hidden border-0 shadow-lg">
-                <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                  <Play className="h-16 w-16 text-blue-600/50" />
+                <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                  {course.thumbnail ? (
+                    <img 
+                      src={course.thumbnail.startsWith('http') ? course.thumbnail : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${course.thumbnail}`}
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center')
+                      }}
+                    />
+                  ) : (
+                    <Play className="h-16 w-16 text-blue-600/50" />
+                  )}
                 </div>
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="text-3xl font-bold text-blue-600">${course.price}</div>
-                      <div className="text-sm text-gray-500 line-through">${course.originalPrice}</div>
+                      <div className="text-3xl font-bold text-blue-600">
+                        {course.isFree ? 'Free' : `$${course.price.toFixed(2)}`}
+                      </div>
+                      {!course.isFree && course.originalPrice > course.price && (
+                        <div className="text-sm text-gray-500 line-through">${course.originalPrice.toFixed(2)}</div>
+                      )}
                     </div>
                     
-                    <div className="text-sm text-gray-600">
-                      <div className="flex items-center justify-between mb-1">
-                        <span>Discount</span>
-                        <span className="font-medium text-green-600">
-                          {Math.round((1 - course.price / course.originalPrice) * 100)}% OFF
-                        </span>
+                    {!course.isFree && course.originalPrice > course.price && (
+                      <div className="text-sm text-gray-600">
+                        <div className="flex items-center justify-between mb-1">
+                          <span>Discount</span>
+                          <span className="font-medium text-green-600">
+                            {Math.round(((course.originalPrice - course.price) / course.originalPrice) * 100)}% OFF
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Time left</span>
+                          <span className="font-medium text-red-600">1 day</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span>Time left</span>
-                        <span className="font-medium text-red-600">1 day</span>
-                      </div>
-                    </div>
+                    )}
 
                     <div className="space-y-2">
                       {course.enrolled ? (
                         <>
-                          <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white" size="lg">
+                          <Button 
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white" 
+                            size="lg"
+                            onClick={() => router.push(`/learn/courses/${course.id}`)}
+                          >
                             Continue Learning
                           </Button>
                           <div className="text-center">
@@ -376,10 +405,14 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                           </Button>
                         </>
                       )}
-                      <Button variant="outline" className="w-full border-blue-200 text-blue-600 hover:bg-blue-50">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Message Instructor
-                      </Button>
+                      
+                      {/* Only show Message Instructor for enrolled students */}
+                      {isAuthenticated && course.enrolled && (
+                        <Button variant="outline" className="w-full border-blue-200 text-blue-600 hover:bg-blue-50">
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Message Instructor
+                        </Button>
+                      )}
                     </div>
 
                     <div className="pt-4 border-t space-y-3">
