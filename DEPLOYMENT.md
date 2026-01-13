@@ -36,6 +36,7 @@ DB_PORT=5432
 SECRET_KEY=<generate-secure-key>
 ALLOWED_HOSTS=localhost,127.0.0.1,lms.5stars.dev
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://learn.5stars.dev
+CSRF_TRUSTED_ORIGINS=https://lms.5stars.dev,https://learn.5stars.dev
 DEBUG=False
 ```
 
@@ -112,7 +113,13 @@ Production URLs:
 
 ## Test Users (Seeded Automatically)
 
-Check `backend/create_test_users.py` for seeded test accounts.
+The following test users are created automatically on startup:
+
+| Email | Password | Role |
+|-------|----------|------|
+| admin@test.com | admin123 | Admin (superuser) |
+| trainer@test.com | trainer123 | Instructor |
+| student@test.com | student123 | Student |
 
 ## Coupon Code
 
