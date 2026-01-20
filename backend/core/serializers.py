@@ -286,5 +286,91 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'access': str(refresh.access_token),
             'user': UserSerializer(user).data
         }
-        
+
         return data
+
+
+class StudentDetailSerializer(serializers.Serializer):
+    """
+    Serializer for detailed student information.
+
+    Provides comprehensive student data including course-by-course progress
+    and assessment history.
+    """
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    email = serializers.EmailField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    avatar_url = serializers.SerializerMethodField()
+    bio = serializers.CharField(allow_null=True)
+    phone = serializers.CharField(allow_null=True)
+    location = serializers.CharField(allow_null=True)
+    enrolled_course_count = serializers.IntegerField()
+    overall_progress = serializers.FloatField()
+    enrolled_courses = serializers.ListField(child=serializers.DictField())
+    assessment_history = serializers.DictField()
+
+    def get_avatar_url(self, obj):
+        """Get avatar URL if exists"""
+        if obj.get('avatar'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj['avatar'])
+            return obj['avatar']
+        return None
+
+
+class LessonProgressSerializer(serializers.Serializer):
+    """
+    Serializer for lesson progress within a course.
+    """
+    lesson_id = serializers.IntegerField()
+    lesson_title = serializers.CharField()
+    lesson_order = serializers.IntegerField()
+    completed = serializers.BooleanField()
+    completed_at = serializers.DateTimeField(allow_null=True)
+    time_spent_seconds = serializers.IntegerField(allow_null=True)
+    time_spent_formatted = serializers.CharField(allow_null=True)
+
+
+class CourseProgressSerializer(serializers.Serializer):
+    """
+    Serializer for course progress details.
+    """
+    course_id = serializers.IntegerField()
+    course_title = serializers.CharField()
+    course_thumbnail = serializers.URLField(allow_null=True)
+    enrolled_at = serializers.DateTimeField()
+    progress_percentage = serializers.FloatField()
+    total_lessons = serializers.IntegerField()
+    completed_lessons = serializers.IntegerField()
+    lessons = serializers.ListField(child=serializers.DictField())
+    quiz_attempts = serializers.ListField(child=serializers.DictField())
+    total_time_spent_seconds = serializers.IntegerField()
+    total_time_spent_formatted = serializers.CharField()
+
+
+class StudentProgressSerializer(serializers.Serializer):
+    """
+    Serializer for detailed student progress across all courses.
+    """
+    student_id = serializers.IntegerField()
+    student_name = serializers.CharField()
+    student_email = serializers.EmailField()
+    courses = serializers.ListField(child=serializers.DictField())
+
+
+class BulkMessageSerializer(serializers.Serializer):
+    """
+    Serializer for bulk message to students.
+    """
+    student_ids = serializers.ListField(child=serializers.IntegerField(), required=True)
+    subject = serializers.CharField(required=True, max_length=200)
+    message = serializers.CharField(required=True)
+
+    def validate_student_ids(self, value):
+        """Validate that student IDs are not empty"""
+        if not value:
+            raise serializers.ValidationError("At least one student ID must be provided.")
+        return value

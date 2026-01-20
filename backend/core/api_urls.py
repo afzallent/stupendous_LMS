@@ -35,4 +35,7 @@ urlpatterns = [
     
     # Trainer student management endpoints
     path('trainer/students/', trainer_views.StudentManagementView.as_view(), name='trainer-students'),
+    path('trainer/students/<int:student_id>/', trainer_views.StudentDetailView.as_view(), name='trainer-student-detail'),
+    path('trainer/students/<int:student_id>/progress/', trainer_views.StudentProgressView.as_view(), name='trainer-student-progress'),
+    path('trainer/students/<str:operation>/', trainer_views.BulkStudentOperationsView.as_view(), name='trainer-student-bulk-operations'),
 ]

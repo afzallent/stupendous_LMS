@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "media_config",
     "discussions",
     "notifications",
+    "analytics",
 ]
 
 AUTH_USER_MODEL = 'core.User'
