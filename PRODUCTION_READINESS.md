@@ -29,6 +29,32 @@ The underlying architecture is sound. App boundaries are clean, quiz scoring is 
 
 ---
 
+## Remediation status
+
+All P0 and P1 findings are fixed on branch `security/production-hardening`.
+
+| Group | Status |
+|---|---|
+| P0-1 … P0-10 | ✅ Fixed |
+| P1-1 … P1-10 | ✅ Fixed |
+| P2-1 … P2-12 | ✅ Fixed, except as noted below |
+
+**Deliberately not done:**
+
+- **Async task queue** (part of P2-5). Email is still sent inside the request cycle, now bounded by `EMAIL_TIMEOUT=10`. Introducing Celery is a deployment-topology change (extra worker + broker) and is better decided alongside the payment gateway, which will also want background jobs.
+- **Error tracking** (part of P2-11). No Sentry DSN to configure against. CI is in place; add `sentry-sdk` when an account exists.
+- **20 stale backend tests.** They assert pre-fix behaviour — e.g. `test_list_quizzes` expects an anonymous quiz listing to return 200, which is now 401 by design. Not regressions; the expectations need updating. `quizzes/tests.py` is partially updated.
+- **`frontend/scripts/`** (part of P2-8). ~18 ad-hoc dev scripts, most targeting the deleted Prisma database. Excluded from the typecheck and the production image, but left on disk for the owner to review rather than deleted.
+
+**Found during remediation, not in the original review:**
+
+- **Two model fields had never been migrated** — `Lesson.duration` (commit `60446a8`) and `User.preferred_language`. The columns did not exist in any deployed database, so every query touching them would raise `ProgrammingError`. Migrations generated; CI now runs `makemigrations --check`.
+- **`core/` and `courses/` were missing `__init__.py`**, working only as implicit namespace packages. This broke pytest collection for the entire suite.
+- **`courses/urls.py` mounted a second copy of the API router** at `/courses/api/…`, duplicating every endpoint already served under `/api/`.
+- **Four frontend bugs surfaced by re-enabling type checking** — see P1-10.
+
+---
+
 # P0 — Launch blockers
 
 ### P0-1 · Entire course content is public to anonymous users

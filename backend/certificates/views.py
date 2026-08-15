@@ -29,6 +29,9 @@ class CertificateViewSet(viewsets.ModelViewSet):
         user = self.request.user
         user_id = self.request.query_params.get('userId')
 
+        # The serializer renders nested course and student data, so join them.
+        base = Certificate.objects.select_related('course', 'course__instructor', 'student')
+
         if user_id and user.is_instructor:
             try:
                 user_id = int(user_id)
@@ -37,15 +40,15 @@ class CertificateViewSet(viewsets.ModelViewSet):
 
             # Requesting your own certificates is always fine.
             if user_id == user.id:
-                return Certificate.objects.filter(student=user)
+                return base.filter(student=user)
 
-            return Certificate.objects.filter(
+            return base.filter(
                 student_id=user_id,
                 course__instructor=user,
             )
 
         # Students see only their own certificates
-        return Certificate.objects.filter(student=self.request.user)
+        return base.filter(student=self.request.user)
     
     def create(self, request, *args, **kwargs):
         """Generate certificate for course completion"""

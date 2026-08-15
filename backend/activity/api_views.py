@@ -189,23 +189,33 @@ def course_analytics(request, course_id):
         select={'day': 'date(enrolled_at)'}
     ).values('day').annotate(count=Count('id')).order_by('day')
     
-    # Get completion rate by lesson
-    lesson_completion = []
-    for lesson in course.lessons.all():
-        completed_count = LessonTimeTracking.objects.filter(
-            lesson=lesson,
-            completed=True
-        ).count()
-        
-        total_enrolled = Enrollment.objects.filter(course=course).count()
-        completion_rate = (completed_count / total_enrolled * 100) if total_enrolled > 0 else 0
-        
-        lesson_completion.append({
+    # Get completion rate by lesson.
+    # Previously this issued two queries per lesson inside the loop (a
+    # completion count plus a re-count of enrollments that never varies), so a
+    # 50-lesson course cost 100 queries. Now: one annotated query plus one
+    # count. See PRODUCTION_READINESS.md (P2-1).
+    total_enrolled = Enrollment.objects.filter(course=course).count()
+
+    lessons_with_counts = course.lessons.annotate(
+        completed_count=Count(
+            'time_logs',
+            filter=Q(time_logs__completed=True),
+            distinct=True,
+        )
+    ).order_by('order')
+
+    lesson_completion = [
+        {
             'lesson_id': lesson.id,
             'lesson_title': lesson.title,
-            'completed_count': completed_count,
-            'completion_rate': round(completion_rate, 1)
-        })
+            'completed_count': lesson.completed_count,
+            'completion_rate': round(
+                (lesson.completed_count / total_enrolled * 100) if total_enrolled > 0 else 0,
+                1,
+            ),
+        }
+        for lesson in lessons_with_counts
+    ]
     
     return Response({
         'engagement_stats': engagement_stats,

@@ -372,6 +372,15 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': '/api/',
 }
 
+# drf_spectacular W001/W002 are OpenAPI schema-generation hints: "cannot infer
+# this serializer", "add a type hint to this SerializerMethodField". They are
+# documentation quality notes, not defects, and ~60 of them drowned out real
+# findings in `manage.py check --deploy`. Silencing them makes that command
+# usable as a startup and CI gate for genuine security warnings.
+#
+# Worth revisiting if the OpenAPI schema is ever published to API consumers.
+SILENCED_SYSTEM_CHECKS = ['drf_spectacular.W001', 'drf_spectacular.W002']
+
 # ---------------------------------------------------------------------------
 # Logging
 #

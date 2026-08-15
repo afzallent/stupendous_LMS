@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-from courses.models import Course, Category
+from courses.models import Course, Category, Enrollment
 from .models import Quiz, Question, QuestionOption
 
 User = get_user_model()
@@ -69,13 +69,48 @@ class QuizViewSetTestCase(APITestCase):
             is_active=True
         )
         
+        # Quizzes are only visible to enrolled students and the owning
+        # instructor, so student-facing tests need a real enrollment.
+        self.enrollment = Enrollment.objects.create(
+            student=self.student, course=self.course
+        )
+
         self.client = APIClient()
-    
+
+    # NOTE ON 404 vs 403
+    # Quizzes a user may not access are excluded from the queryset entirely,
+    # so get_object() raises 404 rather than reaching a 403 permission check.
+    # That is deliberate: a 403 confirms the quiz exists, which leaks the
+    # structure of other instructors' courses. Several tests below therefore
+    # assert 404 where they previously asserted 403.
+    # See PRODUCTION_READINESS.md (P1-5).
+
+    def test_list_quizzes_requires_authentication(self):
+        """Anonymous users cannot browse quizzes"""
+        response = self.client.get('/api/quizzes/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
     def test_list_quizzes(self):
-        """Test listing quizzes"""
+        """Test listing quizzes as the owning instructor"""
+        self.client.force_authenticate(user=self.instructor)
         response = self.client.get('/api/quizzes/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-    
+
+    def test_list_quizzes_excludes_other_courses(self):
+        """A user sees no quizzes from courses they are unrelated to"""
+        Quiz.objects.create(
+            course=self.other_course,
+            title='Other Quiz',
+            description='Other quiz',
+            passing_score=70,
+            is_active=True,
+        )
+        self.client.force_authenticate(user=self.student)
+        response = self.client.get('/api/quizzes/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = [q['title'] for q in response.data['results']]
+        self.assertEqual(titles, ['Test Quiz'])
+
     def test_filter_quizzes_by_course_id(self):
         """Test filtering quizzes by course_id parameter"""
         # Create another quiz for different course
@@ -85,7 +120,8 @@ class QuizViewSetTestCase(APITestCase):
             description='Other quiz',
             passing_score=70
         )
-        
+
+        self.client.force_authenticate(user=self.instructor)
         response = self.client.get(f'/api/quizzes/?course_id={self.course.id}')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
@@ -154,7 +190,8 @@ class QuizViewSetTestCase(APITestCase):
             'passing_score': 75
         }
         response = self.client.put(f'/api/quizzes/{self.quiz.id}/', data)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # 404, not 403: the quiz is not in this instructor's queryset at all.
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_delete_quiz_as_owner(self):
         """Test deleting quiz as course instructor"""
@@ -167,14 +204,28 @@ class QuizViewSetTestCase(APITestCase):
         """Test deleting quiz by non-owner instructor fails"""
         self.client.force_authenticate(user=self.other_instructor)
         response = self.client.delete(f'/api/quizzes/{self.quiz.id}/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # 404, not 403: the quiz is not in this instructor's queryset at all.
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(Quiz.objects.count(), 1)
     
     def test_retrieve_quiz(self):
-        """Test retrieving quiz details"""
+        """Test retrieving quiz details as an enrolled student"""
+        self.client.force_authenticate(user=self.student)
         response = self.client.get(f'/api/quizzes/{self.quiz.id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Test Quiz')
+
+    def test_retrieve_quiz_requires_enrollment(self):
+        """An unenrolled user cannot read quiz content"""
+        outsider = User.objects.create_user(
+            username='outsider',
+            email='outsider@test.com',
+            password='testpass123',
+            is_student=True,
+        )
+        self.client.force_authenticate(user=outsider)
+        response = self.client.get(f'/api/quizzes/{self.quiz.id}/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_students_see_only_active_quizzes(self):
         """Test students can only see active quizzes"""
@@ -251,7 +302,8 @@ class QuizViewSetTestCase(APITestCase):
         
         self.client.force_authenticate(user=self.other_instructor)
         response = self.client.post(f'/api/quizzes/{unpublished_quiz.id}/publish/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # 404, not 403: the quiz is not in this instructor's queryset at all.
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_submit_quiz_tracks_attempt_number(self):
         """Test quiz submission tracks attempt number correctly"""
@@ -375,7 +427,8 @@ class QuizViewSetTestCase(APITestCase):
         """Test attempts endpoint fails for non-owner instructor"""
         self.client.force_authenticate(user=self.other_instructor)
         response = self.client.get(f'/api/quizzes/{self.quiz.id}/attempts/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # 404, not 403: the quiz is not in this instructor's queryset at all.
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_my_attempts_endpoint_for_student(self):
         """Test my-attempts endpoint returns student's attempts"""
@@ -404,10 +457,18 @@ class QuizViewSetTestCase(APITestCase):
     
     def test_my_attempts_requires_enrollment(self):
         """Test my-attempts endpoint requires enrollment"""
-        self.client.force_authenticate(user=self.student)
+        # self.student is enrolled in setUp, so use a separate unenrolled user.
+        # An unenrolled user cannot see the quiz at all, so this is a 404
+        # rather than the 403 the endpoint's own check would return.
+        unenrolled = User.objects.create_user(
+            username='unenrolled',
+            email='unenrolled@test.com',
+            password='testpass123',
+            is_student=True,
+        )
+        self.client.force_authenticate(user=unenrolled)
         response = self.client.get(f'/api/quizzes/{self.quiz.id}/my-attempts/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn('must be enrolled', response.data['detail'])
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_attempt_history_endpoint(self):
         """Test attempt_history endpoint returns detailed breakdown"""
@@ -544,7 +605,8 @@ class QuizViewSetTestCase(APITestCase):
         """Test attempt_history endpoint fails for non-owner instructor"""
         self.client.force_authenticate(user=self.other_instructor)
         response = self.client.get(f'/api/quizzes/{self.quiz.id}/attempts/{self.student.id}/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # 404, not 403: the quiz is not in this instructor's queryset at all.
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_attempt_history_nonexistent_student(self):
         """Test attempt_history endpoint with non-existent student"""

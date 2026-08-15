@@ -858,8 +858,13 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter enrollments by current user or by course for instructors"""
         user = self.request.user
-        queryset = Enrollment.objects.all()
-        
+        # EnrollmentSerializer nests the full course (with its instructor,
+        # category and lessons) and computes a progress percentage, so without
+        # these joins each row costs several extra queries.
+        queryset = Enrollment.objects.select_related(
+            'student', 'course', 'course__instructor', 'course__category'
+        ).prefetch_related('course__lessons')
+
         # Check if filtering by course (for instructors)
         course_id = self.request.query_params.get('course')
         if course_id:
@@ -867,10 +872,10 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             try:
                 course = Course.objects.get(id=course_id)
                 if user.is_instructor and course.instructor == user:
-                    return queryset.filter(course_id=course_id).select_related('student', 'course')
-            except Course.DoesNotExist:
+                    return queryset.filter(course_id=course_id)
+            except (Course.DoesNotExist, ValueError):
                 pass
-        
+
         # Default: return user's own enrollments (for students)
         return queryset.filter(student=user)
 
@@ -938,7 +943,9 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_enrollments(self, request):
         """Get current user's enrollments"""
-        enrollments = Enrollment.objects.filter(student=request.user)
+        # Reuse get_queryset so this path gets the same joins (it previously
+        # queried Enrollment directly and re-introduced the N+1).
+        enrollments = self.get_queryset().filter(student=request.user)
         serializer = self.get_serializer(enrollments, many=True)
         return Response(serializer.data)
 
