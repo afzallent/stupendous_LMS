@@ -1,6 +1,9 @@
+from decimal import Decimal
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction, IntegrityError
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from datetime import timedelta
@@ -13,6 +16,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from core.models import User
+from lms_project.throttles import SensitiveActionThrottle, UploadRateThrottle
 from .models import Course, Lesson, Enrollment, Progress, Category, Coupon, Chapter
 from .forms import CourseForm, LessonForm
 from .serializers import (
@@ -20,6 +24,17 @@ from .serializers import (
     EnrollmentSerializer, ProgressSerializer, CategorySerializer, CouponSerializer, ChapterSerializer
 )
 from .permissions import IsInstructorOrReadOnly, IsOwnerOrReadOnly, IsEnrolledStudent
+
+
+def course_is_free(course):
+    """
+    Single definition of "free" used by every enrolment path.
+
+    A course counts as free only if it is explicitly flagged free or costs
+    nothing. Anything else must go through the payment flow.
+    """
+    return bool(course.is_free) or Decimal(course.price or 0) <= Decimal('0.00')
+
 
 @login_required
 def instructor_dashboard(request):
@@ -219,16 +234,38 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter courses by query parameters and user permissions"""
-        queryset = Course.objects.all().order_by('-created_at')
-        
-        # Students and anonymous users should only see published courses
-        # Instructors can see their own courses regardless of status
-        if not self.request.user.is_authenticated or self.request.user.is_student:
+        # select_related/prefetch_related and the count annotations avoid the
+        # N+1 the serializer used to cause: one query per course for lessons,
+        # plus two more for the lesson and enrollment counts.
+        queryset = (
+            Course.objects
+            .select_related('instructor', 'category')
+            .prefetch_related('lessons')
+            .annotate(
+                annotated_lesson_count=Count('lessons', distinct=True),
+                annotated_enrolled_count=Count('enrollments', distinct=True),
+            )
+            .order_by('-created_at')
+        )
+
+        user = self.request.user
+
+        # Anonymous users and students only ever see published courses.
+        # Note the explicit `is_instructor` check for the final branch: a user
+        # who is neither student nor instructor (e.g. a staff-only account)
+        # previously fell through every branch and saw unpublished drafts.
+        if not user.is_authenticated or not user.is_instructor:
             queryset = queryset.filter(status='published')
-        elif self.request.user.is_instructor:
+        else:
             # Instructors see published courses + their own courses (any status)
             instructor_id = self.request.query_params.get('instructorId')
-            if instructor_id and int(instructor_id) == self.request.user.id:
+            # Guard the cast: `?instructorId=abc` used to raise ValueError -> 500.
+            try:
+                instructor_id = int(instructor_id) if instructor_id else None
+            except (TypeError, ValueError):
+                instructor_id = None
+
+            if instructor_id and instructor_id == user.id:
                 # Viewing own courses - show all statuses
                 queryset = queryset.filter(instructor_id=instructor_id)
             else:
@@ -236,7 +273,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(status='published')
                 if instructor_id:
                     queryset = queryset.filter(instructor_id=instructor_id)
-        
+
         # Filter by category
         category = self.request.query_params.get('category')
         if category:
@@ -579,11 +616,30 @@ class LessonViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        """Filter lessons by course"""
+        """
+        Restrict lessons to courses the user may actually access.
+
+        Lesson payloads carry video URLs and body content, i.e. the paid
+        material. Previously this returned every lesson on the platform to any
+        authenticated user (and `GET /api/lessons/` with no filter dumped the
+        entire library). Access is now limited to:
+          - courses the user is enrolled in, and
+          - courses the user owns as the instructor.
+        See PRODUCTION_READINESS.md (P0-2).
+        """
+        user = self.request.user
+        if not user.is_authenticated:
+            return Lesson.objects.none()
+
+        queryset = Lesson.objects.filter(
+            Q(course__enrollments__student=user) | Q(course__instructor=user)
+        ).distinct()
+
         course_id = self.request.query_params.get('course_id')
         if course_id:
-            return Lesson.objects.filter(course_id=course_id).order_by('order')
-        return Lesson.objects.all().order_by('order')
+            queryset = queryset.filter(course_id=course_id)
+
+        return queryset.select_related('course', 'chapter').order_by('order')
 
     def perform_create(self, serializer):
         """Ensure only course owner can create lessons"""
@@ -819,22 +875,48 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         return queryset.filter(student=user)
 
     def create(self, request, *args, **kwargs):
-        """Create enrollment for current user with duplicate check"""
+        """
+        Self-enrol the current user in a FREE, published course.
+
+        Paid courses cannot be enrolled into through this endpoint. Previously
+        it ignored Course.price entirely, so any authenticated user could
+        obtain any paid course for nothing. Paid access must instead be created
+        by the payment flow once a payment is confirmed.
+        See PRODUCTION_READINESS.md (P0-3).
+        """
         from django.db import IntegrityError
-        
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         course_id = serializer.validated_data.get('course_id')
         course = get_object_or_404(Course, id=course_id)
-        
+
+        # Only published courses are enrollable; drafts and archived courses
+        # were previously reachable through this endpoint.
+        if course.status != 'published':
+            return Response(
+                {'detail': 'This course is not available for enrollment.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not course_is_free(course):
+            return Response(
+                {
+                    'detail': 'This is a paid course. Please complete checkout to enrol.',
+                    'code': 'payment_required',
+                    'price': str(course.price),
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED
+            )
+
         # Check for duplicate enrollment before attempting to save
         if Enrollment.objects.filter(student=request.user, course=course).exists():
             return Response(
                 {'detail': 'You are already enrolled in this course.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             # Save with current user as student
             serializer.save(student=request.user)
@@ -862,88 +944,159 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def check(self, request):
-        """Check if user is enrolled in a course"""
+        """
+        Check enrollment in a course.
+
+        An instructor may check another user only for a course they own.
+        Previously any user with is_instructor set could probe any student's
+        enrollment in any course. See PRODUCTION_READINESS.md (P1-6).
+        """
         course_id = request.query_params.get('courseId')
         user_id = request.query_params.get('userId')
-        
+
         if not course_id:
             return Response(
                 {'detail': 'courseId is required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # If userId provided, check that user (for instructors)
-        # Otherwise check current user
-        if user_id and request.user.is_instructor:
-            is_enrolled = Enrollment.objects.filter(
-                student_id=user_id,
-                course_id=course_id
-            ).exists()
-        else:
-            is_enrolled = Enrollment.objects.filter(
-                student=request.user,
-                course_id=course_id
-            ).exists()
-        
+
+        target_user_id = request.user.id
+
+        if user_id:
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {'detail': 'userId must be an integer.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if user_id != request.user.id:
+                owns_course = Course.objects.filter(
+                    id=course_id, instructor=request.user
+                ).exists()
+                if not (request.user.is_instructor and owns_course):
+                    return Response(
+                        {'detail': 'You can only check enrollments for your own courses.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                target_user_id = user_id
+
+        is_enrolled = Enrollment.objects.filter(
+            student_id=target_user_id,
+            course_id=course_id
+        ).exists()
+
         return Response({'is_enrolled': is_enrolled})
     
-    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated],
+            throttle_classes=[SensitiveActionThrottle])
     def enroll_with_coupon(self, request):
-        """Enroll in a course using a coupon code"""
+        """
+        Enrol using a coupon that reduces the price to zero.
+
+        A coupon only grants immediate access when it makes the course free —
+        i.e. a 100% discount, or any coupon on an already-free course. Partial
+        discounts must go through checkout for the remaining balance.
+
+        Previously this granted a full enrolment for ANY valid coupon
+        regardless of discount_percentage, so a 10%-off code yielded free
+        access. See PRODUCTION_READINESS.md (P0-5).
+        """
         from .models import Coupon
-        
+
         course_id = request.data.get('course_id')
         coupon_code = request.data.get('coupon_code')
-        
+
         if not course_id:
             return Response(
                 {'detail': 'course_id is required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if not coupon_code:
             return Response(
                 {'detail': 'coupon_code is required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Get course
+
         course = get_object_or_404(Course, id=course_id)
-        
+
+        if course.status != 'published':
+            return Response(
+                {'detail': 'This course is not available for enrollment.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Check if already enrolled
         if Enrollment.objects.filter(student=request.user, course=course).exists():
             return Response(
                 {'detail': 'You are already enrolled in this course.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Get and validate coupon
+
+        # Get and validate coupon. Deliberately returns the same message for
+        # unknown and invalid codes so the endpoint cannot be used to
+        # enumerate which codes exist.
         try:
             coupon = Coupon.objects.get(code=coupon_code.upper())
         except Coupon.DoesNotExist:
             return Response(
-                {'detail': 'Invalid coupon code.'},
+                {'detail': 'This coupon code is not valid.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Check if coupon is valid
+
         if not coupon.is_valid():
             return Response(
-                {'detail': 'This coupon is no longer valid.'},
+                {'detail': 'This coupon code is not valid.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Create enrollment
-        enrollment = Enrollment.objects.create(student=request.user, course=course)
-        
-        # Mark coupon as used
-        coupon.use_coupon()
-        
+
+        if coupon.has_been_used_by(request.user):
+            return Response(
+                {'detail': 'You have already used this coupon.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        final_price = coupon.apply_to(course.price)
+
+        if not course_is_free(course) and final_price > 0:
+            return Response(
+                {
+                    'detail': (
+                        'This coupon reduces the price but does not make the course '
+                        'free. Please complete checkout for the remaining balance.'
+                    ),
+                    'code': 'payment_required',
+                    'original_price': str(course.price),
+                    'discount_percentage': coupon.discount_percentage,
+                    'final_price': str(final_price),
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED
+            )
+
+        # Price is zero: record the redemption and grant access atomically so a
+        # concurrent request cannot exceed max_uses.
+        try:
+            with transaction.atomic():
+                if not coupon.redeem(request.user):
+                    return Response(
+                        {'detail': 'This coupon code is not valid.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                enrollment = Enrollment.objects.create(student=request.user, course=course)
+        except IntegrityError:
+            return Response(
+                {'detail': 'You are already enrolled in this course.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = self.get_serializer(enrollment)
         return Response({
-            'detail': f'Successfully enrolled with {coupon_code} coupon ({coupon.discount_percentage}% discount).',
+            'detail': f'Successfully enrolled with coupon {coupon.code}.',
             'enrollment': serializer.data,
-            'discount_percentage': coupon.discount_percentage
+            'discount_percentage': coupon.discount_percentage,
+            'final_price': str(final_price),
         }, status=status.HTTP_201_CREATED)
 
 
@@ -1543,64 +1696,59 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
 
-class CouponViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for coupon validation (read-only for students)"""
-    queryset = Coupon.objects.filter(is_active=True)
-    serializer_class = CouponSerializer
-    permission_classes = [permissions.AllowAny]
-    
-    def get_queryset(self):
-        """Filter coupons by code if provided"""
-        queryset = Coupon.objects.filter(is_active=True)
-        code = self.request.query_params.get('code')
-        if code:
-            queryset = queryset.filter(code=code.upper())
-        return queryset
-    
-    @action(detail=False, methods=['post'])
-    def validate(self, request):
-        """Validate a coupon code without using it"""
-        code = request.data.get('code')
+class CouponValidateView(APIView):
+    """
+    Validate a single coupon code against a course.
+
+    This replaces the previous browsable coupon endpoints, which were
+    AllowAny and — with no `code` filter — returned EVERY active coupon
+    including its code and discount, letting anyone enumerate all discounts
+    on the platform. See PRODUCTION_READINESS.md (P0-4).
+
+    Callers must be authenticated, are rate limited, and can only ever confirm
+    or deny one code they already know. Nothing here lists codes.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [SensitiveActionThrottle]
+
+    # Uniform failure message: never reveal whether a code exists, is expired,
+    # is exhausted, or was already used, since that turns this into an oracle.
+    INVALID = {'valid': False, 'detail': 'This coupon code is not valid.'}
+
+    def post(self, request):
+        code = (request.data.get('code') or '').strip()
+        course_id = request.data.get('course_id')
+
         if not code:
             return Response(
                 {'detail': 'Coupon code is required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+        if not course_id:
+            return Response(
+                {'detail': 'course_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        course = get_object_or_404(Course, id=course_id, status='published')
+
         try:
             coupon = Coupon.objects.get(code=code.upper())
         except Coupon.DoesNotExist:
-            return Response(
-                {'detail': 'Invalid coupon code.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        if not coupon.is_valid():
-            return Response(
-                {'detail': 'This coupon is no longer valid.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        serializer = CouponSerializer(coupon)
-        return Response(serializer.data)
+            return Response(self.INVALID, status=status.HTTP_200_OK)
 
+        if not coupon.is_valid() or coupon.has_been_used_by(request.user):
+            return Response(self.INVALID, status=status.HTTP_200_OK)
 
-class CouponListView(APIView):
-    """Simple class-based view for coupon listing with code filtering"""
-    permission_classes = [permissions.AllowAny]
-    
-    def get(self, request):
-        code = request.query_params.get('code')
-        
-        if code:
-            # Filter by specific code
-            coupons = Coupon.objects.filter(code=code.upper(), is_active=True)
-        else:
-            # Return all active coupons
-            coupons = Coupon.objects.filter(is_active=True)
-        
-        serializer = CouponSerializer(coupons, many=True)
+        final_price = coupon.apply_to(course.price)
+
+        # Return only what checkout needs to render a price — never max_uses,
+        # times_used, validity windows or the coupon's internal id.
         return Response({
-            'count': len(serializer.data),
-            'results': serializer.data
-        })
+            'valid': True,
+            'code': coupon.code,
+            'discount_percentage': coupon.discount_percentage,
+            'original_price': str(course.price),
+            'final_price': str(final_price),
+            'grants_free_access': course_is_free(course) or final_price <= 0,
+        }, status=status.HTTP_200_OK)

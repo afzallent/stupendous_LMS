@@ -1,10 +1,25 @@
 #!/usr/bin/env python
-"""Seed sample courses with chapters and lessons."""
+"""
+Seed sample courses with chapters and lessons — LOCAL DEVELOPMENT ONLY.
+
+Refuses to run unless DEBUG=True: this was previously wired into the
+production entrypoint and inserted demo courses into every deployment.
+See PRODUCTION_READINESS.md (P0-6).
+"""
 import os
+import sys
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lms_project.settings')
 django.setup()
+
+from django.conf import settings
+
+if not settings.DEBUG:
+    sys.exit(
+        "REFUSING TO RUN: seed_sample_courses.py inserts demo content and is "
+        "only permitted when DEBUG=True."
+    )
 
 from core.models import User
 from courses.models import Course, Chapter, Lesson, Category

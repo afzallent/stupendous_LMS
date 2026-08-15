@@ -1,5 +1,8 @@
+import logging
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
@@ -75,30 +78,23 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         """
         Validate new password strength.
-        
-        Requirements:
-        - Minimum 8 characters
-        - At least one uppercase letter
-        - At least one lowercase letter
-        - At least one digit
+
+        Runs Django's configured AUTH_PASSWORD_VALIDATORS (length, common
+        passwords, all-numeric, similarity to user attributes) in addition to
+        the local complexity rules.
         """
-        if len(value) < 8:
-            raise serializers.ValidationError('Password must be at least 8 characters long.')
-        
-        # Check for complexity requirements
-        has_upper = any(c.isupper() for c in value)
-        has_lower = any(c.islower() for c in value)
-        has_digit = any(c.isdigit() for c in value)
-        
-        if not has_upper:
+        validate_password(value, user=self.context.get('user'))
+
+        # Local complexity requirements on top of the Django validators.
+        if not any(c.isupper() for c in value):
             raise serializers.ValidationError('Password must contain at least one uppercase letter.')
-        
-        if not has_lower:
+
+        if not any(c.islower() for c in value):
             raise serializers.ValidationError('Password must contain at least one lowercase letter.')
-        
-        if not has_digit:
+
+        if not any(c.isdigit() for c in value):
             raise serializers.ValidationError('Password must contain at least one digit.')
-        
+
         return value
     
     def validate(self, data):
@@ -115,35 +111,59 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     """
-    Serializer for user registration with password validation.
-    
-    Validates that passwords match and ensures at least one role is selected.
+    Public self-registration. Always creates a STUDENT account.
+
+    SECURITY: `is_instructor` used to be a client-writable field here, so
+    anyone could self-register as an instructor. That role can create courses
+    and — combined with the instructor-scoped read paths elsewhere in the API —
+    was a privilege escalation. Instructor access is now granted only by an
+    admin. See PRODUCTION_READINESS.md (P0-9).
     """
-    password = serializers.CharField(write_only=True, min_length=8, help_text="Password must be at least 8 characters")
-    password_confirm = serializers.CharField(write_only=True, min_length=8, help_text="Confirm password")
-    is_student = serializers.BooleanField(default=False, help_text="Register as a student")
-    is_instructor = serializers.BooleanField(default=False, help_text="Register as an instructor")
+    password = serializers.CharField(
+        write_only=True,
+        help_text="Password must satisfy the configured password validators",
+    )
+    password_confirm = serializers.CharField(write_only=True, help_text="Confirm password")
+    email = serializers.EmailField(required=True)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password_confirm', 'is_student', 'is_instructor']
+        fields = ['username', 'email', 'password', 'password_confirm']
+
+    def validate_email(self, value):
+        """Emails are the login identifier, so they must be unique."""
+        value = value.lower().strip()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('An account with this email already exists.')
+        return value
+
+    def validate_password(self, value):
+        """
+        Run Django's configured AUTH_PASSWORD_VALIDATORS.
+
+        Previously registration enforced only min_length=8, bypassing the
+        common-password and numeric-password checks entirely.
+        """
+        validate_password(value)
+        return value
 
     def validate(self, data):
         """Validate that passwords match"""
         if data['password'] != data['password_confirm']:
-            raise serializers.ValidationError({'password': 'Passwords do not match.'})
-        
-        # Ensure at least one role is selected
-        if not data.get('is_student') and not data.get('is_instructor'):
-            raise serializers.ValidationError({'roles': 'User must be either a student or instructor.'})
-        
+            raise serializers.ValidationError({'password_confirm': 'Passwords do not match.'})
         return data
 
     def create(self, validated_data):
-        """Create user with validated data"""
+        """Create a student account. Role flags are never taken from input."""
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
-        user = User.objects.create_user(**validated_data)
+        user = User.objects.create_user(
+            **validated_data,
+            is_student=True,
+            is_instructor=False,
+            is_staff=False,
+            is_superuser=False,
+        )
         user.set_password(password)
         user.save()
         return user
@@ -250,35 +270,33 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        # Get email and password from request
-        email = attrs.get('email')
-        password = attrs.get('password')
-        
-        import logging
+        # Log outcomes without the submitted email address: these lines land in
+        # aggregated logs, and recording the identifier on every attempt turns
+        # the log into a credential-adjacent PII store.
         logger = logging.getLogger(__name__)
-        logger.info(f"🔐 Login attempt: email={email}")
-        
-        # Find user by email
-        user = None
-        try:
-            user = User.objects.get(email=email)
-            logger.info(f"✅ Found user by email: {user.email}")
-        except User.DoesNotExist:
-            logger.error(f"❌ User not found by email: {email}")
+
+        email = (attrs.get('email') or '').lower().strip()
+        password = attrs.get('password')
+
+        user = User.objects.filter(email__iexact=email).first()
+
+        # Always run a password hash comparison, even when no user matched, so
+        # response timing does not disclose whether the address is registered.
+        if user is None:
+            User().set_password(password)
+            logger.info("Login failed: no account for submitted address")
             raise serializers.ValidationError('Invalid credentials')
-        
-        # Verify password
+
         if not user.check_password(password):
-            logger.error(f"❌ Invalid password for user: {user.email}")
+            logger.info("Login failed: bad password for user id=%s", user.pk)
             raise serializers.ValidationError('Invalid credentials')
-        
-        # Check if user is active
+
         if not user.is_active:
-            logger.error(f"❌ User account disabled: {user.email}")
-            raise serializers.ValidationError('User account is disabled')
-        
-        logger.info(f"✅ Login successful for user: {user.username}")
-        
+            logger.info("Login failed: inactive account id=%s", user.pk)
+            raise serializers.ValidationError('Invalid credentials')
+
+        logger.info("Login succeeded for user id=%s", user.pk)
+
         # Generate tokens
         refresh = self.get_token(user)
         data = {

@@ -1,4 +1,7 @@
-from django.db import models
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.db import models, IntegrityError
+from django.db.models import F
 from django.conf import settings
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -39,23 +42,76 @@ class Coupon(models.Model):
         """Check if coupon is valid for use"""
         if not self.is_active:
             return False
-        
+
         now = timezone.now()
         if now < self.valid_from:
             return False
-        
+
         if self.valid_until and now > self.valid_until:
             return False
-        
+
         if self.max_uses and self.times_used >= self.max_uses:
             return False
-        
+
         return True
-    
-    def use_coupon(self):
-        """Increment the times_used counter"""
-        self.times_used += 1
-        self.save()
+
+    def apply_to(self, price):
+        """Return the price after this coupon's discount, never below zero."""
+        price = Decimal(price or 0)
+        discount = (price * Decimal(self.discount_percentage)) / Decimal(100)
+        final = (price - discount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return max(final, Decimal('0.00'))
+
+    def has_been_used_by(self, user):
+        """True if this user has already redeemed this coupon."""
+        return self.redemptions.filter(user=user).exists()
+
+    def redeem(self, user):
+        """
+        Atomically record a redemption for `user` and increment the counter.
+
+        Returns False if the coupon became invalid or the user already redeemed
+        it. Must be called inside a transaction.
+
+        The previous `use_coupon()` did a read-modify-write on times_used, so
+        concurrent redemptions could push usage past max_uses, and nothing
+        recorded *who* redeemed — letting one user redeem repeatedly.
+        See PRODUCTION_READINESS.md (P2-2).
+        """
+        # Lock this row so concurrent redemptions serialise behind us.
+        locked = Coupon.objects.select_for_update().get(pk=self.pk)
+        if not locked.is_valid():
+            return False
+
+        try:
+            CouponRedemption.objects.create(coupon=locked, user=user)
+        except IntegrityError:
+            # Unique constraint: this user already redeemed this coupon.
+            return False
+
+        Coupon.objects.filter(pk=self.pk).update(times_used=F('times_used') + 1)
+        self.refresh_from_db(fields=['times_used'])
+        return True
+
+
+class CouponRedemption(models.Model):
+    """
+    One row per (coupon, user) redemption.
+
+    Exists so a coupon cannot be redeemed repeatedly by the same account and so
+    redemptions are auditable against revenue.
+    """
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='redemptions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='coupon_redemptions')
+    course = models.ForeignKey('Course', on_delete=models.SET_NULL, null=True, blank=True, related_name='coupon_redemptions')
+    redeemed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('coupon', 'user')
+        ordering = ['-redeemed_at']
+
+    def __str__(self):
+        return f"{self.user} redeemed {self.coupon.code}"
 
 
 class Category(models.Model):

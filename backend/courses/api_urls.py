@@ -15,9 +15,11 @@ router.register(r'progress', views.ProgressViewSet, basename='progress')
 router.register(r'categories', views.CategoryViewSet, basename='category')
 
 urlpatterns = [
-    # Coupon endpoints under courses namespace for frontend compatibility (must be before router)
-    path('courses/coupons/', views.CouponListView.as_view(), name='course-coupons-list'),
-    
+    # Coupon validation. Authenticated POST of a single known code against a
+    # single course. The previous GET listing endpoints exposed every active
+    # coupon to anonymous callers — see PRODUCTION_READINESS.md (P0-4).
+    path('coupons/validate/', views.CouponValidateView.as_view(), name='coupon-validate'),
+
     # Course detail with progress
     path('courses/<int:course_id>/with-progress/', views.CourseDetailWithProgressView.as_view(), name='course-with-progress'),
     

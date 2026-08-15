@@ -11,22 +11,40 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-qq!hox*shdf@vf*c!@##0am$tu8!oy0!i@)=hd&in6!2z629=&')
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Defaults to False so a missing or misspelled env var fails closed, never open.
+DEBUG = config('DEBUG', default=False, cast=bool)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# This key also signs JWTs (see SIMPLE_JWT below), so a leaked or defaulted
+# value would let anyone forge a token for any user. There is deliberately no
+# usable fallback outside DEBUG.
+SECRET_KEY = config('SECRET_KEY', default='')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-development-only-never-use-in-production'
+    else:
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be set when DEBUG=False. Generate one with: "
+            "python -c \"from django.core.management.utils import "
+            "get_random_secret_key; print(get_random_secret_key())\""
+        )
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+if not DEBUG and ALLOWED_HOSTS == ['localhost', '127.0.0.1']:
+    raise ImproperlyConfigured(
+        "ALLOWED_HOSTS must list your production hostname(s) when DEBUG=False."
+    )
 
 
 # Application definition
@@ -40,6 +58,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    # Required for refresh-token revocation on logout / password change.
+    # Without it RefreshToken.blacklist() does not exist and logout silently fails.
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "drf_spectacular",
     "import_export",
@@ -112,8 +133,11 @@ if 'postgresql' in DB_ENGINE:
         "PASSWORD": config('DB_PASSWORD', default=''),
         "HOST": config('DB_HOST', default=''),
         "PORT": config('DB_PORT', default=''),
+        "CONN_MAX_AGE": config('DB_CONN_MAX_AGE', default=60, cast=int),
         "OPTIONS": {
-            "sslmode": config('DB_SSL_MODE', default='prefer'),
+            # 'require' by default: never silently fall back to an unencrypted
+            # connection in production. Override to 'prefer' only for local dev.
+            "sslmode": config('DB_SSL_MODE', default='require' if not DEBUG else 'prefer'),
         },
     })
 
@@ -155,19 +179,49 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Whitenoise for serving static files in production
+# Media files (user uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# ---------------------------------------------------------------------------
+# Object storage for user uploads
+#
+# Container filesystems are ephemeral: anything written to MEDIA_ROOT is lost
+# on every redeploy, and is not served at all when DEBUG=False. Set
+# USE_S3_MEDIA=True (plus the AWS_* vars) in any deployed environment so that
+# avatars, thumbnails and lesson videos survive and are actually reachable.
+# ---------------------------------------------------------------------------
+USE_S3_MEDIA = config('USE_S3_MEDIA', default=False, cast=bool)
+
+if USE_S3_MEDIA:
+    INSTALLED_APPS.append('storages')
+
+    AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+    # Set for S3-compatible providers (Cloudflare R2, Backblaze B2, MinIO...).
+    AWS_S3_ENDPOINT_URL = config('AWS_S3_ENDPOINT_URL', default=None)
+    # Public CDN/bucket domain used to build media URLs.
+    AWS_S3_CUSTOM_DOMAIN = config('AWS_S3_CUSTOM_DOMAIN', default=None)
+
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = config('AWS_QUERYSTRING_AUTH', default=True, cast=bool)
+    AWS_QUERYSTRING_EXPIRE = config('AWS_QUERYSTRING_EXPIRE', default=3600, cast=int)
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+
+    _default_storage = {"BACKEND": "storages.backends.s3.S3Storage"}
+else:
+    _default_storage = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
+    "default": _default_storage,
+    # Whitenoise serves static files (never media) in production.
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
-
-# Media files (User uploads)
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -186,6 +240,22 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'EXCEPTION_HANDLER': 'lms_project.exceptions.custom_exception_handler',
+    # Rate limiting. Without these, /api/auth/login/ accepts unlimited
+    # credential-stuffing attempts and password reset becomes a spam relay.
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': config('THROTTLE_ANON', default='60/min'),
+        'user': config('THROTTLE_USER', default='300/min'),
+        # Tight scopes for credential and email-sending endpoints.
+        'login': config('THROTTLE_LOGIN', default='10/min'),
+        'register': config('THROTTLE_REGISTER', default='5/hour'),
+        'password_reset': config('THROTTLE_PASSWORD_RESET', default='5/hour'),
+        'upload': config('THROTTLE_UPLOAD', default='30/hour'),
+    },
 }
 
 # JWT Configuration
@@ -238,6 +308,61 @@ CORS_ALLOW_METHODS = [
 ]
 CORS_PREFLIGHT_MAX_AGE = 86400  # Cache preflight requests for 24 hours
 
+# ---------------------------------------------------------------------------
+# Security hardening (production only)
+# ---------------------------------------------------------------------------
+
+# Always on, cheap, and harmless in development:
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+X_FRAME_OPTIONS = 'DENY'
+SESSION_COOKIE_HTTPONLY = True
+
+if not DEBUG:
+    # TLS terminates at the upstream proxy (Coolify/nginx/Cloudflare), so
+    # Django can only tell a request arrived over HTTPS from this header.
+    # Without it, SECURE_SSL_REDIRECT would cause an infinite redirect loop.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
+
+# ---------------------------------------------------------------------------
+# Cache
+#
+# Also backs the DRF throttle counters above: with the default per-process
+# LocMemCache, each gunicorn worker keeps its own counters and the effective
+# rate limit is multiplied by the worker count. Set REDIS_URL in production.
+# ---------------------------------------------------------------------------
+REDIS_URL = config('REDIS_URL', default='')
+
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'lms-default',
+        }
+    }
+
+# Email
+# Sent synchronously inside the request cycle, so keep the timeout short:
+# an unresponsive SMTP host must not tie up a worker thread.
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
+
 # drf-spectacular Configuration
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Stupendous LMS API',
@@ -247,11 +372,17 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': '/api/',
 }
 
-# Logging Configuration
-import os
-LOGS_DIR = BASE_DIR / 'logs'
-if not os.path.exists(LOGS_DIR):
-    os.makedirs(LOGS_DIR)
+# ---------------------------------------------------------------------------
+# Logging
+#
+# Containers log to stdout and the platform collects it. File logging is
+# opt-in via LOG_TO_FILE and uses rotation, because the previous unrotated
+# FileHandler would grow until it filled the container disk.
+# ---------------------------------------------------------------------------
+LOG_TO_FILE = config('LOG_TO_FILE', default=False, cast=bool)
+LOG_LEVEL = config('LOG_LEVEL', default='INFO')
+
+_log_handlers = ['console']
 
 LOGGING = {
     'version': 1,
@@ -271,26 +402,33 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': LOGS_DIR / 'lms.log',
-            'formatter': 'verbose',
-        },
     },
     'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
+        'handlers': _log_handlers,
+        'level': LOG_LEVEL,
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
+            'handlers': _log_handlers,
+            'level': LOG_LEVEL,
             'propagate': False,
         },
         'lms_project': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
+            'handlers': _log_handlers,
+            'level': LOG_LEVEL,
             'propagate': False,
         },
     },
 }
+
+if LOG_TO_FILE:
+    LOGS_DIR = BASE_DIR / 'logs'
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    LOGGING['handlers']['file'] = {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': LOGS_DIR / 'lms.log',
+        'formatter': 'verbose',
+        'maxBytes': 10 * 1024 * 1024,  # 10 MB
+        'backupCount': 5,
+    }
+    _log_handlers.append('file')

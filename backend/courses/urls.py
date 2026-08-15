@@ -1,18 +1,13 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from . import views
 
-router = DefaultRouter()
-router.register(r'api/courses', views.CourseViewSet, basename='course')
-router.register(r'api/lessons', views.LessonViewSet, basename='lesson')
-router.register(r'api/enrollments', views.EnrollmentViewSet, basename='enrollment')
-router.register(r'api/progress', views.ProgressViewSet, basename='progress')
-router.register(r'api/coupons', views.CouponViewSet, basename='coupon')
+# NOTE: this module previously mounted a SECOND copy of the API router here
+# (at /courses/api/...), duplicating every endpoint already served from
+# courses/api_urls.py under /api/. Two mounts of the same viewsets meant any
+# permission change had to be reasoned about twice. The duplicate router has
+# been removed; the API lives only under /api/.
 
 urlpatterns = [
-    # API endpoints (legacy - these are now in api_urls.py)
-    path('', include(router.urls)),
-    
     # Student URLs (Template views for backward compatibility)
     path('', views.course_list, name='course_list'),
     path('<int:course_id>/', views.course_detail, name='course_detail'),

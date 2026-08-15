@@ -11,9 +11,18 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+from lms_project.throttles import (
+    LoginRateThrottle, RegisterRateThrottle, PasswordResetRateThrottle,
+    UploadRateThrottle,
+)
+from .upload_validation import validate_image_upload
 from .serializers import (
     UserSerializer, 
     RegisterSerializer, 
@@ -23,6 +32,25 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+
+def revoke_all_refresh_tokens(user):
+    """
+    Blacklist every outstanding refresh token for `user`.
+
+    Called after a password change or reset so those actions actually end
+    existing sessions. Requires the token_blacklist app (now installed);
+    degrades to a no-op rather than erroring if it is ever removed.
+    """
+    try:
+        from rest_framework_simplejwt.token_blacklist.models import (
+            BlacklistedToken, OutstandingToken,
+        )
+    except ImportError:  # pragma: no cover - blacklist app not installed
+        return
+
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)
 
 
 @api_view(['GET'])
@@ -55,7 +83,7 @@ class AuthViewSet(viewsets.ViewSet):
     """ViewSet for authentication endpoints"""
     permission_classes = [AllowAny]
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], throttle_classes=[RegisterRateThrottle])
     def register(self, request):
         """Register a new user"""
         serializer = RegisterSerializer(data=request.data)
@@ -69,7 +97,7 @@ class AuthViewSet(viewsets.ViewSet):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], throttle_classes=[LoginRateThrottle])
     def login(self, request):
         """Login user and return tokens"""
         serializer = CustomTokenObtainPairSerializer(data=request.data)
@@ -79,16 +107,33 @@ class AuthViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
-        """Logout user by invalidating refresh token"""
+        """
+        Log out by blacklisting the supplied refresh token.
+
+        This only works because 'rest_framework_simplejwt.token_blacklist' is
+        now installed. Without that app RefreshToken has no blacklist() method,
+        so this handler always raised and logout silently did nothing — a
+        stolen refresh token stayed valid for its full 7-day lifetime.
+        See PRODUCTION_READINESS.md (P1-2).
+        """
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response(
+                {'detail': 'A refresh token is required to log out.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
-            refresh_token = request.data.get('refresh')
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['post'], url_path='request-password-reset')
+            RefreshToken(refresh_token).blacklist()
+        except TokenError:
+            # Already blacklisted, malformed or expired: the caller's intent
+            # (end this session) is satisfied either way.
+            pass
+
+        return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='request-password-reset',
+            throttle_classes=[PasswordResetRateThrottle])
     def request_password_reset(self, request):
         """Request password reset - generates token and sends email"""
         from django.contrib.auth.tokens import default_token_generator
@@ -162,30 +207,24 @@ class AuthViewSet(viewsets.ViewSet):
             status=status.HTTP_200_OK
         )
     
-    @action(detail=False, methods=['post'], url_path='reset-password')
+    @action(detail=False, methods=['post'], url_path='reset-password',
+            throttle_classes=[PasswordResetRateThrottle])
     def reset_password(self, request):
         """Reset password using token"""
         from django.contrib.auth.tokens import default_token_generator
         from django.utils.http import urlsafe_base64_decode
         from django.utils.encoding import force_str
-        
+
         uid = request.data.get('uid')
         token = request.data.get('token')
         new_password = request.data.get('new_password')
-        
+
         if not all([uid, token, new_password]):
             return Response(
                 {'detail': 'uid, token, and new_password are required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Validate password strength
-        if len(new_password) < 8:
-            return Response(
-                {'new_password': ['Password must be at least 8 characters long.']},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+
         try:
             # Decode user ID
             user_id = force_str(urlsafe_base64_decode(uid))
@@ -195,18 +234,33 @@ class AuthViewSet(viewsets.ViewSet):
                 {'detail': 'Invalid reset link.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Verify token
         if not default_token_generator.check_token(user, token):
             return Response(
                 {'detail': 'Invalid or expired reset link.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Set new password
+
+        # Run the configured AUTH_PASSWORD_VALIDATORS. Previously this endpoint
+        # checked only len() >= 8, so 'password' or '12345678' were accepted
+        # here even though registration rejected them.
+        try:
+            validate_password(new_password, user=user)
+        except DjangoValidationError as exc:
+            return Response(
+                {'new_password': list(exc.messages)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         user.set_password(new_password)
         user.save()
-        
+
+        # A password reset must terminate every existing session, otherwise an
+        # attacker who already holds a refresh token keeps access for up to 7
+        # days after the legitimate owner recovers the account.
+        revoke_all_refresh_tokens(user)
+
         return Response(
             {'detail': 'Password has been reset successfully.'},
             status=status.HTTP_200_OK
@@ -239,29 +293,37 @@ class UserProfileViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'])
     def change_password(self, request):
-        """Change user password"""
-        serializer = ChangePasswordSerializer(data=request.data)
-        
+        """
+        Change the current user's password.
+
+        This endpoint used to return HTTP 400 on every call: the serializer was
+        built without the `user` context its validate() requires, and the view
+        then read validated_data['old_password'] while the declared field is
+        'current_password'. See PRODUCTION_READINESS.md (P1-8).
+        """
+        serializer = ChangePasswordSerializer(
+            data=request.data,
+            context={'user': request.user},
+        )
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Verify old password
-        if not request.user.check_password(serializer.validated_data['old_password']):
-            return Response(
-                {'old_password': ['Current password is incorrect.']},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Set new password
+
+        # The serializer's validate() already confirmed the current password.
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
-        
+
+        # Invalidate other sessions so a changed password actually locks out
+        # anyone holding a previously issued refresh token.
+        revoke_all_refresh_tokens(request.user)
+
         return Response(
             {'detail': 'Password changed successfully.'},
             status=status.HTTP_200_OK
         )
     
-    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser],
+            permission_classes=[IsAuthenticated], throttle_classes=[UploadRateThrottle])
     def upload_avatar(self, request):
         """Upload user avatar image"""
         if 'avatar' not in request.FILES:
@@ -269,27 +331,26 @@ class UserProfileViewSet(viewsets.ViewSet):
                 {'avatar': ['No file was submitted.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         avatar_file = request.FILES['avatar']
-        
+
         # Validate file size (max 5MB)
         if avatar_file.size > 5 * 1024 * 1024:
             return Response(
                 {'avatar': ['File size must be less than 5MB.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Validate file type
-        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-        if avatar_file.content_type not in allowed_types:
-            return Response(
-                {'avatar': ['File must be an image (JPEG, PNG, GIF, or WebP).']},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Save avatar
-        request.user.avatar = avatar_file
-        request.user.save()
+
+        # Verify the file really is an image by decoding it, rather than
+        # trusting the client-supplied Content-Type header, which is trivially
+        # spoofed. See PRODUCTION_READINESS.md (P2-3).
+        is_valid, error, safe_name = validate_image_upload(avatar_file)
+        if not is_valid:
+            return Response({'avatar': [error]}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save avatar under a server-generated name so the stored path can
+        # never be influenced by the uploaded filename.
+        request.user.avatar.save(safe_name, avatar_file, save=True)
         
         return Response({
             'detail': 'Avatar uploaded successfully.',

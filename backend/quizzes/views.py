@@ -21,26 +21,42 @@ class QuizViewSet(viewsets.ModelViewSet):
     """ViewSet for quiz CRUD operations"""
     queryset = Quiz.objects.all()
     serializer_class = QuizSerializer
-    permission_classes = [IsInstructorOrReadOnly]
-    
+    # Quizzes carry assessment content, so reading one requires authentication.
+    # IsInstructorOrReadOnly alone allowed anonymous reads.
+    permission_classes = [permissions.IsAuthenticated, IsInstructorOrReadOnly]
+
     def get_serializer_class(self):
         """Use detailed serializer for retrieve action"""
         if self.action == 'retrieve':
             return QuizDetailSerializer
         return QuizSerializer
-    
+
     def get_queryset(self):
-        """Filter quizzes by course_id query parameter"""
-        queryset = Quiz.objects.all()
+        """
+        Quizzes the requester may see.
+
+        Restricted to courses the user is enrolled in or owns. Previously this
+        returned every quiz on the platform, was readable without
+        authentication, and applied the is_active filter only to authenticated
+        users — so anonymous callers saw unpublished quizzes too.
+        See PRODUCTION_READINESS.md (P1-5).
+        """
+        user = self.request.user
+        if not user.is_authenticated:
+            return Quiz.objects.none()
+
+        queryset = Quiz.objects.filter(
+            Q(course__enrollments__student=user) | Q(course__instructor=user)
+        ).distinct()
+
         course_id = self.request.query_params.get('course_id')
         if course_id:
             queryset = queryset.filter(course_id=course_id)
-        
-        # Instructors see all quizzes, students see only active ones
-        if self.request.user.is_authenticated and not self.request.user.is_instructor:
-            queryset = queryset.filter(is_active=True)
-        
-        return queryset
+
+        # Only the owning instructor sees drafts; everyone else sees published.
+        queryset = queryset.filter(Q(is_active=True) | Q(course__instructor=user))
+
+        return queryset.select_related('course', 'lesson')
     
     def perform_create(self, serializer):
         """Verify course ownership for create"""
@@ -484,12 +500,30 @@ class QuestionViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        """Filter questions by quiz"""
+        """
+        Questions from quizzes the requester may access.
+
+        Previously returned every non-bank question on the platform to any
+        authenticated user, regardless of enrollment.
+        See PRODUCTION_READINESS.md (P1-5).
+        """
+        user = self.request.user
+        if not user.is_authenticated:
+            return Question.objects.none()
+
+        queryset = Question.objects.filter(is_in_bank=False).filter(
+            Q(quiz__course__enrollments__student=user) | Q(quiz__course__instructor=user)
+        ).distinct()
+
+        # Only the owning instructor sees questions from unpublished quizzes.
+        queryset = queryset.filter(Q(quiz__is_active=True) | Q(quiz__course__instructor=user))
+
         quiz_id = self.request.query_params.get('quiz')
         if quiz_id:
-            return Question.objects.filter(quiz_id=quiz_id, is_in_bank=False)
-        return Question.objects.filter(is_in_bank=False)
-    
+            queryset = queryset.filter(quiz_id=quiz_id)
+
+        return queryset.select_related('quiz', 'quiz__course').prefetch_related('options')
+
     def perform_create(self, serializer):
         """Create question for quiz"""
         quiz = serializer.validated_data.get('quiz')

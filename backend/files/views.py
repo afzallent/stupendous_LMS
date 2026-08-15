@@ -3,8 +3,34 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
+
+from core.upload_validation import (
+    validate_document_upload, validate_image_upload, validate_video_upload,
+)
+from lms_project.throttles import UploadRateThrottle
 from .models import UploadedFile
 from .serializers import UploadedFileSerializer
+
+
+def verify_upload_content(file_obj, file_type):
+    """
+    Validate an upload by inspecting its actual bytes.
+
+    Returns (is_valid, error_message, safe_filename).
+
+    Every endpoint below previously accepted `file_obj.content_type` — a value
+    supplied by the client — as proof of the file's type. Since uploads are
+    served back from the application's own origin, that allowed an HTML or SVG
+    payload to be stored under an image/video content type and then executed as
+    first-party script. See PRODUCTION_READINESS.md (P2-3).
+    """
+    if file_type in ('thumbnail', 'avatar'):
+        return validate_image_upload(file_obj)
+    if file_type == 'video':
+        return validate_video_upload(file_obj)
+    if file_type == 'document':
+        return validate_document_upload(file_obj, file_obj.name)
+    return False, f'Uploads of type "{file_type}" are not supported.', None
 
 
 class FileUploadViewSet(viewsets.ModelViewSet):
@@ -13,7 +39,8 @@ class FileUploadViewSet(viewsets.ModelViewSet):
     serializer_class = UploadedFileSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    
+    throttle_classes = [UploadRateThrottle]
+
     def get_queryset(self):
         """Filter files by current user"""
         if self.request.user.is_instructor:
@@ -81,14 +108,11 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate MIME type
-        allowed_mimes = ALLOWED_FILE_TYPES.get(file_type, [])
-        if file_obj.content_type not in allowed_mimes:
-            return Response(
-                {'detail': f'Invalid file type. Allowed MIME types for {file_type}: {", ".join(allowed_mimes)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+        # Verify the real content, not the client-declared MIME type.
+        is_valid, error, safe_name = verify_upload_content(file_obj, file_type)
+        if not is_valid:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
         # Validate file size (in bytes)
         MAX_FILE_SIZES = {
             'thumbnail': 5 * 1024 * 1024,      # 5 MB
@@ -170,9 +194,10 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Create file record (only for document type at this point)
-        uploaded_file = UploadedFile.objects.create(
-            file=file_obj,
+        # Create file record (only for document type at this point).
+        # The stored name is server-generated; original_filename keeps the
+        # user-facing label for display only.
+        uploaded_file = UploadedFile(
             file_type=file_type,
             original_filename=file_obj.name,
             file_size=file_obj.size,
@@ -181,6 +206,8 @@ class FileUploadViewSet(viewsets.ModelViewSet):
             course=course,
             lesson=lesson
         )
+        uploaded_file.file.save(safe_name, file_obj, save=False)
+        uploaded_file.save()
         
         serializer = self.get_serializer(uploaded_file)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -210,14 +237,6 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate file type
-        ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-        if file_obj.content_type not in ALLOWED_IMAGE_TYPES:
-            return Response(
-                {'detail': f'Invalid image type. Allowed: {", ".join(ALLOWED_IMAGE_TYPES)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         # Validate file size (5MB max)
         MAX_SIZE = 5 * 1024 * 1024
         if file_obj.size > MAX_SIZE:
@@ -225,11 +244,16 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 {'detail': f'File too large. Maximum size: 5MB'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        # Verify the real content, not the client-declared MIME type.
+        is_valid, error, safe_name = verify_upload_content(file_obj, 'thumbnail')
+        if not is_valid:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
         # Verify course ownership (only instructor can upload)
         from courses.models import Course
         course = get_object_or_404(Course, id=course_id, instructor=request.user)
-        
+
         # Delete old thumbnail if exists
         old_thumbnails = UploadedFile.objects.filter(
             course=course,
@@ -237,10 +261,9 @@ class FileUploadViewSet(viewsets.ModelViewSet):
         )
         for thumb in old_thumbnails:
             thumb.delete()
-        
+
         # Create thumbnail record
-        uploaded_file = UploadedFile.objects.create(
-            file=file_obj,
+        uploaded_file = UploadedFile(
             file_type='thumbnail',
             original_filename=file_obj.name,
             file_size=file_obj.size,
@@ -248,6 +271,8 @@ class FileUploadViewSet(viewsets.ModelViewSet):
             uploaded_by=request.user,
             course=course
         )
+        uploaded_file.file.save(safe_name, file_obj, save=False)
+        uploaded_file.save()
         
         serializer = self.get_serializer(uploaded_file)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -277,14 +302,6 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate file type
-        ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
-        if file_obj.content_type not in ALLOWED_VIDEO_TYPES:
-            return Response(
-                {'detail': f'Invalid video type. Allowed: {", ".join(ALLOWED_VIDEO_TYPES)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         # Validate file size (500MB max)
         MAX_SIZE = 500 * 1024 * 1024
         if file_obj.size > MAX_SIZE:
@@ -292,11 +309,16 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 {'detail': f'File too large. Maximum size: 500MB'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        # Verify the real container header, not the client-declared MIME type.
+        is_valid, error, safe_name = verify_upload_content(file_obj, 'video')
+        if not is_valid:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
         # Verify lesson ownership (only course instructor can upload)
         from courses.models import Lesson
         lesson = get_object_or_404(Lesson, id=lesson_id, course__instructor=request.user)
-        
+
         # Delete old video if exists
         old_videos = UploadedFile.objects.filter(
             lesson=lesson,
@@ -304,10 +326,9 @@ class FileUploadViewSet(viewsets.ModelViewSet):
         )
         for video in old_videos:
             video.delete()
-        
+
         # Create video record
-        uploaded_file = UploadedFile.objects.create(
-            file=file_obj,
+        uploaded_file = UploadedFile(
             file_type='video',
             original_filename=file_obj.name,
             file_size=file_obj.size,
@@ -316,6 +337,8 @@ class FileUploadViewSet(viewsets.ModelViewSet):
             lesson=lesson,
             course=lesson.course
         )
+        uploaded_file.file.save(safe_name, file_obj, save=False)
+        uploaded_file.save()
         
         serializer = self.get_serializer(uploaded_file)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -338,14 +361,6 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate file type
-        ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-        if file_obj.content_type not in ALLOWED_IMAGE_TYPES:
-            return Response(
-                {'detail': f'Invalid image type. Allowed: {", ".join(ALLOWED_IMAGE_TYPES)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         # Validate file size (2MB max)
         MAX_SIZE = 2 * 1024 * 1024
         if file_obj.size > MAX_SIZE:
@@ -353,7 +368,12 @@ class FileUploadViewSet(viewsets.ModelViewSet):
                 {'detail': f'File too large. Maximum size: 2MB'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        # Verify the real content, not the client-declared MIME type.
+        is_valid, error, safe_name = verify_upload_content(file_obj, 'avatar')
+        if not is_valid:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
         # Delete old avatar if exists
         old_avatars = UploadedFile.objects.filter(
             uploaded_by=request.user,
@@ -361,16 +381,17 @@ class FileUploadViewSet(viewsets.ModelViewSet):
         )
         for avatar in old_avatars:
             avatar.delete()
-        
+
         # Create new avatar record
-        uploaded_file = UploadedFile.objects.create(
-            file=file_obj,
+        uploaded_file = UploadedFile(
             file_type='avatar',
             original_filename=file_obj.name,
             file_size=file_obj.size,
             mime_type=file_obj.content_type,
             uploaded_by=request.user
         )
+        uploaded_file.file.save(safe_name, file_obj, save=False)
+        uploaded_file.save()
         
         serializer = self.get_serializer(uploaded_file)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -379,9 +400,18 @@ class FileUploadViewSet(viewsets.ModelViewSet):
     def delete_avatar(self, request):
         """Delete user avatar"""
         user_id = request.query_params.get('userId')
-        
+
+        # Guard the cast: `?userId=abc` previously raised ValueError -> HTTP 500.
+        try:
+            user_id = int(user_id) if user_id else None
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'userId must be an integer.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Only allow deleting own avatar unless admin
-        if user_id and int(user_id) != request.user.id and not request.user.is_staff:
+        if user_id and user_id != request.user.id and not request.user.is_staff:
             return Response(
                 {'detail': 'You can only delete your own avatar.'},
                 status=status.HTTP_403_FORBIDDEN

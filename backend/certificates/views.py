@@ -17,15 +17,35 @@ class CertificateViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        """Filter certificates by user"""
+        """
+        Certificates visible to the requester.
+
+        An instructor may inspect a student's certificates only for courses
+        that instructor actually owns. Previously any user with is_instructor
+        set could pass ?userId=N and read every certificate belonging to any
+        student on the platform — and instructor was a self-assignable role at
+        registration. See PRODUCTION_READINESS.md (P1-6).
+        """
+        user = self.request.user
         user_id = self.request.query_params.get('userId')
-        
-        if user_id and self.request.user.is_instructor:
-            # Instructors can view any student's certificates
-            return Certificate.objects.filter(student_id=user_id)
-        else:
-            # Students see only their own certificates
-            return Certificate.objects.filter(student=self.request.user)
+
+        if user_id and user.is_instructor:
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                return Certificate.objects.none()
+
+            # Requesting your own certificates is always fine.
+            if user_id == user.id:
+                return Certificate.objects.filter(student=user)
+
+            return Certificate.objects.filter(
+                student_id=user_id,
+                course__instructor=user,
+            )
+
+        # Students see only their own certificates
+        return Certificate.objects.filter(student=self.request.user)
     
     def create(self, request, *args, **kwargs):
         """Generate certificate for course completion"""

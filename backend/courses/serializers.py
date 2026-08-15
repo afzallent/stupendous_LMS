@@ -54,16 +54,38 @@ class ChapterSerializer(serializers.ModelSerializer):
 
 class LessonSerializer(serializers.ModelSerializer):
     """
-    Serializer for lesson data.
-    
-    Represents a lesson within a course, including video URL and content.
+    Full lesson data, including the video source and body content.
+
+    SECURITY: this serializer exposes paid content. Only use it on endpoints
+    that have already verified the requester is enrolled in the course or owns
+    it as the instructor. For anything publicly reachable use
+    LessonPreviewSerializer instead.
     """
     chapter_title = serializers.CharField(source='chapter.title', read_only=True)
-    
+
     class Meta:
         model = Lesson
         fields = ['id', 'course', 'chapter', 'chapter_title', 'title', 'video_url', 'video_file', 'duration', 'order', 'content']
         read_only_fields = ['id']
+
+
+class LessonPreviewSerializer(serializers.ModelSerializer):
+    """
+    Curriculum outline safe for anonymous/unenrolled viewers.
+
+    Deliberately omits video_url, video_file and content so that a course
+    listing can advertise its syllabus without giving away the material.
+    """
+    chapter_title = serializers.CharField(source='chapter.title', read_only=True)
+    has_video = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lesson
+        fields = ['id', 'course', 'chapter', 'chapter_title', 'title', 'duration', 'order', 'has_video']
+        read_only_fields = fields
+
+    def get_has_video(self, obj):
+        return bool(obj.video_url or obj.video_file)
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -77,7 +99,9 @@ class CourseSerializer(serializers.ModelSerializer):
     category_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     lesson_count = serializers.SerializerMethodField()
     enrolled_count = serializers.SerializerMethodField()
-    lessons = LessonSerializer(many=True, read_only=True)
+    # Preview only. The course list is readable by anonymous users, so this
+    # must never carry video URLs or lesson bodies.
+    lessons = LessonPreviewSerializer(many=True, read_only=True)
 
     class Meta:
         model = Course
@@ -89,11 +113,15 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def get_lesson_count(self, obj):
         """Get count of lessons in course"""
-        return obj.lessons.count()
+        # Uses the annotation added by CourseViewSet.get_queryset when present,
+        # falling back to a query for other callers.
+        annotated = getattr(obj, 'annotated_lesson_count', None)
+        return annotated if annotated is not None else obj.lessons.count()
 
     def get_enrolled_count(self, obj):
         """Get count of enrolled students"""
-        return obj.enrollments.count()
+        annotated = getattr(obj, 'annotated_enrolled_count', None)
+        return annotated if annotated is not None else obj.enrollments.count()
 
 
 class CourseDetailSerializer(serializers.ModelSerializer):
@@ -104,10 +132,11 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     """
     instructor = UserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
-    lessons = LessonSerializer(many=True, read_only=True)
+    lessons = serializers.SerializerMethodField()
     lesson_count = serializers.SerializerMethodField()
     enrolled_count = serializers.SerializerMethodField()
     is_enrolled = serializers.SerializerMethodField()
+    has_full_access = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
     duration = serializers.SerializerMethodField()
 
@@ -117,8 +146,30 @@ class CourseDetailSerializer(serializers.ModelSerializer):
                   'price', 'original_price', 'is_free', 'thumbnail',
                   'created_at', 'updated_at', 'published_at',
                   'lessons', 'lesson_count', 'enrolled_count', 'duration',
-                  'is_enrolled', 'progress_percentage']
+                  'is_enrolled', 'has_full_access', 'progress_percentage']
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'instructor']
+
+    def _has_full_access(self, obj):
+        """
+        Full lesson content is visible only to enrolled students and to the
+        instructor who owns the course. Everyone else gets the preview.
+        """
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        if obj.instructor_id == request.user.id:
+            return True
+        return obj.enrollments.filter(student=request.user).exists()
+
+    def get_has_full_access(self, obj):
+        return self._has_full_access(obj)
+
+    def get_lessons(self, obj):
+        lessons = obj.lessons.all()
+        serializer_class = (
+            LessonSerializer if self._has_full_access(obj) else LessonPreviewSerializer
+        )
+        return serializer_class(lessons, many=True, context=self.context).data
 
     def get_lesson_count(self, obj):
         """Get count of lessons in course"""

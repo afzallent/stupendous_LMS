@@ -3,9 +3,6 @@ set -e
 
 echo "=== LMS Application Startup ==="
 
-# Create log directories
-mkdir -p /var/log/supervisor /var/log/nginx
-
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL..."
 while ! python -c "
@@ -21,7 +18,7 @@ try:
     )
     conn.close()
     exit(0)
-except:
+except Exception:
     exit(1)
 " 2>/dev/null; do
     echo "PostgreSQL not ready, waiting..."
@@ -29,34 +26,32 @@ except:
 done
 echo "PostgreSQL is ready!"
 
-# Run Django migrations
-cd /app/backend
+cd /app
+
+# Fail fast on missing critical configuration rather than booting a
+# misconfigured (and potentially insecure) instance.
+python manage.py check --deploy --fail-level WARNING
+
 echo "Running migrations..."
 python manage.py migrate --noinput
 
-echo "Seeding test users..."
-python create_test_users.py || echo "Users may already exist"
+# Demo/seed data is NEVER created automatically.
+#
+# The previous version of this script seeded a superuser with a hardcoded
+# password (admin@test.com / admin123) and a 100%-off PRERELEASE coupon on
+# every boot, in every environment. Both are now opt-in and refuse to run
+# unless DEBUG=True. See PRODUCTION_READINESS.md (P0-6, P0-7).
+if [ "${SEED_DEMO_DATA}" = "true" ]; then
+    echo "SEED_DEMO_DATA=true - seeding demo data (development only)..."
+    python create_test_users.py
+    python seed_sample_courses.py
+fi
 
-echo "Seeding sample courses..."
-python seed_sample_courses.py || echo "Courses may already exist"
-
-echo "Creating PRERELEASE coupon..."
-python -c "
-import os
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lms_project.settings')
-import django
-django.setup()
-from courses.models import Coupon
-Coupon.objects.get_or_create(
-    code='PRERELEASE',
-    defaults={
-        'description': 'Pre-release 100% discount coupon',
-        'discount_percentage': 100,
-        'is_active': True
-    }
-)
-print('Coupon ready')
-" || echo "Coupon may already exist"
-
-echo "Starting services with supervisor..."
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+echo "Starting Gunicorn server..."
+exec gunicorn lms_project.wsgi:application \
+    --bind 0.0.0.0:8000 \
+    --workers "${GUNICORN_WORKERS:-2}" \
+    --threads "${GUNICORN_THREADS:-4}" \
+    --timeout "${GUNICORN_TIMEOUT:-120}" \
+    --access-logfile - \
+    --error-logfile -

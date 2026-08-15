@@ -8,14 +8,43 @@ class QuestionOptionSerializer(serializers.ModelSerializer):
         model = QuestionOption
         fields = ['id', 'option_text', 'is_correct', 'order']
         read_only_fields = ['id']
-    
+
     def to_representation(self, instance):
-        """Hide is_correct from students"""
+        """
+        Expose `is_correct` only to the instructor who owns the quiz's course.
+
+        Two problems with the previous version:
+          1. It checked the GLOBAL `is_instructor` flag rather than ownership,
+             so any instructor could read the answer key for every quiz on the
+             platform — and instructor was a self-assignable role at signup.
+          2. It leaked `is_correct` outright whenever the serializer was built
+             without request context, which is easy to do by accident.
+
+        This now fails closed: no verified owning instructor, no answer key.
+        See PRODUCTION_READINESS.md (P1-5).
+        """
         data = super().to_representation(instance)
-        request = self.context.get('request')
-        if request and not request.user.is_instructor:
+
+        if not self._viewer_owns_quiz(instance):
             data.pop('is_correct', None)
+
         return data
+
+    def _viewer_owns_quiz(self, instance):
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+
+        user = request.user
+        if not user.is_instructor:
+            return False
+
+        question = instance.question
+        # Bank questions live outside a quiz; their creator may see the answers.
+        if question.quiz_id is None:
+            return question.created_by_id == user.id
+
+        return question.quiz.course.instructor_id == user.id
 
 
 class QuestionSerializer(serializers.ModelSerializer):

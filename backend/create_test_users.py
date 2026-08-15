@@ -1,11 +1,26 @@
 #!/usr/bin/env python
-"""Create test users for development."""
+"""
+Create test users for LOCAL DEVELOPMENT ONLY.
+
+These accounts use well-known passwords that are published in the repository.
+This script refuses to run unless DEBUG=True, because it was previously wired
+into the production entrypoint and seeded a superuser (admin@test.com /
+admin123) into every deployment. See PRODUCTION_READINESS.md (P0-6).
+"""
 import os
 import sys
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lms_project.settings')
 django.setup()
+
+from django.conf import settings
+
+if not settings.DEBUG:
+    sys.exit(
+        "REFUSING TO RUN: create_test_users.py creates accounts with publicly "
+        "known passwords and is only permitted when DEBUG=True."
+    )
 
 from core.models import User
 
