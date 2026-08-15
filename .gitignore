@@ -55,3 +55,8 @@ Thumbs.db
 venv/
 env/
 .env
+
+# Build artifacts
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+frontend/storybook-static/

@@ -523,7 +523,15 @@ export default function PaymentSettingsPage() {
                           <div key={field.key}>
                             <Label className="text-sm font-medium">{field.label}</Label>
                             <p className="text-sm text-muted-foreground">
-                              {field.secret ? '••••••••••••••••' : (existingGateway[field.key as keyof PaymentGateway] || 'Not configured')}
+                              {field.secret
+                                ? '••••••••••••••••'
+                                : // Indexing PaymentGateway can yield a boolean or
+                                  // Record value, neither of which is renderable,
+                                  // so coerce to a display string.
+                                  String(
+                                    existingGateway[field.key as keyof PaymentGateway] ??
+                                      'Not configured',
+                                  ) || 'Not configured'}
                             </p>
                           </div>
                         ))}

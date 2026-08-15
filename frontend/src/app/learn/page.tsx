@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { XLVILoader } from "@/components/ui/xlvi-loader"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth"
 
 interface EnrolledCourse {
   id: string
@@ -44,6 +45,10 @@ interface Stats {
 
 export default function StudentDashboard() {
   const router = useRouter()
+  // `logout` was called below without ever being imported or defined, so the
+  // logout button threw a ReferenceError. It went unnoticed because
+  // next.config.ts had ignoreBuildErrors enabled.
+  const { logout } = useAuth()
   const [user, setUser] = useState<any>(null)
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
   const [achievements, setAchievements] = useState<Achievement[]>([])

@@ -35,9 +35,13 @@ function AdminDashboard() {
     try {
       setLoading(true)
       
-      // Fetch courses count
-      const coursesResponse = await djangoApi.get('/courses/')
-      const coursesCount = coursesResponse.count || coursesResponse.length || 0
+      // Fetch courses count. Note the '/api' prefix: the previous path
+      // ('/courses/') hit the legacy template view, not the API, and returned
+      // HTML — so the count silently fell through to 0.
+      const coursesResponse = await djangoApi.get<{ count?: number } | unknown[]>('/api/courses/')
+      const coursesCount = Array.isArray(coursesResponse)
+        ? coursesResponse.length
+        : coursesResponse?.count ?? 0
       
       setStats({
         totalUsers: 2, // Admin + Instructor

@@ -151,7 +151,7 @@ export default function QuestionBankPage() {
   const fetchCourses = async () => {
     try {
       // Fetch instructor's courses from Django
-      const data = await djangoApi.get('/api/courses/', { instructor: 'me' })
+      const data = await djangoApi.get<{ results?: Course[] }>('/api/courses/', { instructor: 'me' })
       setCourses(data.results || [])
     } catch (error) {
       console.error('Failed to fetch courses:', error)

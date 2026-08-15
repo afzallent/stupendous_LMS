@@ -269,7 +269,10 @@ export default function ProfilePage() {
       formData.append('avatar', file)
 
       // Upload avatar to Django
-      const result = await djangoApi.upload('/api/auth/upload_avatar/', formData)
+      const result = await djangoApi.upload<{ avatar_url?: string }>(
+        '/api/auth/upload_avatar/',
+        formData,
+      )
 
       // Update user data with new avatar URL
       const updatedUser = { ...user, avatar: result.avatar_url }

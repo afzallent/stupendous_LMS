@@ -1,0 +1,13 @@
+# Explicit allowlist of packages permitted to run install scripts.
+# pnpm 10+ blocks these by default and exits non-zero until they are resolved,
+# which fails the Docker build. Only packages that genuinely need a native
+# build step are enabled; puppeteer (test-only Chromium download) and the
+# polyfill packages are deliberately left off.
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  core-js-pure: false
+  es5-ext: false
+  puppeteer: false

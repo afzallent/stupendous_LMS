@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import { useCart } from "@/contexts/cart-context"
 import { useAuth } from "@/lib/auth"
+import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
 
 export default function CartPage() {
@@ -170,32 +171,31 @@ export default function CartPage() {
     setCouponError("")
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const accessToken = localStorage.getItem('access_token')
-
-      // For now, we'll validate the coupon by trying to use it
-      // In a real implementation, you'd have a separate validation endpoint
-      const response = await fetch(`${API_BASE_URL}/api/courses/coupons/?code=${couponCode.toUpperCase()}`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Invalid coupon code')
-      }
-
-      const data = await response.json()
-      
-      if (!data.results || data.results.length === 0) {
-        setCouponError("Invalid coupon code")
+      // Validate against the authenticated single-code endpoint. The previous
+      // GET /api/courses/coupons/?code=... was public and, without a code,
+      // returned every active coupon on the platform.
+      // See PRODUCTION_READINESS.md (P0-4).
+      const firstCourseId = cartState.items?.[0]?.id
+      if (!firstCourseId) {
+        setCouponError("Add a course to your cart before applying a coupon")
         return
       }
 
-      const coupon = data.results[0]
-      
-      if (!coupon.is_valid) {
-        setCouponError("This coupon is no longer valid")
+      const coupon = await djangoApi.post<{
+        valid: boolean
+        code?: string
+        discount_percentage?: number
+        original_price?: string
+        final_price?: string
+        grants_free_access?: boolean
+        detail?: string
+      }>('/api/coupons/validate/', {
+        code: couponCode.toUpperCase(),
+        course_id: firstCourseId,
+      })
+
+      if (!coupon.valid) {
+        setCouponError(coupon.detail || "This coupon code is not valid")
         return
       }
 

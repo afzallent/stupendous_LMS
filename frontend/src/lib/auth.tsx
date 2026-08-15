@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { djangoApi } from './django-api-client'
 
-interface User {
+export interface User {
   id: number
   email: string
   username: string
@@ -12,7 +12,30 @@ interface User {
   last_name: string
   is_student: boolean
   is_instructor: boolean
+  is_staff?: boolean
   avatar?: string
+  avatar_url?: string | null
+  preferred_language?: string
+  /**
+   * Convenience display name. Several pages read `user.name`; it is derived
+   * from first/last name rather than returned by the API.
+   */
+  name?: string
+  /**
+   * Role label derived from the boolean flags at login time and persisted to
+   * localStorage for pages that read it directly.
+   */
+  role?: 'TRAINER' | 'STUDENT' | 'ADMIN'
+}
+
+/** Derive the display name and role label the UI expects from an API user. */
+export function decorateUser(user: User): User {
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim()
+  return {
+    ...user,
+    name: fullName || user.username,
+    role: user.is_instructor ? 'TRAINER' : user.is_student ? 'STUDENT' : 'ADMIN',
+  }
 }
 
 interface AuthContextType {
@@ -45,15 +68,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
+  // The API client emits this when a refresh fails and the session cannot be
+  // recovered, so an expired session lands on the login page instead of
+  // leaving the UI in a signed-in state that 401s on every request.
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setUser(null)
+      router.push('/auth/login')
+    }
+    window.addEventListener('auth:session-expired', handleSessionExpired)
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired)
+  }, [router])
+
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('token')
       if (token) {
         const userData = await djangoApi.get<User>('/api/user/me/')
-        setUser(userData)
+        setUser(decorateUser(userData))
       }
     } catch (error) {
+      // The client already cleared storage and signalled expiry if the
+      // refresh failed; just make sure no stale access token lingers.
       localStorage.removeItem('token')
+      localStorage.removeItem('access_token')
     } finally {
       setLoading(false)
     }
@@ -72,12 +110,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('refresh_token', response.refresh)
       }
       // Store user data for pages that check localStorage directly
-      const userWithRole = {
-        ...response.user,
-        role: response.user.is_instructor ? 'TRAINER' : (response.user.is_student ? 'STUDENT' : 'ADMIN')
-      }
+      const userWithRole = decorateUser(response.user)
       localStorage.setItem('user', JSON.stringify(userWithRole))
-      setUser(response.user)
+      setUser(userWithRole)
       return true
     } catch (error) {
       console.error('Login error:', error)
@@ -87,9 +122,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await djangoApi.post('/api/auth/logout/', {})
+      // The server blacklists the refresh token, so it must be sent —
+      // omitting it left the token valid for its full 7-day lifetime.
+      const refresh = localStorage.getItem('refresh_token')
+      if (refresh) {
+        await djangoApi.post('/api/auth/logout/', { refresh })
+      }
     } catch (error) {
-      // Ignore errors on logout
+      // Ignore errors on logout; local state is cleared either way.
     }
     // Clear all auth-related localStorage items
     localStorage.removeItem('token')
@@ -101,9 +141,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signup = async (data: SignupData) => {
-    const response = await djangoApi.post<{ access: string; user: User }>('/api/auth/signup/', data)
+    const response = await djangoApi.post<{ access: string; refresh?: string; user: User }>(
+      '/api/auth/signup/',
+      data,
+    )
     localStorage.setItem('token', response.access)
-    setUser(response.user)
+    localStorage.setItem('access_token', response.access)
+    // Without the refresh token a freshly registered user was logged out
+    // 15 minutes later with no way to recover the session.
+    if (response.refresh) {
+      localStorage.setItem('refresh_token', response.refresh)
+    }
+    const userWithRole = decorateUser(response.user)
+    localStorage.setItem('user', JSON.stringify(userWithRole))
+    setUser(userWithRole)
   }
 
   const updateUser = (updatedUser: User) => {
@@ -127,32 +178,73 @@ export function useAuth() {
   return context
 }
 
-// Higher-order component for protected routes
+export type AuthRole = 'student' | 'instructor' | 'admin'
+
+/** True if `user` holds `role`. Admin is derived from the is_staff flag. */
+function userHasRole(user: User, role: AuthRole): boolean {
+  switch (role) {
+    case 'instructor':
+      return Boolean(user.is_instructor)
+    case 'student':
+      return Boolean(user.is_student)
+    case 'admin':
+      return Boolean(user.is_staff)
+  }
+}
+
+/**
+ * Higher-order component for protected routes.
+ *
+ * Accepts a single role or a list, in any casing. Callers were passing
+ * `['ADMIN']` while the previous signature expected the lowercase string
+ * 'admin', so the comparison never matched and NO role check ran — the admin
+ * dashboard was reachable by any signed-in user. The 'admin' case was also
+ * absent from the original body, so it was unenforceable even when matched.
+ *
+ * This is defence in depth for UX only; the API enforces authorisation
+ * server-side and is the actual boundary.
+ */
 export function withAuth<P extends object>(
   Component: React.ComponentType<P>,
-  requiredRole?: 'student' | 'instructor' | 'admin'
+  requiredRole?: AuthRole | AuthRole[] | string | string[]
 ) {
+  const requiredRoles: AuthRole[] = (
+    requiredRole === undefined
+      ? []
+      : Array.isArray(requiredRole)
+        ? requiredRole
+        : [requiredRole]
+  )
+    .map((role) => String(role).toLowerCase())
+    // Tolerate the 'TRAINER' label used elsewhere in the UI.
+    .map((role) => (role === 'trainer' ? 'instructor' : role))
+    .filter((role): role is AuthRole =>
+      role === 'student' || role === 'instructor' || role === 'admin'
+    )
+
   return function AuthenticatedComponent(props: P) {
     const { user, loading } = useAuth()
     const router = useRouter()
 
+    const authorised =
+      Boolean(user) &&
+      (requiredRoles.length === 0 ||
+        requiredRoles.some((role) => userHasRole(user as User, role)))
+
     useEffect(() => {
-      if (!loading && !user) {
+      if (loading) return
+      if (!user) {
         router.push('/auth/login')
-      } else if (!loading && user && requiredRole) {
-        if (requiredRole === 'instructor' && !user.is_instructor) {
-          router.push('/')
-        } else if (requiredRole === 'student' && !user.is_student) {
-          router.push('/')
-        }
+      } else if (!authorised) {
+        router.push('/')
       }
-    }, [user, loading, router])
+    }, [user, loading, authorised, router])
 
     if (loading) {
       return <div>Loading...</div>
     }
 
-    if (!user) {
+    if (!user || !authorised) {
       return null
     }
 

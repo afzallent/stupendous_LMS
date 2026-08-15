@@ -1,14 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // TypeScript and ESLint settings
+  // Type errors must fail the build. This was suppressed, which let type
+  // errors ship to production silently across a 24k-line TypeScript
+  // codebase. See PRODUCTION_READINESS.md (P1-10).
+  //
+  // Note: Next 16 removed the `eslint` key from next.config; linting is run
+  // separately via `pnpm lint` (wire it into CI alongside the build).
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  reactStrictMode: false,
+  reactStrictMode: true,
   
   // Performance optimizations
   compiler: {

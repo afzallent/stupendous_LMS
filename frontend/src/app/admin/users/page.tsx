@@ -46,7 +46,10 @@ import Link from "next/link"
 import { toast } from "@/hooks/use-toast"
 
 interface User {
-  id: string
+  // Django returns an integer primary key. This was declared as `string`,
+  // so the `u.id === user?.id` self-delete guard compared a string to a
+  // number and never matched — an admin could delete their own account.
+  id: number
   username: string
   email: string
   first_name: string

@@ -31,12 +31,21 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
+  // scripts/ and tests/ are standalone dev tooling run outside the Next build.
+  // Most of scripts/ targets the deleted Prisma database and is dead code;
+  // see PRODUCTION_READINESS.md (P2-8). Excluded so they cannot break the
+  // production build, but left on disk for review.
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    "out",
+    "storybook-static",
+    "scripts",
+    "tests"
   ]
 }

@@ -392,10 +392,35 @@ The Django backend has **no order or payment model of any kind**. `Enrollment` r
 
 Before a gateway can be integrated:
 
-1. P0-3 and P0-5 must be fixed — enrollment must stop being a client-initiated action for paid courses.
+1. P0-3 and P0-5 must be fixed — enrollment must stop being a client-initiated action for paid courses. **Done:** both now return HTTP 402 rather than granting access.
 2. An `Order`/`Payment` model is needed, with an idempotent webhook handler as the *only* path that creates a paid enrollment.
 3. `Course.price` is `DecimalField` in USD with no currency field; add one if multi-currency is expected.
-4. `frontend/prisma/schema.prisma` contains a previously designed `Payment` model worth reading before it is deleted (P2-8).
+
+### Salvaged prior design
+
+The deleted `frontend/prisma/schema.prisma` (P2-8) contained a previously
+designed payment model, preserved here for reference:
+
+```prisma
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Float
+  currency      String        @default("USD")
+  status        PaymentStatus @default(PENDING)   // PENDING | COMPLETED | FAILED | REFUNDED
+  paymentMethod String?
+  transactionId String?
+  studentId     String
+  courseId      String?
+  enrollmentId  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+```
+
+Porting it to Django, note that `amount` should be `DecimalField`, not
+`Float` — binary floating point must never represent money. `transactionId`
+should carry a uniqueness constraint so a replayed gateway webhook cannot
+create a second enrollment.
 
 ---
 
