@@ -2,9 +2,11 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from datetime import timedelta
+
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Avg, Q
 
 from .models import Quiz, Question, QuestionOption, QuizAttempt, QuizAnswer
@@ -103,11 +105,82 @@ class QuizViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(quiz)
         return Response(serializer.data)
     
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated],
+            url_path='start')
+    def start(self, request, pk=None):
+        """
+        Begin a quiz attempt and return the attempt id.
+
+        Attempts used to be created at submission time, which made started_at
+        equal completed_at: time_taken was always ~0 and Quiz.time_limit could
+        not be enforced at all. The client now calls this first, then passes
+        `attempt_id` to submit().
+        See PRODUCTION_READINESS.md (P2-7).
+        """
+        quiz = self.get_object()
+
+        from courses.models import Enrollment
+        if not Enrollment.objects.filter(student=request.user, course=quiz.course).exists():
+            return Response(
+                {'detail': 'You must be enrolled in this course to take the quiz.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not quiz.is_active and quiz.course.instructor_id != request.user.id:
+            return Response(
+                {'detail': 'This quiz is not currently available.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Serialise concurrent starts so the attempt cap cannot be raced.
+        with transaction.atomic():
+            locked_quiz = Quiz.objects.select_for_update().get(pk=quiz.pk)
+
+            # An unfinished attempt is resumed rather than counted again,
+            # otherwise a dropped connection burns one of the user's attempts.
+            existing = QuizAttempt.objects.filter(
+                quiz=locked_quiz, student=request.user, completed_at__isnull=True
+            ).order_by('-started_at').first()
+            if existing:
+                return Response(
+                    self._attempt_state(existing, locked_quiz),
+                    status=status.HTTP_200_OK
+                )
+
+            used = QuizAttempt.objects.filter(quiz=locked_quiz, student=request.user).count()
+            if used >= locked_quiz.max_attempts:
+                return Response(
+                    {'detail': f'Maximum attempts ({locked_quiz.max_attempts}) reached.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            attempt = QuizAttempt.objects.create(
+                quiz=locked_quiz,
+                student=request.user,
+                attempt_number=used + 1,
+            )
+
+        return Response(self._attempt_state(attempt, quiz), status=status.HTTP_201_CREATED)
+
+    @staticmethod
+    def _attempt_state(attempt, quiz):
+        """Client-facing view of an in-progress attempt."""
+        deadline = None
+        if quiz.time_limit:
+            deadline = attempt.started_at + timedelta(minutes=quiz.time_limit)
+        return {
+            'attempt_id': attempt.id,
+            'attempt_number': attempt.attempt_number,
+            'started_at': attempt.started_at,
+            'time_limit_minutes': quiz.time_limit,
+            'expires_at': deadline,
+        }
+
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def submit(self, request, pk=None):
-        """Submit quiz answers"""
+        """Submit quiz answers for an attempt started via /start/."""
         quiz = self.get_object()
-        
+
         # Check if student is enrolled
         from courses.models import Enrollment
         if not Enrollment.objects.filter(student=request.user, course=quiz.course).exists():
@@ -115,62 +188,100 @@ class QuizViewSet(viewsets.ModelViewSet):
                 {'detail': 'You must be enrolled in this course to take the quiz.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        # Check attempt limit
-        attempt_count = QuizAttempt.objects.filter(quiz=quiz, student=request.user).count()
-        if attempt_count >= quiz.max_attempts:
-            return Response(
-                {'detail': f'Maximum attempts ({quiz.max_attempts}) reached.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+
         # Validate submission
         submission_serializer = QuizSubmissionSerializer(data=request.data)
         if not submission_serializer.is_valid():
             return Response(submission_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Calculate attempt number
-        attempt_number = QuizAttempt.objects.filter(
-            quiz=quiz, 
-            student=request.user
-        ).count() + 1
-        
-        # Create attempt
-        attempt = QuizAttempt.objects.create(
-            quiz=quiz,
-            student=request.user,
-            attempt_number=attempt_number
-        )
-        
+
+        attempt_id = request.data.get('attempt_id')
+
+        if attempt_id:
+            attempt = QuizAttempt.objects.filter(
+                id=attempt_id, quiz=quiz, student=request.user
+            ).first()
+            if attempt is None:
+                return Response(
+                    {'detail': 'Attempt not found.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            if attempt.completed_at is not None:
+                return Response(
+                    {'detail': 'This attempt has already been submitted.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            # Backwards compatibility for clients that submit without calling
+            # /start/ first: resume an open attempt, or open one now (which
+            # still enforces the cap, just without meaningful timing).
+            with transaction.atomic():
+                locked_quiz = Quiz.objects.select_for_update().get(pk=quiz.pk)
+                attempt = QuizAttempt.objects.filter(
+                    quiz=locked_quiz, student=request.user, completed_at__isnull=True
+                ).order_by('-started_at').first()
+
+                if attempt is None:
+                    used = QuizAttempt.objects.filter(
+                        quiz=locked_quiz, student=request.user
+                    ).count()
+                    if used >= locked_quiz.max_attempts:
+                        return Response(
+                            {'detail': f'Maximum attempts ({locked_quiz.max_attempts}) reached.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    attempt = QuizAttempt.objects.create(
+                        quiz=locked_quiz,
+                        student=request.user,
+                        attempt_number=used + 1,
+                    )
+
+        completed_at = timezone.now()
+
+        # Enforce the time limit server-side. A small grace period absorbs
+        # network latency between the client's timer firing and arrival here.
+        if quiz.time_limit:
+            elapsed = (completed_at - attempt.started_at).total_seconds()
+            allowed = quiz.time_limit * 60 + 30
+            if elapsed > allowed:
+                attempt.completed_at = completed_at
+                attempt.time_taken = int(elapsed)
+                attempt.calculate_score()
+                return Response(
+                    {
+                        'detail': 'Time limit exceeded. This attempt has been closed.',
+                        'time_limit_minutes': quiz.time_limit,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         # Process answers
         answers_data = submission_serializer.validated_data['answers']
         for answer_data in answers_data:
             question_id = answer_data.get('question_id')
             question = get_object_or_404(Question, id=question_id, quiz=quiz)
-            
+
             answer = QuizAnswer.objects.create(
                 attempt=attempt,
                 question=question
             )
-            
+
             if 'selected_option_id' in answer_data:
                 option_id = answer_data['selected_option_id']
                 option = get_object_or_404(QuestionOption, id=option_id, question=question)
                 answer.selected_option = option
-            
+
             if 'text_answer' in answer_data:
                 answer.text_answer = answer_data['text_answer']
-            
+
             answer.check_answer()
-        
+
         # Calculate score and time taken
-        attempt.completed_at = timezone.now()
-        time_delta = attempt.completed_at - attempt.started_at
-        attempt.time_taken = int(time_delta.total_seconds())
+        attempt.completed_at = completed_at
+        attempt.time_taken = int((completed_at - attempt.started_at).total_seconds())
         attempt.calculate_score()
-        
+
         # Return results
-        serializer = QuizAttemptSerializer(attempt)
+        serializer = QuizAttemptSerializer(attempt, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])

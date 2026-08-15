@@ -60,3 +60,5 @@ env/
 frontend/.next/
 frontend/tsconfig.tsbuildinfo
 frontend/storybook-static/
+backend/.hypothesis/
+backend/logs/
