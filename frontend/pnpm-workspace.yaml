@@ -11,3 +11,6 @@ allowBuilds:
   core-js-pure: false
   es5-ext: false
   puppeteer: false
+  # Only needed to upload source maps to Sentry at build time, which this
+  # setup does not do. Left off so installs stay hermetic.
+  '@sentry/cli': false

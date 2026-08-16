@@ -13,7 +13,7 @@ GitHub Repo: afzallent/stupendous_LMS
 └── /frontend/Dockerfile  → Frontend image
 ```
 
-> `nginx.conf`, `supervisord.conf` and `nixpacks.toml` describe an **alternative single-container topology that is not used**. They are not applied in production. Delete them, or keep them only if you intend to migrate.
+> The repo previously carried `nginx.conf`, `supervisord.conf` and `nixpacks.toml`, describing a single-container topology that nothing used. They have been removed — Coolify runs the two images separately behind its own proxy. See "Upload size limits" below for the one setting that lived in `nginx.conf` and now needs configuring at the proxy.
 
 ---
 
@@ -35,17 +35,31 @@ This key also signs JWTs, so anyone who knows it can mint a token for any user, 
 
 Container filesystems are ephemeral. With `USE_S3_MEDIA=False`, every uploaded avatar, thumbnail and lesson video is destroyed on each redeploy and is not served at all when `DEBUG=False`. Set `USE_S3_MEDIA=True` and provide the `AWS_*` variables. Any S3-compatible provider works (AWS S3, Cloudflare R2, Backblaze B2, MinIO) via `AWS_S3_ENDPOINT_URL`.
 
-### 3. Clean up any previously seeded data
+### 3. Purge previously seeded demo data (existing deployments only)
 
-Earlier versions of the entrypoint seeded these into **every** environment on every boot. If this app has been deployed before, remove them from the production database:
+**Nothing is seeded automatically any more.** Demo data is created only when `SEED_DEMO_DATA=true`, and the seed scripts additionally refuse to run unless `DEBUG=True` — so a production deployment cannot create them regardless of that flag.
 
-- User `admin@test.com` (superuser, password `admin123`)
-- User `trainer@test.com` (password `trainer123`)
-- User `student@test.com` (password `student123`)
-- Coupon `PRERELEASE` (100% discount, no expiry, no usage cap)
-- Any demo courses created by `seed_sample_courses.py`
+However, **removing the seeding code does not remove what it already created.** Earlier versions of the entrypoint inserted the following into every environment on every boot. If this app has been deployed before, delete them from the production database now:
 
-Seeding is now opt-in via `SEED_DEMO_DATA=true`, and the seed scripts additionally refuse to run unless `DEBUG=True`.
+| What | Why it matters |
+|---|---|
+| User `admin@test.com` / `admin123` | Superuser with a password published in this repository |
+| User `trainer@test.com` / `trainer123` | Can create and publish courses |
+| User `student@test.com` / `student123` | — |
+| Coupon `PRERELEASE` | 100% discount, no expiry, no usage cap — free access to every paid course |
+| Demo courses from `seed_sample_courses.py` | Clutters a real catalogue |
+
+```bash
+# Against the production container
+python manage.py shell -c "
+from core.models import User
+from courses.models import Coupon
+User.objects.filter(email__in=['admin@test.com','trainer@test.com','student@test.com']).delete()
+Coupon.objects.filter(code='PRERELEASE').delete()
+"
+```
+
+Do this **after** creating your own superuser (see below), or you will lock yourself out of the admin.
 
 ---
 
@@ -129,6 +143,19 @@ NEXT_PUBLIC_API_URL=https://lms.5stars.dev
 In Coolify, tick **"Build Variable"** for this entry. The Dockerfile declares it as an `ARG` and **fails the build** when it is missing, so a misconfiguration surfaces as a failed build rather than a broken site.
 
 ---
+
+## Upload size limits
+
+The API accepts videos up to 500 MB. That limit is enforced **after** the request body has been received, so it rejects an oversized file but does not stop the transfer — a hard cap has to live in the reverse proxy.
+
+- **Coolify (Traefik)** does not limit request body size by default, so 500 MB uploads work out of the box. To impose a ceiling, add a Traefik `buffering` middleware with `maxRequestBodyBytes` on the backend service.
+- **If you put nginx in front**, its default `client_max_body_size` is **1 MB** and every video upload will fail with a 413. Set `client_max_body_size 512M;` and raise `proxy_read_timeout` / `proxy_send_timeout` to around `300s`.
+
+Django-side limits (`DATA_UPLOAD_MAX_MEMORY_SIZE`, `FILE_UPLOAD_MAX_MEMORY_SIZE`) are set in `settings.py` and control memory buffering, not the maximum file size.
+
+## Serving user uploads
+
+With `USE_S3_MEDIA=True`, uploads are served from your bucket or CDN domain, not from the application. Keep it that way: user-supplied files served from the app's own origin are a stored-XSS vector, and JWTs live in `localStorage`. If you ever front media with your own nginx, send `X-Content-Type-Options: nosniff` and `Content-Disposition: attachment` on `/media/`.
 
 ## Database
 

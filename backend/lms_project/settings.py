@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import logging
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -363,6 +364,28 @@ else:
 # an unresponsive SMTP host must not tie up a worker thread.
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
+# ---------------------------------------------------------------------------
+# Upload limits
+#
+# Note what Django can and cannot enforce here. DATA_UPLOAD_MAX_MEMORY_SIZE
+# caps non-file POST data only; it explicitly excludes multipart file fields.
+# The per-endpoint size checks in files/views.py run *after* the body has
+# already been received, so they reject the file but do not prevent the
+# transfer.
+#
+# A hard cap therefore has to live in the reverse proxy. See DEPLOYMENT.md.
+# ---------------------------------------------------------------------------
+
+# Largest non-file form body accepted (2.5 MB default is fine for JSON APIs).
+DATA_UPLOAD_MAX_MEMORY_SIZE = config('DATA_UPLOAD_MAX_MEMORY_SIZE', default=2621440, cast=int)
+
+# Above this, an uploaded file streams to a temp file instead of being held in
+# memory. Keep it low so concurrent video uploads cannot exhaust RAM.
+FILE_UPLOAD_MAX_MEMORY_SIZE = config('FILE_UPLOAD_MAX_MEMORY_SIZE', default=2621440, cast=int)
+
+# Bounds form-field count to blunt hash-collision style POST floods.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = config('DATA_UPLOAD_MAX_NUMBER_FIELDS', default=1000, cast=int)
+
 # drf-spectacular Configuration
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Stupendous LMS API',
@@ -429,6 +452,36 @@ LOGGING = {
         },
     },
 }
+
+# ---------------------------------------------------------------------------
+# Error tracking
+#
+# Entirely optional: with no SENTRY_DSN set this block is a no-op, so local
+# development and CI never phone home. Enable it in deployed environments.
+# ---------------------------------------------------------------------------
+SENTRY_DSN = config('SENTRY_DSN', default='')
+
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            # Breadcrumbs from INFO upward; only ERROR creates an issue.
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+        ],
+        environment=config('SENTRY_ENVIRONMENT', default='production'),
+        release=config('SENTRY_RELEASE', default=None),
+        # Sample rather than trace everything; raise temporarily to debug.
+        traces_sample_rate=config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float),
+        # Never ship request bodies, headers or cookies to a third party:
+        # this application handles passwords, JWTs and SMTP credentials.
+        send_default_pii=False,
+        max_request_body_size='never',
+    )
 
 if LOG_TO_FILE:
     LOGS_DIR = BASE_DIR / 'logs'
