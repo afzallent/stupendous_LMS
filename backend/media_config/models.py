@@ -2,6 +2,8 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 
+from core.fields import EncryptedCharField
+
 
 class MediaStorageConfig(models.Model):
     """
@@ -44,11 +46,14 @@ class MediaStorageConfig(models.Model):
         null=True,
         help_text='Username for file server authentication'
     )
-    video_file_server_password = models.CharField(
-        max_length=200,
+    # The help_text below always claimed these were encrypted; until now they
+    # were plain CharFields, so any database dump exposed them in clear text.
+    # See PRODUCTION_READINESS.md (P2-7).
+    video_file_server_password = EncryptedCharField(
+        max_length=500,
         blank=True,
         null=True,
-        help_text='Password for file server authentication (encrypted)'
+        help_text='Password for file server authentication (encrypted at rest)'
     )
     video_s3_bucket = models.CharField(
         max_length=100,
@@ -63,17 +68,17 @@ class MediaStorageConfig(models.Model):
         default='us-east-1',
         help_text='AWS region for S3 bucket'
     )
-    video_s3_access_key = models.CharField(
-        max_length=100,
+    video_s3_access_key = EncryptedCharField(
+        max_length=500,
         blank=True,
         null=True,
-        help_text='AWS access key ID'
+        help_text='AWS access key ID (encrypted at rest)'
     )
-    video_s3_secret_key = models.CharField(
-        max_length=200,
+    video_s3_secret_key = EncryptedCharField(
+        max_length=500,
         blank=True,
         null=True,
-        help_text='AWS secret access key (encrypted)'
+        help_text='AWS secret access key (encrypted at rest)'
     )
     
     # Thumbnail Storage Configuration

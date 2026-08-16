@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
@@ -32,6 +34,8 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 def revoke_all_refresh_tokens(user):
@@ -193,39 +197,48 @@ class AuthViewSet(viewsets.ViewSet):
         # Create reset link using configured site URL
         reset_link = f"{site_settings.site_url}/auth/reset-password?uid={uid}&token={token}"
         
-        # Send email using configured settings
+        # Dispatch the email.
+        #
+        # Queued via Celery so a slow or unreachable SMTP host cannot hold a
+        # request thread (there are only workers x threads of them). With no
+        # broker configured this runs inline, exactly as before.
+        #
+        # Django's PASSWORD_RESET_TIMEOUT is what actually governs expiry, so
+        # the copy below reads it rather than hardcoding "24 hours", which was
+        # wrong — the default is 3 days.
+        from .tasks import send_password_reset_email
+
+        expiry_hours = int(settings.PASSWORD_RESET_TIMEOUT / 3600)
+
         try:
-            # Temporarily override Django email settings with admin-configured values
-            from django.core.mail import get_connection
-            
-            connection = get_connection(
-                backend=site_settings.email_backend,
-                host=site_settings.email_host,
-                port=site_settings.email_port,
-                username=site_settings.email_host_user,
-                password=site_settings.email_host_password,
-                use_tls=site_settings.email_use_tls,
-                use_ssl=site_settings.email_use_ssl,
-            )
-            
-            send_mail(
+            send_password_reset_email.delay(
+                recipient=user.email,
                 subject=f'Password Reset Request - {site_settings.site_name}',
-                message=f'Hello,\n\nYou requested to reset your password for {site_settings.site_name}.\n\n'
-                       f'Click the link below to reset your password:\n\n{reset_link}\n\n'
-                       f'This link will expire in 24 hours.\n\n'
-                       f'If you did not request this, please ignore this email.\n\n'
-                       f'Best regards,\n{site_settings.site_name} Team',
+                message=(
+                    f'Hello,\n\nYou requested to reset your password for '
+                    f'{site_settings.site_name}.\n\n'
+                    f'Click the link below to reset your password:\n\n{reset_link}\n\n'
+                    f'This link will expire in {expiry_hours} hours.\n\n'
+                    f'If you did not request this, please ignore this email.\n\n'
+                    f'Best regards,\n{site_settings.site_name} Team'
+                ),
                 from_email=site_settings.default_from_email,
-                recipient_list=[user.email],
-                connection=connection,
-                fail_silently=False,
+                connection_kwargs={
+                    'backend': site_settings.email_backend,
+                    'host': site_settings.email_host,
+                    'port': site_settings.email_port,
+                    'username': site_settings.email_host_user,
+                    'password': site_settings.email_host_password,
+                    'use_tls': site_settings.email_use_tls,
+                    'use_ssl': site_settings.email_use_ssl,
+                },
             )
-            print(f"✅ Password reset email sent to {user.email}")
-        except Exception as e:
-            # For development or if email fails, print the link
-            print(f"⚠️ Email sending failed: {str(e)}")
-            print(f"📧 Password reset link for {user.email}: {reset_link}")
-        
+        except Exception:
+            # Never surface delivery failure to the caller: the response is
+            # deliberately identical whether or not the address exists, and
+            # differentiating here would reintroduce user enumeration.
+            logger.exception("Failed to dispatch password reset email")
+
         return Response(
             {'detail': 'If an account with that email exists, a password reset link has been sent.'},
             status=status.HTTP_200_OK

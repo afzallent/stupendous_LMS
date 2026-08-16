@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
+from .fields import EncryptedCharField
+
 
 class User(AbstractUser):
     """
@@ -131,10 +133,10 @@ class SiteSettings(models.Model):
         blank=True,
         help_text="SMTP username/email address"
     )
-    email_host_password = models.CharField(
-        max_length=255,
+    email_host_password = EncryptedCharField(
+        max_length=500,
         blank=True,
-        help_text="SMTP password or app-specific password"
+        help_text="SMTP password or app-specific password (encrypted at rest)"
     )
     default_from_email = models.EmailField(
         default='noreply@example.com',

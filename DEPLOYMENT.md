@@ -144,6 +144,35 @@ In Coolify, tick **"Build Variable"** for this entry. The Dockerfile declares it
 
 ---
 
+## Background worker (optional)
+
+Email is dispatched through Celery. **You do not have to run a worker** — with `CELERY_BROKER_URL` unset, tasks execute inline and behave exactly as they did before Celery existed. Nothing is silently queued and dropped.
+
+To move email off the request path (recommended once you have real traffic — there are only `workers × threads` request slots, and a stalled SMTP host consumes one for the full `EMAIL_TIMEOUT`), add a second Coolify application from the same image:
+
+| Setting | Value |
+|---|---|
+| **Name** | LMS Worker |
+| **Build Pack** | Dockerfile (same as backend) |
+| **Start command** | `celery -A lms_project worker --loglevel=info` |
+| **Environment** | Same as the backend, plus `CELERY_BROKER_URL` |
+
+```bash
+CELERY_BROKER_URL=redis://<coolify-redis-hostname>:6379/1
+```
+
+Use a different Redis database number from `REDIS_URL` so cache eviction cannot discard queued tasks.
+
+## Encryption key for stored credentials
+
+SMTP and S3 credentials entered in the Django admin are encrypted at rest. Set `FIELD_ENCRYPTION_KEY`:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+If you leave it blank the key is derived from `SECRET_KEY`, which couples the two: **rotating `SECRET_KEY` would then make every stored credential undecryptable.** Set it explicitly, and back it up alongside your database — a database restored without this key cannot read its own credentials.
+
 ## Upload size limits
 
 The API accepts videos up to 500 MB. That limit is enforced **after** the request body has been received, so it rejects an oversized file but does not stop the transfer — a hard cap has to live in the reverse proxy.

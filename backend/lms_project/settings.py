@@ -360,9 +360,40 @@ else:
     }
 
 # Email
-# Sent synchronously inside the request cycle, so keep the timeout short:
-# an unresponsive SMTP host must not tie up a worker thread.
+# Bounded so an unresponsive SMTP host cannot tie up a worker thread, whether
+# the send happens in a Celery task or (in eager mode) inline.
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
+
+# ---------------------------------------------------------------------------
+# Celery
+#
+# Optional by design. With no CELERY_BROKER_URL, ALWAYS_EAGER makes .delay()
+# execute inline, so the app behaves exactly as it did before Celery existed —
+# no broker and no worker required for local development or CI, and forgetting
+# to deploy a worker degrades to synchronous sending rather than silently
+# discarding mail.
+#
+# To run tasks in the background:
+#   celery -A lms_project worker --loglevel=info
+# ---------------------------------------------------------------------------
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=REDIS_URL)
+
+CELERY_TASK_ALWAYS_EAGER = not bool(CELERY_BROKER_URL)
+# In eager mode, let task exceptions propagate so failures surface in the
+# request rather than being swallowed by a result object nobody inspects.
+CELERY_TASK_EAGER_PROPAGATES = True
+
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+# Acknowledge only after completion so a worker crash re-queues the task
+# instead of losing it.
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_TIME_LIMIT = config('CELERY_TASK_TIME_LIMIT', default=120, cast=int)
+CELERY_TASK_SOFT_TIME_LIMIT = config('CELERY_TASK_SOFT_TIME_LIMIT', default=90, cast=int)
 
 # ---------------------------------------------------------------------------
 # Upload limits
@@ -459,6 +490,19 @@ LOGGING = {
 # Entirely optional: with no SENTRY_DSN set this block is a no-op, so local
 # development and CI never phone home. Enable it in deployed environments.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Field-level encryption
+#
+# Key for credentials stored in the database (SMTP password, S3 keys) via
+# core.fields.EncryptedCharField. Generate with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+#
+# If left blank the key is derived from SECRET_KEY, which means rotating
+# SECRET_KEY makes those stored credentials undecryptable. Set this explicitly
+# in any environment you intend to keep.
+# ---------------------------------------------------------------------------
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='')
+
 SENTRY_DSN = config('SENTRY_DSN', default='')
 
 if SENTRY_DSN:

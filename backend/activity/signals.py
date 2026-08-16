@@ -1,6 +1,7 @@
 from django.contrib.auth.signals import user_logged_in, user_logged_out
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 from .models import SessionActivity
 from .utils import log_activity
 
@@ -61,6 +62,55 @@ def log_lesson_completion(sender, instance, created, **kwargs):
                 content_object=instance.lesson,
                 description=f"{instance.student.username} completed {instance.lesson.title}"
             )
+
+
+@receiver(post_save, sender='courses.Progress')
+def sync_lesson_time_tracking_completion(sender, instance, created, **kwargs):
+    """
+    Mirror completion from Progress onto LessonTimeTracking.
+
+    Both models carry `completed`/`completed_at` for the same
+    (student, lesson) pair, and they were never kept in agreement.
+    `courses.Progress` is written by the lesson-completion endpoint and is
+    what most analytics read; `LessonTimeTracking.completed` had **no writer
+    at all** outside tests — `mark_complete()` exists but is never called.
+    Any report reading it therefore showed zero completions regardless of
+    real student activity.
+
+    `Progress` is the single source of truth. `LessonTimeTracking` owns time
+    and engagement metrics only, and its completion flag is derived here so
+    existing readers stop being wrong. Do not write it directly.
+    See PRODUCTION_READINESS.md (P2 schema item).
+    """
+    from .models import LessonTimeTracking
+
+    if not instance.completed:
+        return
+
+    completed_at = instance.completed_at or timezone.now()
+
+    # Only create a tracking row if one already exists: this signal reflects
+    # completion, it does not fabricate viewing time for a lesson the student
+    # never opened in the player.
+    updated = LessonTimeTracking.objects.filter(
+        student=instance.student,
+        lesson=instance.lesson,
+        completed=False,
+    ).update(completed=True, completed_at=completed_at)
+
+    if not updated:
+        # No player session recorded (e.g. marked complete from the course
+        # outline). Create a zero-time row so completion reporting is
+        # consistent across both models.
+        LessonTimeTracking.objects.get_or_create(
+            student=instance.student,
+            lesson=instance.lesson,
+            defaults={
+                'completed': True,
+                'completed_at': completed_at,
+                'time_spent': 0,
+            },
+        )
 
 
 @receiver(post_save, sender='quizzes.QuizAttempt')

@@ -62,7 +62,26 @@ class Question(models.Model):
     
     class Meta:
         ordering = ['quiz', 'order']
-    
+        constraints = [
+            # is_in_bank is a denormalisation of "quiz IS NULL". Nothing kept
+            # the two in agreement, so a bank question could carry a quiz (and
+            # vanish from the bank view) or a quiz question could be flagged
+            # as banked. The database now rejects both states outright.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(is_in_bank=True, quiz__isnull=True)
+                    | models.Q(is_in_bank=False, quiz__isnull=False)
+                ),
+                name='question_bank_flag_matches_quiz',
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        # Derive the flag from the relation so callers cannot disagree with
+        # the constraint above. The relation is the source of truth.
+        self.is_in_bank = self.quiz_id is None
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.question_text[:50]}..."
 

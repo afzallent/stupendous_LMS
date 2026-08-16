@@ -38,3 +38,9 @@ hypothesis==6.92.1
 
 # Error tracking (no-op unless SENTRY_DSN is set)
 sentry-sdk==2.14.0
+
+# Field-level encryption for credentials stored in the database
+cryptography==43.0.1
+
+# Background task queue (optional — runs inline when CELERY_BROKER_URL is unset)
+celery==5.4.0

@@ -412,6 +412,61 @@ The root `Dockerfile` builds a backend-only image, but `supervisord.conf` refere
 
 ---
 
+---
+
+# Schema-level findings
+
+Identified in a follow-up pass over the data model rather than the request path. All fixed.
+
+### S-1 · Cascade-only deletion destroyed credentials and audit history
+**Where:** `certificates/models.py` · `activity/models.py`
+
+`Certificate.student` and `Certificate.course` were both `CASCADE`, so deleting a user or a course silently destroyed every certificate attached to it — including credentials already issued and published for third-party verification. `ActivityLog.user` was likewise `CASCADE`: an audit log that vanishes with the account it incriminates is not an audit log.
+
+**Fix:** both are now `SET_NULL`. Certificates already denormalise `student_name`, `course_title` and `instructor_name` at issue time, so the record stays fully verifiable without its relations. `SET_NULL` rather than `PROTECT` deliberately — `PROTECT` would make it impossible to delete any user who had ever earned a certificate, which conflicts with data-subject erasure requests.
+
+**Still to do when payments land:** apply the same reasoning to the `Order`/`Payment` model. A financial record must never be deleted by a cascade from a user account.
+
+---
+
+### S-2 · Credentials stored in the database in plaintext
+**Where:** `core/models.py` (`SiteSettings.email_host_password`) · `media_config/models.py` (S3 keys, file-server password)
+
+Plain `CharField`s, so any database dump, replica or backup exposed them. The `media_config` fields even carried `help_text` claiming they were encrypted, which was never true.
+
+**Fix:** `core/fields.py` provides `EncryptedCharField` using Fernet (AES-128-CBC + HMAC-SHA256). Reads tolerate legacy plaintext so existing rows keep working. Keyed by `FIELD_ENCRYPTION_KEY`, falling back to an HKDF derivation from `SECRET_KEY` — documented as coupling the two, so an explicit key should be set in any environment intended to last.
+
+This protects dumps, backups and replicas. It does **not** protect against application-level code execution, which can read the key. For that, move the secrets to a dedicated manager and store only a reference.
+
+---
+
+### S-3 · Lesson had two paths to a course, kept in agreement by nothing
+**Where:** `courses/models.py`
+
+`Lesson.course` and `Lesson.chapter.course` could disagree. This became sharp once the enrollment-scoped querysets started filtering by `course`: a mis-parented lesson would either disappear from the course it is displayed under, or surface inside a course the student had not paid for.
+
+**Fix:** validation in `Lesson.clean()` and `Lesson.save()`, plus a data migration detaching any existing mismatched lesson from its chapter. Detaching is the conservative repair — reassigning `course` to match the chapter would move paid material across course boundaries.
+
+---
+
+### S-4 · Two competing sources of completion truth
+**Where:** `courses.Progress` vs `activity.LessonTimeTracking`
+
+Both carried `completed`/`completed_at` for the same `(student, lesson)` pair, unsynced. `Progress` is written by the lesson-completion endpoint; `LessonTimeTracking.completed` had **no writer at all** outside tests — `mark_complete()` was defined and never called. Every report reading it showed zero completions regardless of real student activity.
+
+**Fix:** `Progress` is the single source of truth. `LessonTimeTracking` owns time and engagement metrics only, and its completion flag is now derived by a signal, with a data migration backfilling the accumulated history. The model docstring records the ownership so it is not re-broken.
+
+---
+
+### S-5 · `Question.is_in_bank` could disagree with `quiz IS NULL`
+**Where:** `quizzes/models.py`
+
+The flag is a denormalisation of "this question belongs to no quiz", but nothing enforced it, so a bank question could carry a quiz and silently vanish from the bank view.
+
+**Fix:** a `CheckConstraint` rejects both inconsistent states, `save()` derives the flag from the relation, and a data migration normalises existing rows before the constraint is applied.
+
+---
+
 ## Notes for the payment integration
 
 The Django backend has **no order or payment model of any kind**. `Enrollment` records only `student`, `course`, `enrolled_at`.

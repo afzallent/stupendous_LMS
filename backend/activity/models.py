@@ -61,14 +61,19 @@ class ActivityLog(models.Model):
         ('profile_update', 'Updated Profile'),
     ]
     
-    # User who performed the action
+    # User who performed the action.
+    #
+    # SET_NULL, not CASCADE: an audit log that disappears when the account it
+    # incriminates is deleted is not an audit log. The row survives with a
+    # null actor, and `description`/`metadata` retain the human-readable
+    # context recorded at the time.
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name='activities',
         null=True,
         blank=True,
-        help_text="User who performed the action (null for anonymous)"
+        help_text="User who performed the action (null for anonymous, or for a deleted account)"
     )
     
     # Action details
@@ -171,6 +176,16 @@ class LessonTimeTracking(models.Model):
     """
     Detailed time tracking for lesson viewing.
     Tracks how long students spend on each lesson.
+
+    SOURCE OF TRUTH: this model owns *time and engagement* data
+    (time_spent, last_position, pause_count, replay_count).
+
+    It does NOT own completion. `courses.Progress` is authoritative for
+    whether a lesson is complete; the `completed`/`completed_at` fields below
+    are a derived mirror, maintained by
+    `activity.signals.sync_lesson_time_tracking_completion`. Do not set them
+    directly — a direct write will be silently overwritten and will disagree
+    with every report that reads Progress.
     """
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,

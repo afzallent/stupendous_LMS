@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.core.exceptions import ValidationError
 from django.db import models, IntegrityError
 from django.db.models import F
 from django.conf import settings
@@ -236,6 +237,33 @@ class Lesson(models.Model):
 
     class Meta:
         ordering = ['order']
+
+    def clean(self):
+        """
+        A lesson has two paths to a course: directly via `course`, and
+        indirectly via `chapter.course`. Nothing kept them in agreement.
+
+        This matters more than it used to: the lesson, quiz and question
+        querysets now filter by `course`, so a lesson whose chapter belongs to
+        a different course would either vanish from the course it is displayed
+        under, or surface inside a course the student has not paid for.
+        """
+        super().clean()
+        if self.chapter_id and self.chapter.course_id != self.course_id:
+            raise ValidationError({
+                'chapter': (
+                    'Chapter belongs to a different course than the lesson. '
+                    'A lesson may only be placed in a chapter of its own course.'
+                )
+            })
+
+    def save(self, *args, **kwargs):
+        # Enforce on every write, not just on forms that call full_clean().
+        if self.chapter_id and self.chapter.course_id != self.course_id:
+            raise ValidationError(
+                'Lesson.chapter must belong to the same course as Lesson.course.'
+            )
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.course.title} - {self.title}"
