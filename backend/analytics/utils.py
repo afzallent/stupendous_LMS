@@ -59,21 +59,28 @@ def calculate_trainer_analytics(trainer):
         enrollment_count = course.enrollments.count()
         lessons_count = course.lessons.count()
 
-        # Calculate average progress for this course
-        # Progress percentage = (completed lessons / total lessons) * 100
-        progress_data = Progress.objects.filter(
-            lesson__course=course,
-            completed=True
-        ).aggregate(
-            avg_progress=Avg(
-                ExpressionWrapper(
-                    Count('id') * 100.0 / lessons_count,
-                    output_field=FloatField()
+        # Average completion across enrolled students: for each student,
+        # completed lessons / total lessons * 100, then mean over students.
+        # (Aggregating an aggregate — Avg(Count(...)) — is not valid SQL; the
+        # per-student counts are annotated and averaged here instead.)
+        if lessons_count > 0 and enrollment_count > 0:
+            enrolled = course.enrollments.values('student')
+            per_student = (
+                Progress.objects.filter(
+                    lesson__course=course,
+                    completed=True,
+                    student__in=enrolled,
                 )
-            ) if lessons_count > 0 else None
-        )
-
-        avg_progress = progress_data.get('avg_progress') or 0
+                .values('student')
+                .annotate(done=Count('id', distinct=True))
+            )
+            total_pct = sum(
+                min(row['done'], lessons_count) / lessons_count * 100.0
+                for row in per_student
+            )
+            avg_progress = total_pct / enrollment_count
+        else:
+            avg_progress = 0
 
         courses_data.append({
             'id': course.id,

@@ -11,7 +11,7 @@ def create_notification(
     message,
     related_course=None,
     related_user=None,
-    link=None
+    link=''
 ):
     """
     Create a notification for a user after checking their notification preferences.

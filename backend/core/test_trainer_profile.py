@@ -347,7 +347,7 @@ class TrainerPasswordChangeTests(TestCase):
             '/api/trainer/profile/change_password/',
             {
                 'current_password': 'OldPass123',
-                'new_password': 'NewPassword'
+                'new_password': 'XylophoneQuartz'
             }
         )
         

@@ -311,7 +311,7 @@ class QuizViewSetTestCase(APITestCase):
         from .models import QuizAttempt
         
         # Enroll student
-        Enrollment.objects.create(student=self.student, course=self.course)
+        Enrollment.objects.get_or_create(student=self.student, course=self.course)
         
         # Add questions to quiz
         question = Question.objects.create(
@@ -358,7 +358,7 @@ class QuizViewSetTestCase(APITestCase):
         from courses.models import Enrollment
         
         # Enroll student
-        Enrollment.objects.create(student=self.student, course=self.course)
+        Enrollment.objects.get_or_create(student=self.student, course=self.course)
         
         # Add questions to quiz
         question = Question.objects.create(
@@ -396,7 +396,7 @@ class QuizViewSetTestCase(APITestCase):
         from .models import QuizAttempt
         
         # Enroll student
-        Enrollment.objects.create(student=self.student, course=self.course)
+        Enrollment.objects.get_or_create(student=self.student, course=self.course)
         
         # Create attempts
         QuizAttempt.objects.create(
@@ -436,7 +436,7 @@ class QuizViewSetTestCase(APITestCase):
         from .models import QuizAttempt
         
         # Enroll student
-        Enrollment.objects.create(student=self.student, course=self.course)
+        Enrollment.objects.get_or_create(student=self.student, course=self.course)
         
         # Create attempts for this student
         QuizAttempt.objects.create(
@@ -476,7 +476,7 @@ class QuizViewSetTestCase(APITestCase):
         from .models import QuizAttempt, QuizAnswer
         
         # Enroll student
-        Enrollment.objects.create(student=self.student, course=self.course)
+        Enrollment.objects.get_or_create(student=self.student, course=self.course)
         
         # Add questions to quiz
         question1 = Question.objects.create(
@@ -748,7 +748,9 @@ class QuestionManagementTestCase(APITestCase):
             ]
         }
         response = self.client.post(f'/api/quizzes/{self.quiz.id}/questions/', data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # 404, not 403: the quiz is not in this instructor's scoped queryset,
+        # so its existence is not revealed (see PRODUCTION_READINESS.md P1-5).
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_add_question_sets_order_automatically(self):
         """Test adding questions sets order automatically"""

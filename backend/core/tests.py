@@ -197,8 +197,24 @@ class TestProfileImageValidation:
         # Authenticate the user
         client.force_authenticate(user=user)
         
-        # Create a mock file with the specified size and content type
-        file_content = b'x' * file_size
+        # Build the payload: for claimed image types, embed a real tiny image
+        # (validation inspects actual bytes, not the client-supplied
+        # content-type — see core/upload_validation.py) padded to file_size;
+        # Pillow ignores trailing bytes past the image data.
+        from PIL import Image as PILImage
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        format_map = {
+            'image/jpeg': 'JPEG', 'image/png': 'PNG',
+            'image/gif': 'GIF', 'image/webp': 'WEBP',
+        }
+        if content_type in format_map:
+            buf = BytesIO()
+            PILImage.new('RGB', (2, 2), color=(30, 60, 90)).save(
+                buf, format=format_map[content_type])
+            real = buf.getvalue()
+            file_content = real if len(real) >= file_size else real + b'x' * (file_size - len(real))
+        else:
+            file_content = b'x' * file_size
         file_name = f"test_avatar_{unique_id}.jpg"
         uploaded_file = SimpleUploadedFile(
             name=file_name,
