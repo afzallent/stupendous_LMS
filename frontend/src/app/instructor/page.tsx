@@ -36,6 +36,7 @@ import {
   Settings
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
+import { BrandMark } from "@/lib/branding"
 
 export default function InstructorDashboard() {
   const router = useRouter()
@@ -413,8 +414,7 @@ export default function InstructorDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <BookOpen className="h-8 w-8 text-primary" />
-                <span className="text-2xl font-bold">CourseCompass</span>
+                <BrandMark logoClassName="h-8 w-8 text-primary" textClassName="text-2xl font-bold" href={null} />
               </div>
               <nav className="hidden md:flex items-center space-x-6">
                 <a href="/" className="text-sm font-medium hover:text-primary">Home</a>

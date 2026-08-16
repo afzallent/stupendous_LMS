@@ -34,6 +34,7 @@ import {
 import Link from "next/link"
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
+import { BrandMark } from "@/lib/branding"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -363,8 +364,7 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Link href={getDashboardLink()} className="flex items-center space-x-2">
-                <BookOpen className="h-8 w-8 text-primary" />
-                <span className="text-2xl font-bold">CourseCompass</span>
+                <BrandMark logoClassName="h-8 w-8 text-primary" textClassName="text-2xl font-bold" href={null} />
               </Link>
               <div className="hidden md:flex items-center space-x-2 text-sm">
                 <span className="text-muted-foreground">Profile Settings</span>

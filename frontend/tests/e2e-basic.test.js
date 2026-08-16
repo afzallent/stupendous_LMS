@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer';
 
-describe('CourseCompass V2 - Basic E2E Tests', () => {
+describe('Stupendous LMS - Basic E2E Tests', () => {
   let browser;
   let page;
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';

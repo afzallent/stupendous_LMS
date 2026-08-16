@@ -82,9 +82,9 @@ npm run test:report    # Generate interactive HTML reports
 pm2 start ecosystem.config.js     # Start production server
 pm2 start ecosystem.dev.config.js # Start development with watch
 pm2 status                        # Check application status
-pm2 logs coursecompass-v2         # View application logs
-pm2 restart coursecompass-v2      # Restart application
-pm2 stop coursecompass-v2         # Stop application
+pm2 logs stupendous-lms         # View application logs
+pm2 restart stupendous-lms      # Restart application
+pm2 stop stupendous-lms         # Stop application
 
 # Code Quality
 npm run lint           # Run ESLint

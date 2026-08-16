@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'coursecompass-dev',
+      name: 'stupendous-lms-dev',
       script: 'npm',
       args: 'run dev',
       cwd: './',

@@ -2,6 +2,7 @@
 
 import { AuthProvider } from "@/lib/auth"
 import { CartProvider } from "@/contexts/cart-context"
+import { BrandingProvider } from "@/lib/branding"
 
 interface ProvidersProps {
   children: React.ReactNode
@@ -9,10 +10,12 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <AuthProvider>
-      <CartProvider>
-        {children}
-      </CartProvider>
-    </AuthProvider>
+    <BrandingProvider>
+      <AuthProvider>
+        <CartProvider>
+          {children}
+        </CartProvider>
+      </AuthProvider>
+    </BrandingProvider>
   )
 }

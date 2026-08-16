@@ -133,7 +133,7 @@ async function generateCertificatePDF(
       doc.fillColor("#10b981")
         .fontSize(12)
         .font("Helvetica-Bold")
-        .text("Verified by CourseCompass", 0, 520, {
+        .text("Verified by Stupendous LMS", 0, 520, {
           align: "center"
         })
 

@@ -19,7 +19,7 @@ print("Creating admin user...")
 admin_user, created = User.objects.get_or_create(
     username='admin',
     defaults={
-        'email': 'admin@coursecompass.com',
+        'email': 'admin@example.com',
         'first_name': 'Admin',
         'last_name': 'User',
         'is_staff': True,
@@ -41,7 +41,7 @@ print("\nCreating instructor user...")
 instructor_user, created = User.objects.get_or_create(
     username='instructor',
     defaults={
-        'email': 'instructor@coursecompass.com',
+        'email': 'instructor@example.com',
         'first_name': 'John',
         'last_name': 'Instructor',
         'is_staff': False,
@@ -166,11 +166,11 @@ print("="*60)
 print("\n📋 CREDENTIALS FOR VERIFICATION:\n")
 print("Admin User:")
 print("  Username: admin")
-print("  Email: admin@coursecompass.com")
+print("  Email: admin@example.com")
 print("  Password: Admin@123")
 print("\nInstructor User:")
 print("  Username: instructor")
-print("  Email: instructor@coursecompass.com")
+print("  Email: instructor@example.com")
 print("  Password: Instructor@123")
 print("\n📊 Data Created:")
 print(f"  - 1 Admin User")

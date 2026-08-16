@@ -1,14 +1,14 @@
 // Simple demo test to showcase test reporting
-describe('CourseCompass V2 Demo Tests', () => {
+describe('Stupendous LMS Demo Tests', () => {
   describe('Basic Application Tests', () => {
     test('should validate application configuration', () => {
       const config = {
-        appName: 'CourseCompass V2',
+        appName: 'Stupendous LMS',
         version: '0.1.0',
         environment: 'test'
       };
       
-      expect(config.appName).toBe('CourseCompass V2');
+      expect(config.appName).toBe('Stupendous LMS');
       expect(config.version).toBeDefined();
       expect(config.environment).toBe('test');
     });

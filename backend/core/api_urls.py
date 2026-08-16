@@ -15,6 +15,9 @@ router.register(r'user', views.UserProfileViewSet, basename='user')
 urlpatterns = [
     # Health check endpoint
     path('health/', views.health_check, name='health-check'),
+
+    # Public white-label branding (site name, tagline, logo)
+    path('settings/branding/', views.branding, name='branding'),
     
     # Router endpoints
     path('', include(router.urls)),

@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/hooks/use-toast"
+import { useBrand } from "@/lib/branding"
 
 const providerIcons: { [key: string]: any } = {
   google: Chrome,
@@ -38,6 +39,7 @@ const providerStyles: { [key: string]: string } = {
 }
 
 function AuthPageContent() {
+  const brand = useBrand()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<any>({})
@@ -280,7 +282,7 @@ function AuthPageContent() {
       
       toast({
         title: "Account Created",
-        description: "Welcome to CourseCompass! Redirecting to your dashboard..."
+        description: `Welcome to ${brand.name}! Redirecting to your dashboard...`
       })
         
       // Redirect to student dashboard (new signups default to STUDENT)
@@ -334,7 +336,7 @@ function AuthPageContent() {
               <BookOpen className="h-8 w-8 text-white" />
             </div>
             <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              CourseCompass
+              {brand.name}
             </span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome back</h1>
@@ -475,7 +477,7 @@ function AuthPageContent() {
               <CardHeader className="text-center">
                 <CardTitle className="text-xl">Create your account</CardTitle>
                 <CardDescription>
-                  Join CourseCompass and start your learning journey
+                  Join {brand.name} and start your learning journey
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">

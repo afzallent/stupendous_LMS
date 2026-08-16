@@ -13,6 +13,7 @@ import { XLVILoader } from "@/components/ui/xlvi-loader"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
+import { BrandMark } from "@/lib/branding"
 
 interface EnrolledCourse {
   id: string
@@ -208,12 +209,7 @@ export default function StudentDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/" className="flex items-center space-x-2">
-                <BookOpen className="h-8 w-8 text-blue-600" />
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  CourseCompass
-                </span>
-              </Link>
+              <BrandMark logoClassName="h-8 w-8 text-blue-600" textClassName="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" />
               <nav className="hidden md:flex items-center space-x-6">
                 <Link href="/learn" className="text-sm font-medium text-blue-600 border-b-2 border-blue-600">My Learning</Link>
                 <Link href="/courses" className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">Browse Courses</Link>

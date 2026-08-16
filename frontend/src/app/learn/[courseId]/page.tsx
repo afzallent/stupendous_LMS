@@ -34,6 +34,7 @@ import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
+import { BrandMark } from "@/lib/branding"
 
 // Quizzes Tab Component
 function QuizzesTab({ courseId }: { courseId: string }) {
@@ -372,8 +373,7 @@ export default function CourseOverviewPage({ params }: { params: Promise<{ cours
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <Link href="/learn" className="flex items-center space-x-2">
-              <BookOpen className="h-7 w-7 text-primary" />
-              <span className="text-xl font-bold">CourseCompass</span>
+              <BrandMark logoClassName="h-7 w-7 text-primary" textClassName="text-xl font-bold" href={null} />
             </Link>
             <Button variant="ghost" size="sm" onClick={handleBackToDashboard}>
               <ArrowLeft className="h-4 w-4 mr-2" />

@@ -106,21 +106,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Load cart from localStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem('coursecompass-cart')
+    const savedCart = localStorage.getItem('lms-cart')
     if (savedCart) {
       try {
         const parsedCart = JSON.parse(savedCart)
         dispatch({ type: 'LOAD_CART', payload: parsedCart })
       } catch (error) {
         console.error('Error loading cart from localStorage:', error)
-        localStorage.removeItem('coursecompass-cart')
+        localStorage.removeItem('lms-cart')
       }
     }
   }, [])
 
   // Save cart to localStorage whenever state changes
   useEffect(() => {
-    localStorage.setItem('coursecompass-cart', JSON.stringify(state.items))
+    localStorage.setItem('lms-cart', JSON.stringify(state.items))
   }, [state.items])
 
   const addToCart = (item: CartItem) => {

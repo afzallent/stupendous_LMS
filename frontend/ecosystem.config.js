@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'coursecompass-v2',
+      name: 'stupendous-lms',
       script: 'server.ts',
       interpreter: 'tsx',
       cwd: './',

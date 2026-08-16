@@ -1,6 +1,6 @@
 # Product Overview
 
-CourseCompass V2 is a comprehensive Course and Content Learning Management System built as a modern web application. It facilitates online learning with advanced features for course creation, student enrollment, progress tracking, interactive assessments, and real-time communication. The platform supports multiple payment methods and provides detailed analytics for both learners and instructors.
+Stupendous LMS is a comprehensive Course and Content Learning Management System built as a modern web application. It facilitates online learning with advanced features for course creation, student enrollment, progress tracking, interactive assessments, and real-time communication. The platform supports multiple payment methods and provides detailed analytics for both learners and instructors.
 
 ## Core Features
 

@@ -1,4 +1,4 @@
-// Test data fixtures for CourseCompass V2 testing
+// Test data fixtures for Stupendous LMS testing
 
 const TEST_USERS = {
   STUDENT: {

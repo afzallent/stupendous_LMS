@@ -36,6 +36,7 @@ import { useRouter } from "next/navigation"
 import { djangoApi } from "@/lib/django-api-client"
 import { toast } from "@/hooks/use-toast"
 import { CourseCompletionModal } from "@/components/course-completion-modal"
+import { BrandMark } from "@/lib/branding"
 
 declare global {
   interface Window {
@@ -399,8 +400,7 @@ export default function LearnPage({ params }: { params: Promise<{ courseId: stri
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/learn" className="flex items-center gap-2">
-                <BookOpen className="h-6 w-6 text-primary" />
-                <span className="font-bold hidden sm:inline">CourseCompass</span>
+                <BrandMark logoClassName="h-6 w-6 text-primary" textClassName="font-bold hidden sm:inline" href={null} />
               </Link>
               <div className="h-6 w-px bg-border hidden sm:block" />
               <span className="text-sm text-muted-foreground hidden md:inline truncate max-w-[300px]">

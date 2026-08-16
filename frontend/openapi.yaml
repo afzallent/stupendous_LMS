@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: CourseCompass V2 Learning Management System API
+  title: Stupendous LMS Learning Management System API
   description: |
-    Comprehensive API for CourseCompass V2, a modern Learning Management System (LMS) built with Next.js 15.
+    Comprehensive API for Stupendous LMS, a modern Learning Management System (LMS) built with Next.js 15.
     
     This API supports:
     - Multi-role authentication (Students, Trainers, Admins)
@@ -17,8 +17,8 @@ info:
     **Base URL**: http://localhost:3000/api (development)
   version: 2.0.0
   contact:
-    name: CourseCompass Team
-    url: https://coursecompass.com
+    name: Stupendous LMS Team
+    url: https://example.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -26,7 +26,7 @@ info:
 servers:
   - url: http://localhost:3000/api
     description: Development server
-  - url: https://coursecompass.com/api
+  - url: https://example.com/api
     description: Production server
 
 paths:

@@ -11,8 +11,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { BookOpen, Eye, EyeOff, Mail, Lock, User } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth"
+import { BrandMark, useBrand } from "@/lib/branding"
 
 export default function SignupPage() {
+  const brand = useBrand()
   const router = useRouter()
   const { signup } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
@@ -61,11 +63,10 @@ export default function SignupPage() {
         {/* Logo and Brand */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">CourseCompass</span>
+            <BrandMark logoClassName="h-8 w-8" textClassName="text-2xl font-bold" href={null} />
           </div>
           <h1 className="text-2xl font-bold">Create Account</h1>
-          <p className="text-muted-foreground">Join CourseCompass to start your learning journey</p>
+          <p className="text-muted-foreground">Join {brand.name} to start your learning journey</p>
         </div>
 
         <Card>
@@ -79,7 +80,7 @@ export default function SignupPage() {
               <CardHeader>
                 <CardTitle>Create Account</CardTitle>
                 <CardDescription>
-                  Join CourseCompass to start your learning journey
+                  Join {brand.name} to start your learning journey
                 </CardDescription>
               </CardHeader>
               <CardContent>

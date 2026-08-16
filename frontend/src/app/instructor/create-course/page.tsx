@@ -54,6 +54,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { BrandMark } from "@/lib/branding"
 
 function CreateCoursePageContent() {
   const router = useRouter()
@@ -866,8 +867,7 @@ function CreateCoursePageContent() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Link href="/instructor" className="flex items-center space-x-2">
-                <BookOpen className="h-8 w-8 text-primary" />
-                <span className="text-2xl font-bold">CourseCompass</span>
+                <BrandMark logoClassName="h-8 w-8 text-primary" textClassName="text-2xl font-bold" href={null} />
               </Link>
               <div className="hidden md:flex items-center space-x-2 text-sm">
                 <span className="text-muted-foreground">{isEditMode ? 'Edit Course' : 'Create Course'}</span>

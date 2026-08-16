@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Award, Download, Share2, Calendar, Loader2 } from "lucide-react"
+import { useBrand } from "@/lib/branding"
 
 interface CertificateTemplateProps {
   studentName: string
@@ -21,6 +22,7 @@ export function CertificateTemplate({
   certificateId,
   instructorName
 }: CertificateTemplateProps) {
+  const brand = useBrand()
   const certificateRef = useRef<HTMLDivElement>(null)
   const [isDownloading, setIsDownloading] = useState(false)
 
@@ -77,12 +79,24 @@ export function CertificateTemplate({
               height: 80px;
               background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
               border-radius: 50%;
-              margin: 0 auto 20px;
+              margin: 0 auto 12px;
               display: flex;
               align-items: center;
               justify-content: center;
               color: white;
               font-size: 40px;
+            }
+            .issuer {
+              font-size: 18px;
+              letter-spacing: 3px;
+              text-transform: uppercase;
+              color: #4f46e5;
+              margin-bottom: 10px;
+            }
+            .issuer img {
+              height: 28px;
+              vertical-align: middle;
+              margin-right: 8px;
             }
             .title {
               font-size: 36px;
@@ -176,6 +190,8 @@ export function CertificateTemplate({
         <body>
           <div class="certificate">
             <div class="award-icon">🏆</div>
+            ${brand.logoUrl ? `<div class="issuer"><img src="${brand.logoUrl}" alt="" /></div>` : ""}
+            <div class="issuer">${brand.name}</div>
             <h1 class="title">Certificate of Completion</h1>
             <div class="divider"></div>
             <p class="subtitle">This is to certify that</p>
@@ -190,6 +206,7 @@ export function CertificateTemplate({
               </div>
               <div class="verification">
                 <div class="cert-id">Certificate ID: ${certificateId}</div>
+                <div class="verify-url">Issued by ${brand.name}</div>
                 <div class="verify-url">Verify at: ${verifyUrl}</div>
               </div>
             </div>
@@ -275,6 +292,7 @@ export function CertificateTemplate({
               </div>
               <h1 className="text-4xl font-bold text-gray-800">Certificate of Completion</h1>
               <div className="w-32 h-1 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded"></div>
+              <p className="text-sm uppercase tracking-widest text-blue-600">{brand.name}</p>
             </div>
 
             {/* Content */}
@@ -310,6 +328,9 @@ export function CertificateTemplate({
                 <Badge variant="secondary" className="mb-2">
                   Certificate ID: {certificateId}
                 </Badge>
+                <p className="text-xs text-gray-500">
+                  Issued by {brand.name}
+                </p>
                 <p className="text-xs text-gray-500">
                   Verify at: {typeof window !== 'undefined' ? window.location.host : 'learn.5stars.dev'}/certificates/{certificateId}
                 </p>

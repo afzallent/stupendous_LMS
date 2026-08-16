@@ -20,8 +20,8 @@ const TEST_CONFIG = {
   // Test environments
   environments: {
     local: 'http://localhost:3000',
-    staging: process.env.STAGING_URL || 'https://staging.coursecompass.com',
-    production: process.env.PRODUCTION_URL || 'https://coursecompass.com'
+    staging: process.env.STAGING_URL || 'https://staging.example.com',
+    production: process.env.PRODUCTION_URL || 'https://example.com'
   },
   
   // Browser configurations
@@ -57,7 +57,7 @@ class TestRunner {
       generateReport = true
     } = options;
 
-    console.log('\n🚀 Starting CourseCompass V2 Test Suite');
+    console.log('\n🚀 Starting Stupendous LMS Test Suite');
     console.log('=====================================');
     console.log(`Environment: ${environment}`);
     console.log(`Mode: ${mode}`);
@@ -346,7 +346,7 @@ class TestRunner {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CourseCompass V2 Test Report</title>
+    <title>Stupendous LMS Test Report</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .header { background: #f5f5f5; padding: 20px; border-radius: 5px; }
@@ -364,7 +364,7 @@ class TestRunner {
 </head>
 <body>
     <div class="header">
-        <h1>CourseCompass V2 Test Report</h1>
+        <h1>Stupendous LMS Test Report</h1>
         <p><strong>Generated:</strong> ${data.timestamp}</p>
         <p><strong>Environment:</strong> ${data.environment}</p>
         <p><strong>Duration:</strong> ${Math.round(data.duration / 1000)}s</p>
@@ -482,7 +482,7 @@ if (require.main === module) {
         break;
       case '--help':
         console.log(`
-CourseCompass V2 Test Runner
+Stupendous LMS Test Runner
 
 Usage: node test-runner.js [options]
 

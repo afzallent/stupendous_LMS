@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Role-Based Test Execution and Reporting for CourseCompass V2
+ * Role-Based Test Execution and Reporting for Stupendous LMS
  * This script runs targeted tests for each user role and generates a comprehensive report
  */
 
@@ -27,7 +27,7 @@ class RoleBasedTestRunner {
   }
 
   async runRoleBasedTests() {
-    console.log('🎓 Running Role-Based Tests for CourseCompass V2');
+    console.log('🎓 Running Role-Based Tests for Stupendous LMS');
     console.log('==============================================');
 
     // Run tests for each role
@@ -273,7 +273,7 @@ class RoleBasedTestRunner {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CourseCompass V2 - Role-Based Test Report</title>
+    <title>Stupendous LMS - Role-Based Test Report</title>
     <style>
         :root {
             --student-color: #3b82f6;
@@ -470,7 +470,7 @@ class RoleBasedTestRunner {
 <body>
     <div class="container">
         <header>
-            <h1>CourseCompass V2</h1>
+            <h1>Stupendous LMS</h1>
             <div class="subtitle">Role-Based Test Execution Report</div>
             <div class="subtitle">Generated: ${new Date(timestamp).toLocaleString()}</div>
         </header>
@@ -589,7 +589,7 @@ class RoleBasedTestRunner {
         </div>
 
         <div class="footer">
-            <p>CourseCompass V2 Role-Based Test Report • Generated automatically by test suite</p>
+            <p>Stupendous LMS Role-Based Test Report • Generated automatically by test suite</p>
             <p>This report provides a comprehensive overview of functionality testing across all user roles</p>
         </div>
     </div>

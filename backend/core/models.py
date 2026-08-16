@@ -137,19 +137,32 @@ class SiteSettings(models.Model):
         help_text="SMTP password or app-specific password"
     )
     default_from_email = models.EmailField(
-        default='noreply@coursecompass.com',
+        default='noreply@example.com',
         help_text="Default 'from' email address for system emails"
     )
     
     # Site Configuration
     site_name = models.CharField(
         max_length=100,
-        default='CourseCompass',
-        help_text="Name of the site (used in emails and UI)"
+        default='Stupendous LMS',
+        help_text="Name of the site (used in emails, UI, documents and certificates)"
     )
     site_url = models.URLField(
         default='http://localhost:3000',
         help_text="Frontend URL (used in password reset links)"
+    )
+    
+    # Branding (white-label support)
+    logo = models.ImageField(
+        upload_to='branding/',
+        null=True,
+        blank=True,
+        help_text="Brand logo shown in the frontend header, auth pages and certificates"
+    )
+    tagline = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Optional brand tagline shown alongside the site name"
     )
     
     # Timestamps

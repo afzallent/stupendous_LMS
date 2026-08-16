@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Star, Clock, Users, BookOpen, Play, TrendingUp, Award, CheckCircle, Sparkles } from "lucide-react"
 import Link from "next/link"
+import { BrandMark, BrandCopyright, useBrand } from "@/lib/branding"
 
 interface Course {
   id: string
@@ -50,6 +51,7 @@ const DEFAULT_STATS: Stat[] = [
 
 export default function Home() {
   const router = useRouter()
+  const brand = useBrand()
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [stats, setStats] = useState<Stat[]>(DEFAULT_STATS)
@@ -148,7 +150,7 @@ export default function Home() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading CourseCompass...</p>
+          <p className="text-gray-600">Loading {brand.name}...</p>
         </div>
       </div>
     )
@@ -162,13 +164,11 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className="relative">
-                  <BookOpen className="h-8 w-8 text-blue-600" />
-                  <Sparkles className="h-3 w-3 text-yellow-500 absolute -top-1 -right-1" />
-                </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  CourseCompass
-                </span>
+                <BrandMark
+                  logoClassName="h-8 w-8"
+                  textClassName="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+                  href={null}
+                />
               </div>
               <nav className="hidden md:flex items-center space-x-6">
                 <a href="/courses" className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">Browse Courses</a>
@@ -424,9 +424,11 @@ export default function Home() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <BookOpen className="h-6 w-6 text-blue-400" />
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  CourseCompass
-                </span>
+                <BrandMark
+                  logoClassName="h-7 w-7"
+                  textClassName="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+                  href={null}
+                />
               </div>
               <p className="text-sm text-gray-400">
                 Data-driven learning platform for students and instructors.
@@ -443,7 +445,7 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4 text-white">For Instructors</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-blue-400 transition-colors">Teach on CourseCompass</a></li>
+                <li><a href="#" className="hover:text-blue-400 transition-colors">Teach on {brand.name}</a></li>
                 <li><a href="#" className="hover:text-blue-400 transition-colors">Analytics Dashboard</a></li>
                 <li><a href="#" className="hover:text-blue-400 transition-colors">Resources</a></li>
               </ul>
@@ -458,7 +460,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            © 2024 CourseCompass. All rights reserved.
+            <BrandCopyright />
           </div>
         </div>
       </footer>

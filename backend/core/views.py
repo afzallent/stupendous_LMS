@@ -63,6 +63,30 @@ def health_check(request):
     }, status=status.HTTP_200_OK)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def branding(request):
+    """
+    Public white-label branding endpoint.
+
+    The frontend (header, auth pages, SEO metadata, certificates, copyright
+    lines) reads the brand name, tagline and logo from here so a deployment
+    can be rebranded entirely from the Django admin without a code change.
+    """
+    from core.models import SiteSettings
+
+    site_settings = SiteSettings.load()
+    return Response({
+        'site_name': site_settings.site_name,
+        'tagline': site_settings.tagline or None,
+        'site_url': site_settings.site_url,
+        'logo_url': (
+            request.build_absolute_uri(site_settings.logo.url)
+            if site_settings.logo else None
+        ),
+    })
+
+
 def register(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)

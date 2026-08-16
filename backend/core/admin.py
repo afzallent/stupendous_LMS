@@ -249,9 +249,11 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'description': 'Configure email settings for password resets and notifications. '
                           'For Gmail, use an App Password instead of your regular password.'
         }),
-        ('Site Configuration', {
-            'fields': ('site_name', 'site_url'),
-            'description': 'General site settings used throughout the application.'
+        ('Branding & Site Configuration', {
+            'fields': ('site_name', 'tagline', 'logo', 'site_url'),
+            'description': 'White-label branding: the site name, tagline and logo are served '
+                           'to the frontend via /api/settings/branding/ and used in emails '
+                           'and certificates.'
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
